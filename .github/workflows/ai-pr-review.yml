@@ -1,0 +1,36 @@
+name: AI PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  run-review:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the target repo (the one being reviewed)
+      - uses: actions/checkout@v3
+
+      # Checkout the shared AI reviewer repo into "tools"
+      - uses: actions/checkout@v3
+        with:
+          repository: BekLG/Ai-PR-reviewer
+          path: tools
+
+      # Install Python dependencies
+      - name: Install dependencies
+        run: pip install requests
+
+      # Run the AI reviewer script
+      - name: Run AI reviewer
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_SHA: ${{ github.event.pull_request.head.sha }}
+        run: python tools/scripts/call_gemini.py
