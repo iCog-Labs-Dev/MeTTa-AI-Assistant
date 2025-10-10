@@ -1,0 +1,6 @@
+populate_mongo.py
+test_mongo.py
+test_qdrant.py
+test_embeddinggemma.py
+
+.env
