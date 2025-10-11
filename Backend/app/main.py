@@ -8,6 +8,11 @@ from pymongo import AsyncMongoClient
 import os
 from pymongo.errors import PyMongoError
 from dotenv import load_dotenv
+from sentence_transformers import SentenceTransformer
+from app.embedding.metadata_index import setup_metadata_indexes
+from qdrant_client import AsyncQdrantClient
+from qdrant_client.http.models import VectorParams, Distance
+
 
 load_dotenv()
 
@@ -34,16 +39,44 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             logger.exception("Error while closing MongoDB client after failed connect")
         raise RuntimeError("Unable to connect to MongoDB") from e
 
-    try:
-        yield
-    finally:
-        try:
-            await app.state.mongo_client.close()
-            logger.info("MongoDB client closed")
-        except Exception:
-            logger.exception("Error closing MongoDB client during shutdown")
+        # === Qdrant Setup ===
+    qdrant_host = os.getenv("QDRANT_HOST")
+    qdrant_port = int(os.getenv("QDRANT_PORT", 6333))
+    collection_name = os.getenv("COLLECTION_NAME")
 
-    logger.info("Application shutting down .....")
+    if not qdrant_host or not collection_name:
+        raise RuntimeError("QDRANT_HOST and COLLECTION_NAME must be set in .env")
+
+    app.state.qdrant_client = AsyncQdrantClient(host=qdrant_host, port=qdrant_port)
+    logger.info("Qdrant client initialized")
+
+    # Setup metadata indexes (optional, non-blocking)
+    try:
+        await setup_metadata_indexes(app.state.qdrant_client, collection_name)
+        logger.info("Metadata indexes setup completed")
+    except Exception as e:
+        logger.warning(f"Metadata index setup skipped or failed: {e}")
+
+    # === Embedding Model Setup ===
+    app.state.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+    logger.info("Embedding model loaded and ready")
+
+    yield  # -----> Application runs here
+
+    # === Shutdown cleanup ===
+    try:
+        await app.state.mongo_client.close()
+        logger.info("MongoDB client closed")
+    except Exception:
+        logger.exception("Error closing MongoDB client during shutdown")
+
+    try:
+        await app.state.qdrant_client.close()
+        logger.info("Qdrant client closed")
+    except Exception:
+        logger.exception("Error closing Qdrant client during shutdown")
+
+    logger.info("Application shutdown complete.")
 
 app = FastAPI(lifespan=lifespan)
 app.include_router(chunks.router)
