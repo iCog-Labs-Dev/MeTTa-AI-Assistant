@@ -3,7 +3,7 @@ from typing import List, Optional
 from loguru import logger
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.llm_service import BaseLLMProvider, LLMQuotaExceededError
-from app.model.chunk import Chunk, AnnotationStatus # Ensure AnnotationStatus is imported
+from app.model.chunk import Chunk, AnnotationStatus 
 
 MAX_RETRIES = 3  
 class ChunkAnnotationService:
@@ -42,9 +42,7 @@ class ChunkAnnotationService:
             await self.repository.update_chunk_annotation(chunk_id, description=None, status=AnnotationStatus.FAILED_GEN)
             logger.error("Error annotating chunk {}: {}: {}", chunk_id, type(e).__name__, e)
             
-            # --- FIX 3: USE REPOSITORY METHOD FOR INCREMENT ---
             await self.repository.increment_retry_count(chunk_id)
-            # --------------------------------------------------
             return None
 
     async def batch_annotate_unannotated_chunks(self, limit: int = 100) -> List[str]:
