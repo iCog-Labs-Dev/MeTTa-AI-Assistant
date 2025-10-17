@@ -34,7 +34,6 @@ class Chunk(BaseModel):
     status: AnnotationStatus = Field(AnnotationStatus.RAW, description="Processing status of the chunk.")
     last_annotated_at: Optional[float] = None
     
-    # --- FIX 1: ADDED MISSING FIELDS FOR PERSISTENCE ---
     pending_since: Optional[float] = None
     retry_count: int = 0 
     
