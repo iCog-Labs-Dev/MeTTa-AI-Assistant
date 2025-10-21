@@ -16,18 +16,34 @@ LEVEL_COLORS = {
 
 load_dotenv()
 
+
 # Custom format for log messages
 def custom_format(record: Dict[str, Any]) -> str:
-    rel_file = os.path.relpath(record["file"].path)
-    level_name = record["level"].name
-    level_colored = LEVEL_COLORS.get(level_name, "{level}")
+    try:
+        rel_file = os.path.relpath(record["file"].path)
+    except (ValueError, TypeError):
+        rel_file = str(record["file"])
 
-    # Format the log message
+    level_name = record["level"].name
+    level_colored = LEVEL_COLORS.get(level_name, level_name)
+
+    
+    message = record.get("message", "")
+    if isinstance(message, dict):
+        message = str(message)
+    elif not isinstance(message, str):
+        message = str(message)
+
+    
+    if len(message) > 1000:
+        message = message[:1000] + "..."
+
+    
     return (
         f"{record['time'].strftime('%Y-%m-%d %H:%M:%S')} | "
         f"{level_colored:<8} | "
         f"{rel_file}:{record['line']}:{record['function']} - "
-        f"{record['message']}\n"
+        f"{message}\n"
     )
 
 
@@ -65,13 +81,52 @@ def setup_logging(log_level: str = "DEBUG") -> None:
 
     logger.remove()
 
+    # Check if we should enable colors (Docker or TTY)
+    color_enabled = os.getenv("FORCE_COLOR", "").lower() in ("1", "true", "yes") or (
+        hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+    )
+
+    # Create a format function that handles both colors and relative paths
+    def get_console_format(colorized: bool):
+        if colorized:
+
+            def colored_format(record):
+                try:
+                    rel_file = os.path.relpath(record["file"].path)
+                except (ValueError, TypeError):
+                    rel_file = str(record["file"])
+
+                message = record.get("message", "")
+                if isinstance(message, dict):
+                    message = str(message)
+                elif not isinstance(message, str):
+                    message = str(message)
+
+                # Truncate very long messages
+                if len(message) > 1000:
+                    message = message[:1000] + "..."
+
+                return (
+                    f"<green>{record['time'].strftime('%Y-%m-%d %H:%M:%S')}</green> | "
+                    f"<level>{record['level'].name:<8}</level> | "
+                    f"<cyan>{rel_file}</cyan>:<cyan>{record['line']}</cyan>:<cyan>{record['function']}</cyan> - "
+                    f"<level>{message}</level>\n"
+                )
+
+            return colored_format
+        else:
+            return custom_format
+
+    console_format = get_console_format(color_enabled)
+
     logger.add(
         sys.stdout,
-        format=custom_format,
+        format=console_format,
         level=level_name,
         enqueue=True,  # Enable thread-safe logging
         backtrace=False,  # Reduce console noise
         diagnose=False,  # Reduce console noise
+        colorize=color_enabled,
     )
 
     # Main application log (rotates when >50MB, keeps 10 days, compresses old logs)
@@ -129,19 +184,37 @@ def setup_logging(log_level: str = "DEBUG") -> None:
     class InterceptHandler(logging.Handler):
         def emit(self, record: logging.LogRecord) -> None:
             try:
+                # Filter out noisy MongoDB driver logs that cause formatting issues
+                logger_name = record.name
+                message = record.getMessage()
+
+                if "pymongo" in logger_name.lower() and "heartbeat" in message.lower():
+                    return
+
+                if "pymongo" in logger_name.lower() and len(message) > 500:
+                    return
+
                 level = logger.level(record.levelname).name
             except ValueError:
                 level = record.levelno
+            except Exception:
+                return
+
             frame, depth = logging.currentframe(), 2
             while frame and frame.f_code.co_filename == logging.__file__:
                 frame = frame.f_back
                 depth += 1
-            logger.opt(depth=depth, exception=record.exc_info).log(
-                level, record.getMessage()
-            )
+
+            try:
+                logger.opt(depth=depth, exception=record.exc_info).log(
+                    level, record.getMessage()
+                )
+            except Exception:
+                logger.log(level, f"[{record.name}] {record.getMessage()[:200]}")
 
     logging.root.handlers = [InterceptHandler()]
     logging.root.setLevel(std_level)
+
     for noisy_logger in (
         "uvicorn",
         "uvicorn.error",
@@ -153,6 +226,11 @@ def setup_logging(log_level: str = "DEBUG") -> None:
         logging.getLogger(noisy_logger).handlers = [InterceptHandler()]
         logging.getLogger(noisy_logger).propagate = False
         logging.getLogger(noisy_logger).setLevel(std_level)
+
+    # Set MongoDB driver to higher log level to reduce noise
+    logging.getLogger("pymongo").setLevel(logging.WARNING)
+    logging.getLogger("pymongo.connection").setLevel(logging.WARNING)
+    logging.getLogger("pymongo.pool").setLevel(logging.WARNING)
 
     logger.info(f"Logging initialized with level: {level_name}")
     logger.info(f"Log directory: {os.path.abspath(log_dir)}")

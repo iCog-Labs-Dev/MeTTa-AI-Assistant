@@ -14,6 +14,13 @@ services:
       - .env
     environment:
       - LOG_DIR=/app/logs
+      - FORCE_COLOR=1
+      - TERM=xterm-256color
+      - PYTHONUNBUFFERED=1
+    shm_size: "1g"
+    ipc: host
+    stdin_open: true
+    tty: true
 
   qdrant:
     image: qdrant/qdrant:v1.7.3

@@ -18,12 +18,23 @@ router = APIRouter(
 class ChunkUpdate(BaseModel):
     source: Optional[str] = None
     chunk: Optional[str] = None
+    isEmbedded: Optional[bool] = None
+    
+    # Code-specific fields
     project: Optional[str] = None
     repo: Optional[str] = None
-    section: Optional[list[str]] = None
-    file: Optional[list[str]] = None
+    section: Optional[List[str]] = None
+    file: Optional[List[str]] = None
     version: Optional[str] = None
-    isEmbedded: Optional[bool] = None
+
+    # Documentation-specific fields
+    url: Optional[str] = None
+    page_title: Optional[str] = None
+    category: Optional[str] = None
+
+    # PDF-specific fields
+    filename: Optional[str] = None
+    page_numbers: Optional[List[int]] = None
 
 # chunk repository
 @router.post("/ingest", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)

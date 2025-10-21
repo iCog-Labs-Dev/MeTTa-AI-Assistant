@@ -1,22 +1,32 @@
 name: AI PR Review
 
 on:
-  pull_request:
-    types: [opened, synchronize]
+  pull_request_target:
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: read
   pull-requests: write
 
+concurrency:
+  group: ${{ github.repository }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   run-review:
     runs-on: ubuntu-latest
     steps:
-      # Checkout the target repo (the one being reviewed)
-      - uses: actions/checkout@v3
+      # Checkout PR branch (works even for forked repos)
+      - name: Checkout PR branch
+        uses: actions/checkout@v3
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          submodules: false
 
       # Checkout the shared AI reviewer repo into "tools"
-      - uses: actions/checkout@v3
+      - name: Checkout AI reviewer tools
+        uses: actions/checkout@v3
         with:
           repository: BekLG/Ai-PR-reviewer
           path: tools

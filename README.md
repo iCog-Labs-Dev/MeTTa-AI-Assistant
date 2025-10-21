@@ -16,7 +16,22 @@ cp .env.example .env
 # Update .env with your values
 ```
 
-### 3. Build and run using Docker
+### 3. Ingest documents (first time setup)
+
+Before running the application, you need to ingest documents:
+
+```bash
+docker compose run --rm api python -m app.scripts.ingest_docs
+```
+
+You can also use the `--force` flag to re-ingest documents:
+```bash
+docker compose run --rm api python -m app.scripts.ingest_docs --force
+```
+
+This only needs to be done once (unless you want to re-ingest with `--force`).
+
+### 4. Build and run using Docker
 
 ```bash
 docker-compose up --build
@@ -24,7 +39,20 @@ docker-compose up --build
 
 This will start the FastAPI server on http://localhost:8000.
 
-### 4. Run locally (without Docker)
+### 5. Ingest documents (for local setup)
+
+Before running the application locally, you need to ingest documents:
+
+```bash
+python -m app.scripts.ingest_docs
+```
+
+You can also use the `--force` flag to re-ingest documents:
+```bash
+python -m app.scripts.ingest_docs --force
+```
+
+### 6. Run locally (without Docker)
 
 ```bash
 # Create virtual environment
@@ -36,7 +64,7 @@ venv\Scripts\activate     # Windows
 pip install -r requirements.txt
 
 # Start FastAPI server
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+python -m run.py
 
 ```
 

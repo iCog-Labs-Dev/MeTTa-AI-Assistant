@@ -24,12 +24,17 @@ load_dotenv()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Application has started")
     mongo_uri = os.getenv("MONGO_URI")
+    mongo_db_name = os.getenv("MONGO_DB")
     if not mongo_uri:
         logger.error("MONGO_URI is not set. Please set the MONGO_URI environment variable.")
         raise RuntimeError("MONGO_URI environment variable is required")
+    
+    if not mongo_db_name:
+        logger.error("MONGO_DB is not set. Please set the MONGO_DB environment variable.")
+        raise RuntimeError("MONGO_DB environment variable is required")
 
     app.state.mongo_client = AsyncMongoClient(mongo_uri)
-    app.state.mongo_db = app.state.mongo_client["chunkDB"]
+    app.state.mongo_db = app.state.mongo_client[mongo_db_name]
 
     # Validate connection by issuing a ping. If ping fails, close the client and stop startup.
     try:
