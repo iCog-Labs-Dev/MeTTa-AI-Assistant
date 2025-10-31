@@ -15,7 +15,7 @@ def main() -> None:
     uvicorn.run(
         app_ref,
         host="0.0.0.0",
-        port=8000,
+        port=9000,
         reload=reload_enabled,
         log_config=None,
         access_log=True,
