@@ -3,7 +3,7 @@ import time
 from loguru import logger
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict
-from app.routers import chunks,auth, protected
+from app.routers import chunks,auth, protected, chat
 from app.core.middleware import AuthMiddleware
 from pymongo import AsyncMongoClient
 import os
@@ -14,6 +14,7 @@ from app.rag.embedding.metadata_index import setup_metadata_indexes, create_coll
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import VectorParams, Distance
 from app.db.users import seed_admin
+from app.core.utils.llm_utils import LLMClientFactory
 
 
 load_dotenv()
@@ -76,6 +77,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
     logger.info("Embedding model loaded and ready")
 
+    # === LLM Provider Setup ===
+    app.state.default_llm_provider = LLMClientFactory.create_default_client()
+    logger.info(
+        f"Default LLM provider: {app.state.default_llm_provider.get_model_name()}"
+    )
+
     yield  # -----> Application runs here
 
     # === Shutdown cleanup ===
@@ -98,6 +105,7 @@ app.add_middleware(AuthMiddleware)
 app.include_router(chunks.router)
 app.include_router(auth.router)
 app.include_router(protected.router)
+app.include_router(chat.router)
 
 
 @app.middleware("http") 
