@@ -8,10 +8,6 @@ def get_mongo_client(request: Request) -> AsyncMongoClient:
     return request.app.state.mongo_client
 
 
-def get_mongo_db(request: Request) -> Database:
-    return request.app.state.mongo_db
-
-
 
 def get_embedding_model_dep(request: Request) -> SentenceTransformer:
     return request.app.state.embedding_model
