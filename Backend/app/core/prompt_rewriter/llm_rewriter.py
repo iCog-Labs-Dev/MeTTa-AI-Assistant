@@ -3,14 +3,12 @@ LLM-based prompt rewriter implementation using Google's Gemini API.
 """
 
 import os
-import logging
 import asyncio
 from typing import Optional
+from loguru import logger
 import google.generativeai as genai
 from dotenv import load_dotenv
 from .rewriter import PromptRewriter
-
-logger = logging.getLogger(__name__)
 
 load_dotenv()
 
