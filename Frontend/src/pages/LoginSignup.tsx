@@ -11,8 +11,6 @@ function LoginSignupPage() {
   const navigate = useNavigate()
   const setUser = useUserStore((state) => state.setUser)
   const [mode, setMode] = useState<'login' | 'signup'>('login')
-  const [firstName, setFirstName] = useState('')
-  const [lastName, setLastName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
@@ -116,30 +114,6 @@ function LoginSignupPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="first-name" className="text-white">First name</Label>
-                    <Input
-                      id="first-name"
-                      placeholder="Max"
-                      required
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-500"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="last-name" className="text-white">Last name</Label>
-                    <Input
-                      id="last-name"
-                      placeholder="Robinson"
-                      required
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-500"
-                    />
-                  </div>
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="email-signup" className="text-white">Email</Label>
                   <Input
@@ -207,5 +181,3 @@ function LoginSignupPage() {
 }
 
 export default LoginSignupPage
-
-
