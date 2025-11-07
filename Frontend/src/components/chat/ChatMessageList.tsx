@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import type { Message, SuggestionCard } from '../../types'
 import ChatMessageItem from './ChatMessageItem'
 
@@ -16,6 +17,12 @@ const suggestionCards: SuggestionCard[] = [
 
 function ChatMessageList({ messages, onSuggestionClick, onFeedback }: ChatMessageListProps) {
   const showWelcome = messages.length === 0
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // Auto-scroll to bottom when messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-8" style={{ scrollbarWidth: 'thin' }}>
@@ -42,6 +49,7 @@ function ChatMessageList({ messages, onSuggestionClick, onFeedback }: ChatMessag
             {messages.map((m) => (
               <ChatMessageItem key={m.id} message={m} onFeedback={onFeedback} />
             ))}
+            <div ref={messagesEndRef} />
           </div>
         )}
       </div>
