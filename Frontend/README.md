@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎨 MeTTa AI Assistant - Frontend
+# MeTTa AI Assistant - Frontend
 
 **Modern React + TypeScript chat interface with AI model management**
 
@@ -13,7 +13,7 @@
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
 - [Overview](#-overview)
 - [Features](#-features)
