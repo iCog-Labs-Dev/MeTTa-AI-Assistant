@@ -138,16 +138,15 @@ function ChatPage() {
   }
 
   function handleDeleteThread(id: string) {
-    if (confirm('Are you sure you want to delete this chat?')) {
-      setThreads(prev => prev.filter(t => t.id !== id))
-      // If deleting active thread, switch to another one
-      if (id === activeThreadId) {
-        const remainingThreads = threads.filter(t => t.id !== id)
-        if (remainingThreads.length > 0) {
-          setActiveThreadId(remainingThreads[0].id)
-        } else {
-          handleNewChat()
-        }
+    const remainingThreads = threads.filter(t => t.id !== id)
+    setThreads(remainingThreads)
+    // If deleting active thread, switch to another one
+    if (id === activeThreadId) {
+      if (remainingThreads.length > 0) {
+        setActiveThreadId(remainingThreads[0].id)
+        setMessages(remainingThreads[0].messages)
+      } else {
+        handleNewChat()
       }
     }
   }
