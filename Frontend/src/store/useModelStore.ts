@@ -15,14 +15,9 @@ export const useModelStore = create<ModelState>()(
   persist(
     (set) => ({
       models: [
-        { id: 'metta', name: 'MeTTa', provider: 'Local', requiresApiKey: false },
-        { id: 'gemini-pro', name: 'Gemini Pro', provider: 'Google', requiresApiKey: false },
-        { id: 'gemini-flash', name: 'Gemini Flash', provider: 'Google', requiresApiKey: false },
-        { id: 'claude-sonnet', name: 'Claude Sonnet', provider: 'Anthropic', requiresApiKey: false },
-        { id: 'gpt-4o', name: 'GPT-4o', provider: 'OpenAI', requiresApiKey: false },
-        { id: 'gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', requiresApiKey: false },
+        { id: 'default', name: 'Default', provider: 'Local', requiresApiKey: false },
       ],
-      activeId: 'metta',
+      activeId: 'default',
       addModel: (model) =>
         set((state) => ({
           models: [...state.models, { ...model, isCustom: true }],
