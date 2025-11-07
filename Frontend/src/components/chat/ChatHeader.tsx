@@ -16,6 +16,7 @@ function ChatHeader({ onToggleSidebar, onOpenSettings }: ChatHeaderProps) {
   const profileRef = useRef<HTMLDivElement>(null)
   
   const displayName = username || 'User'
+  const avatarInitial = email ? email.charAt(0).toUpperCase() : 'U'
   
   function handleLogout() {
     logout()
@@ -52,18 +53,18 @@ function ChatHeader({ onToggleSidebar, onOpenSettings }: ChatHeaderProps) {
       <div className="flex items-center gap-2.5 relative" ref={profileRef}>
         <button 
           onClick={() => setShowProfile(!showProfile)}
-          className="p-1.5 rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors" 
+          className="w-7 h-7 rounded-full bg-gray-100 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors flex items-center justify-center text-xs font-semibold" 
           title="Profile"
         >
-          <User className="w-3.5 h-3.5" />
+          {avatarInitial}
         </button>
 
         {showProfile && (
           <div className="absolute right-0 top-full mt-2 w-64 rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-black shadow-lg overflow-hidden z-50">
             <div className="p-3 border-b border-gray-200 dark:border-gray-800">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
-                  <User className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center text-sm font-semibold">
+                  {avatarInitial}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium truncate">{displayName}</div>
