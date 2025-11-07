@@ -10,7 +10,7 @@ function ModelSelector() {
   const activeModel = models.find(m => m.id === activeId)
   const [open, setOpen] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
-  const [newModel, setNewModel] = useState({ name: '', apiKey: '', provider: '' })
+  const [newModel, setNewModel] = useState({ provider: '', apiKey: '' })
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -28,16 +28,16 @@ function ModelSelector() {
 
   function addModel(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!newModel.name.trim() || !newModel.apiKey.trim()) return
-    const id = newModel.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+    if (!newModel.provider.trim() || !newModel.apiKey.trim()) return
+    const id = newModel.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
     addModelToStore({ 
       id, 
-      name: newModel.name, 
+      name: newModel.provider, 
       apiKey: newModel.apiKey,
-      provider: newModel.provider || 'Custom',
+      provider: newModel.provider,
       isCustom: true
     })
-    setNewModel({ name: '', apiKey: '', provider: '' })
+    setNewModel({ provider: '', apiKey: '' })
     setShowAdd(false)
   }
 
@@ -98,23 +98,22 @@ function ModelSelector() {
               </div>
               <form onSubmit={addModel} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="model-name">Model Name</Label>
-                  <Input
-                    id="model-name"
-                    placeholder="e.g., GPT-4, Claude 3"
-                    value={newModel.name}
-                    onChange={e => setNewModel({...newModel, name: e.target.value})}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="provider">Provider (Optional)</Label>
-                  <Input
+                  <Label htmlFor="provider">Provider</Label>
+                  <select
                     id="provider"
-                    placeholder="e.g., OpenAI, Anthropic"
                     value={newModel.provider}
                     onChange={e => setNewModel({...newModel, provider: e.target.value})}
-                  />
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-600"
+                    required
+                  >
+                    <option value="">Select a provider</option>
+                    <option value="OpenAI">OpenAI</option>
+                    <option value="Anthropic">Anthropic</option>
+                    <option value="Google">Google</option>
+                    <option value="Cohere">Cohere</option>
+                    <option value="Mistral">Mistral</option>
+                    <option value="Custom">Custom</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="api-key">API Key</Label>

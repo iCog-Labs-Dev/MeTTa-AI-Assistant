@@ -16,14 +16,14 @@ interface SettingsModalProps {
 
 function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { models, addModel, updateModel, removeModel } = useModelStore()
-  const { username, email, setUsername } = useUserStore()
+  const { email, accountCreatedAt } = useUserStore()
   const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingModel, setEditingModel] = useState<string | null>(null)
-  const [formData, setFormData] = useState({ name: '', apiKey: '', provider: '' })
+  const [formData, setFormData] = useState({ provider: '', apiKey: '' })
   const [isEditingName, setIsEditingName] = useState(false)
-  const [editedName, setEditedName] = useState(username || '')
+  const [editedName, setEditedName] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   if (!isOpen) return null
@@ -31,17 +31,8 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const customModels = models.filter(m => m.isCustom)
   const builtInModels = models.filter(m => !m.isCustom)
   
-  // Get user initials
-  const getInitials = (name: string) => {
-    return name
-      .split(' ')
-      .map(n => n[0])
-      .join('')
-      .toUpperCase()
-      .slice(0, 2)
-  }
-  
-  const userInitials = username ? getInitials(username) : 'U'
+  // Get avatar initial from email
+  const avatarInitial = email ? email.charAt(0).toUpperCase() : 'U'
   
   const sidebarItems = [
     { id: 'general' as SettingsTab, label: 'General', icon: Palette },
@@ -51,32 +42,32 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   function handleAddModel(e: React.FormEvent) {
     e.preventDefault()
-    if (!formData.name.trim() || !formData.apiKey.trim()) return
+    if (!formData.provider.trim() || !formData.apiKey.trim()) return
     
-    const id = formData.name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+    const id = formData.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
     addModel({
       id,
-      name: formData.name,
+      name: formData.provider,
       apiKey: formData.apiKey,
-      provider: formData.provider || 'Custom',
+      provider: formData.provider,
       isCustom: true
     })
     
-    setFormData({ name: '', apiKey: '', provider: '' })
+    setFormData({ provider: '', apiKey: '' })
     setShowAddModal(false)
   }
 
   function handleUpdateModel(e: React.FormEvent) {
     e.preventDefault()
-    if (!editingModel || !formData.name.trim() || !formData.apiKey.trim()) return
+    if (!editingModel || !formData.provider.trim() || !formData.apiKey.trim()) return
     
     updateModel(editingModel, {
-      name: formData.name,
+      name: formData.provider,
       apiKey: formData.apiKey,
-      provider: formData.provider || 'Custom'
+      provider: formData.provider
     })
     
-    setFormData({ name: '', apiKey: '', provider: '' })
+    setFormData({ provider: '', apiKey: '' })
     setEditingModel(null)
   }
 
@@ -84,9 +75,8 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     const model = models.find(m => m.id === modelId)
     if (model) {
       setFormData({
-        name: model.name,
-        apiKey: model.apiKey || '',
-        provider: model.provider || ''
+        provider: model.provider || '',
+        apiKey: model.apiKey || ''
       })
       setEditingModel(modelId)
     }
@@ -99,12 +89,11 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   function closeModal() {
     setShowAddModal(false)
     setEditingModel(null)
-    setFormData({ name: '', apiKey: '', provider: '' })
+    setFormData({ provider: '', apiKey: '' })
   }
 
   function handleSaveName() {
     if (editedName.trim()) {
-      setUsername(editedName.trim())
       setIsEditingName(false)
     }
   }
@@ -296,61 +285,17 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <div className="bg-white dark:bg-black rounded-lg border border-zinc-200 dark:border-zinc-800 p-6">
                 <div className="flex items-center gap-4 mb-6">
                   <div className="w-16 h-16 rounded-full bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-zinc-700 dark:text-zinc-300 text-xl font-semibold">
-                    {userInitials}
+                    {avatarInitial}
                   </div>
                   <div>
-                    <h3 className="font-semibold">{username || 'User'}</h3>
                     <p className="text-sm text-zinc-600 dark:text-zinc-400">{email || 'user@example.com'}</p>
+                    {accountCreatedAt && (
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Account created on: {new Date(accountCreatedAt).toLocaleDateString()}</p>
+                    )}
                   </div>
                 </div>
 
                 <div className="space-y-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <Label className="text-xs font-medium">Name</Label>
-                      {!isEditingName && (
-                        <button
-                          onClick={() => {
-                            setIsEditingName(true)
-                            setEditedName(username || '')
-                          }}
-                          className="text-xs text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          Edit
-                        </button>
-                      )}
-                    </div>
-                    {isEditingName ? (
-                      <div className="flex gap-2">
-                        <Input
-                          value={editedName}
-                          onChange={(e) => setEditedName(e.target.value)}
-                          className="flex-1"
-                          autoFocus
-                        />
-                        <Button size="sm" onClick={handleSaveName}>
-                          <Check className="w-4 h-4" />
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          onClick={() => {
-                            setIsEditingName(false)
-                            setEditedName(username || '')
-                          }}
-                        >
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ) : (
-                      <Input value={username || ''} disabled className="bg-zinc-50 dark:bg-zinc-900" />
-                    )}
-                  </div>
-                  <div>
-                    <Label className="text-xs font-medium mb-1.5 block">Email</Label>
-                    <Input value={email || ''} disabled className="bg-zinc-50 dark:bg-zinc-900" />
-                  </div>
                 </div>
               </div>
             </div>
@@ -376,23 +321,22 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
                 <form onSubmit={editingModel ? handleUpdateModel : handleAddModel} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="model-name">Model Name</Label>
-                  <Input
-                    id="model-name"
-                    placeholder="e.g., GPT-4, Claude 3"
-                    value={formData.name}
-                    onChange={e => setFormData({ ...formData, name: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="provider">Provider (Optional)</Label>
-                  <Input
+                  <Label htmlFor="provider">Provider</Label>
+                  <select
                     id="provider"
-                    placeholder="e.g., OpenAI, Anthropic"
                     value={formData.provider}
                     onChange={e => setFormData({ ...formData, provider: e.target.value })}
-                  />
+                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
+                    required
+                  >
+                    <option value="">Select a provider</option>
+                    <option value="OpenAI">OpenAI</option>
+                    <option value="Anthropic">Anthropic</option>
+                    <option value="Google">Google</option>
+                    <option value="Cohere">Cohere</option>
+                    <option value="Mistral">Mistral</option>
+                    <option value="Custom">Custom</option>
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="api-key">API Key</Label>
