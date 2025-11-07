@@ -230,9 +230,14 @@ function Sidebar({ threads, activeId, onSelect, onNewChat, onRenameThread, onDel
                 <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
                 <Button 
                   className="bg-red-600 hover:bg-red-700 text-white"
-                  onClick={() => {
-                    onDeleteThread(confirmDeleteId)
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (confirmDeleteId) {
+                      onDeleteThread(confirmDeleteId)
+                    }
                     setConfirmDeleteId(null)
+                    setActiveMenu(null)
                   }}
                 >
                   Delete
