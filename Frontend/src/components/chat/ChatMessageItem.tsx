@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ThumbsUp, ThumbsDown } from 'lucide-react'
+import { ThumbsUp, ThumbsDown, Copy, Check } from 'lucide-react'
 import type { Message } from '../../types'
 
 interface ChatMessageItemProps {
@@ -9,6 +9,13 @@ interface ChatMessageItemProps {
 
 function ChatMessageItem({ message, onFeedback }: ChatMessageItemProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(message.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -17,7 +24,7 @@ function ChatMessageItem({ message, onFeedback }: ChatMessageItemProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className={`max-w-[80%] px-3 py-1.5 rounded-2xl text-xs leading-[1.4] ${
+        <div className={`w-full max-w-md px-3 py-1.5 rounded-2xl text-xs leading-[1.4] break-words ${
           message.role === 'user' 
             ? 'bg-black dark:bg-white text-white dark:text-black' 
             : 'bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800'
@@ -47,6 +54,13 @@ function ChatMessageItem({ message, onFeedback }: ChatMessageItemProps) {
               title="Bad response"
             >
               <ThumbsDown className="w-3 h-3" />
+            </button>
+            <button
+              onClick={handleCopy}
+              className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
+              title="Copy message"
+            >
+              {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
             </button>
           </div>
         )}
