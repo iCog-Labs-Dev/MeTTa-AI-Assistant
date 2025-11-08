@@ -83,9 +83,6 @@ class LLMClient:
             )
 
         response = await client.ainvoke(prompt)
-
-        print(response.to_json())
-
         return response.content
 
     @async_retry(retry_on=_is_rate_limit)

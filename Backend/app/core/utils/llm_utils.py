@@ -16,21 +16,21 @@ class LLMClientFactory:
         retry_cfg: Optional[RetryConfig] = None,
         **kwargs,
     ) -> LLMClient:
-            if provider not in (LLMProvider.GEMINI, LLMProvider.OPENAI):
-                raise ValueError(f"Unsupported provider: {provider}")
+        if provider not in (LLMProvider.GEMINI, LLMProvider.OPENAI):
+            raise ValueError(f"Unsupported provider: {provider}")
 
-            if not model_name:
-                model_name = (
-                    "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-3.5-turbo"
-                )
-
-            return LLMClient(
-                provider=provider,
-                model_name=model_name,
-                api_keys=api_keys,
-                retry_cfg=retry_cfg,
-                **kwargs,
+        if not model_name:
+            model_name = (
+                "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-3.5-turbo"
             )
+
+        return LLMClient(
+            provider=provider,
+            model_name=model_name,
+            api_keys=api_keys,
+            retry_cfg=retry_cfg,
+            **kwargs,
+        )
 
     @staticmethod
     def create_default_client() -> LLMClient:
