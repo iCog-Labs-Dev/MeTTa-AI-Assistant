@@ -5,8 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 
 from app.services.chunk_annotation_service import ChunkAnnotationService
 from app.core.clients.llm_clients import LLMQuotaExceededError
-from app.dependencies import get_annotation_service
+from app.dependencies import get_annotation_service, require_role
 from app.model.chunk import ChunkSchema, AnnotationStatus
+
+from app.db.users import UserRole
 
 router = APIRouter(prefix="/annotation", tags=["Chunk Annotation"])
 
@@ -22,6 +24,7 @@ async def trigger_batch_annotation_all(
     background_tasks: BackgroundTasks,
     limit: Optional[int] = None,
     annotation_service: ChunkAnnotationService = Depends(get_annotation_service),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """
     Triggers a background job that annotates unannotated/stale chunks.
@@ -60,6 +63,7 @@ async def retry_failed_annotations(
     background_tasks: BackgroundTasks,
     include_quota: bool = False,
     annotation_service: ChunkAnnotationService = Depends(get_annotation_service),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """
     Triggers a background job that retries annotation for all previously failed chunks.
@@ -98,6 +102,7 @@ async def retry_failed_annotations(
 async def annotate_chunk(
     chunk_id: str,
     annotation_service: ChunkAnnotationService = Depends(get_annotation_service),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """
     Triggers annotation for a single chunk and returns the updated chunk record.

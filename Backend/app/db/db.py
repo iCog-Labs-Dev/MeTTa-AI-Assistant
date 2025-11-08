@@ -7,6 +7,9 @@ from pymongo.collection import Collection
 from loguru import logger
 from typing import Union, List
 from app.model.chunk import ChunkSchema
+from app.model.chat_message import ChatMessageSchema
+from app.model.chat_session import ChatSessionSchema
+import time
 
 
 def _get_collection(mongo_db: Database, name: str) -> Collection:
@@ -258,3 +261,70 @@ async def clear_symbols_index(mongo_db: Database = None) -> None:
         """
         symbols_collection = _get_collection(mongo_db, "symbols")
         await symbols_collection.delete_many({})
+
+
+# ----------------------------------
+# CHAT MESSAGES CRUD
+# ----------------------------------
+async def insert_chat_message(
+    msg_data: dict, mongo_db: Database = None
+) -> Optional[str]:
+    """
+    Insert a single chat message into the 'chat_messages' collection.
+    Generates messageId/createdAt if missing. Returns messageId.
+    """
+    collection = _get_collection(mongo_db, "chat_messages")
+    try:
+        if "messageId" not in msg_data or not msg_data.get("messageId"):
+            msg_data["messageId"] = str(ObjectId())
+        if "createdAt" not in msg_data or msg_data.get("createdAt") is None:
+            msg_data["createdAt"] = int(time.time() * 1000)
+        chat_msg = ChatMessageSchema(**msg_data)
+    except Exception as e:
+        logger.error("Validation error:", e)
+        return None
+
+    await collection.insert_one(chat_msg.model_dump())
+    return chat_msg.messageId
+
+
+async def get_last_messages(
+    session_id: str,
+    limit: int = 5,
+    mongo_db: Database = None,
+) -> List[dict]:
+    """
+    Return the last `limit` messages for a session ordered chronologically (oldest -> newest).
+    """
+    collection = _get_collection(mongo_db, "chat_messages")
+    cursor = (
+        collection.find({"sessionId": session_id}).sort("createdAt", -1).limit(limit)
+    )
+    recent = [doc async for doc in cursor]
+    recent.reverse()
+    return recent
+
+
+# ----------------------------------
+# CHAT SESSIONS CRUD
+# ----------------------------------
+async def create_chat_session(mongo_db: Database = None) -> str:
+    """
+    Create a new chat session and return its sessionId.
+    """
+    collection = _get_collection(mongo_db, "chat_sessions")
+    sid = str(ObjectId())
+    doc = ChatSessionSchema(
+        sessionId=sid, createdAt=int(time.time() * 1000)
+    ).model_dump()
+    await collection.insert_one(doc)
+    return sid
+
+
+async def delete_chat_session(session_id: str, mongo_db: Database = None) -> int:
+    """
+    Delete a chat session document. Returns number of documents deleted (0 or 1).
+    """
+    collection = _get_collection(mongo_db, "chat_sessions")
+    result = await collection.delete_one({"sessionId": session_id})
+    return result.deleted_count

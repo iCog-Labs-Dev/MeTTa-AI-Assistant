@@ -5,9 +5,16 @@ from pymongo.database import Database
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from ..core.repo_ingestion.ingest import ingest_pipeline
 from app.db.db import update_chunk, delete_chunk, get_chunk_by_id, get_chunks
-from app.dependencies import get_mongo_db, get_embedding_model_dep, get_qdrant_client_dep
+from app.dependencies import (
+    get_mongo_db,
+    get_embedding_model_dep,
+    get_qdrant_client_dep,
+    require_role,
+)
 from app.rag.embedding.pipeline import embedding_pipeline
 from app.rag.retriever.retriever import EmbeddingRetriever
+
+from app.db.users import UserRole
 
 router = APIRouter(
     prefix="/api/chunks",
@@ -41,7 +48,8 @@ class ChunkUpdate(BaseModel):
 async def ingest_repository(
     repo_url: str, 
     chunk_size: int = Query(1500, ge=500, le=1500), 
-    mongo_db: Database = Depends(get_mongo_db)
+    mongo_db: Database = Depends(get_mongo_db),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """Ingest and chunk a code repository."""
     try:
@@ -55,7 +63,9 @@ async def ingest_repository(
 
 @router.patch("/{chunk_id}", response_model=Dict[str, Any])
 async def update_chunk_endpoint(
-    chunk_id: str, chunk_update: ChunkUpdate, mongo_db : Database =Depends(get_mongo_db)
+    chunk_id: str, chunk_update: ChunkUpdate, 
+    mongo_db : Database =Depends(get_mongo_db),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """
     Update a chunk by its ID.
@@ -87,7 +97,10 @@ async def update_chunk_endpoint(
     return {"message": "Chunk updated successfully", "chunk": updated_chunk}
 
 @router.delete("/{chunk_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_chunk_endpoint(chunk_id: str, mongo_db : Database =Depends(get_mongo_db)):
+async def delete_chunk_endpoint(
+    chunk_id: str, 
+    mongo_db : Database =Depends(get_mongo_db),
+    _: None = Depends(require_role(UserRole.ADMIN)),):
     """
     Delete a chunk by its ID.
     """
@@ -114,6 +127,7 @@ async def list_chunks(
     section: Optional[str] = None,
     limit: int = Query(100, ge=1, le=1000, description="Limit the number of results (1-1000)"),
     mongo_db : Database =Depends(get_mongo_db),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """
     List all chunks with optional filtering.
@@ -146,7 +160,8 @@ async def list_chunks(
 async def run_embedding_pipeline(
     mongo_db: Database = Depends(get_mongo_db),
     model = Depends(get_embedding_model_dep),
-    qdrant = Depends(get_qdrant_client_dep)
+    qdrant = Depends(get_qdrant_client_dep),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """Trigger the embedding pipeline until all unembedded chunks are processed."""
     collection_name = os.getenv("COLLECTION_NAME")
@@ -184,6 +199,7 @@ async def semantic_search(
     top_k: int = Query(5, ge=1, le=50),
     model = Depends(get_embedding_model_dep),
     qdrant = Depends(get_qdrant_client_dep),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     collection_name = os.getenv("COLLECTION_NAME")
     if not collection_name:

@@ -4,7 +4,6 @@ from app.rag.retriever.schema import Document
 from app.core.clients.llm_clients import LLMClient, LLMProvider
 from app.core.utils.llm_utils import LLMClientFactory, LLMResponseFormatter
 
-
 class RAGGenerator:
     def __init__(
         self,
@@ -19,12 +18,17 @@ class RAGGenerator:
         )
 
     async def generate_response(
-        self, query: str, top_k: int = 5, include_sources: bool = True
+        self,
+        query: str,
+        top_k: int = 5,
+        include_sources: bool = True,
+        history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
         retrieved_docs = await self.retriever.retrieve(query, top_k=top_k)
         context = self._assemble_context(retrieved_docs)
-        prompt = LLMResponseFormatter.build_rag_prompt(query, context)
+        prompt = LLMResponseFormatter.build_rag_prompt(query, context, history)
         response = await self.llm_client.generate_text(prompt)
+
         sources = self._format_sources(retrieved_docs) if include_sources else None
         return LLMResponseFormatter.format_rag_response(
             query=query, response=response, client=self.llm_client, sources=sources
