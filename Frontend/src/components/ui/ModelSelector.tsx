@@ -107,12 +107,9 @@ function ModelSelector() {
                     required
                   >
                     <option value="">Select a provider</option>
+                    <option value="Google">Google (Gemini)</option>
                     <option value="OpenAI">OpenAI</option>
                     <option value="Anthropic">Anthropic</option>
-                    <option value="Google">Google</option>
-                    <option value="Cohere">Cohere</option>
-                    <option value="Mistral">Mistral</option>
-                    <option value="Custom">Custom</option>
                   </select>
                 </div>
                 <div className="space-y-2">
