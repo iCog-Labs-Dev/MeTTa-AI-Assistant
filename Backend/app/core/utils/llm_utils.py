@@ -57,13 +57,24 @@ class LLMResponseFormatter:
         }
 
     @staticmethod
-    def build_rag_prompt(query: str, context: str) -> str:
+    def build_rag_prompt(
+        query: str, context: str, history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        history_block = ""
+        if history:
+            lines = ["Conversation History:"]
+            for m in history:
+                role = m.get("role", "user").capitalize()
+                content = m.get("content", "").strip()
+                lines.append(f"{role}: {content}")
+            history_block = "\n" + "\n".join(lines) + "\n"
         return f"""You are Metta AI Assistant, an intelligent assistant designed to accelerate the development and adoption of the MeTTa programming language—central to the Hyperon framework for AGI. Your primary role is to help developers write, understand, and translate MeTTa code using your knowledge base.
 
 Based on the following context from the MeTTa knowledge base, provide a comprehensive and accurate answer to the user's question about MeTTa programming, Hyperon framework, or related AGI concepts.
 
 Context:
 {context}
+{history_block}
 
 User Question: {query}
 
