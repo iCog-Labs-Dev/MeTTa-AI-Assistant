@@ -71,7 +71,7 @@ function ModelSelector() {
               onClick={() => { setShowAdd(true); setOpen(false) }} 
               className="w-full text-left px-3 py-1.5 text-xs border-t border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors font-medium"
             >
-              + Add model
+              + Add your own Key
             </button>
           </div>
         )}
