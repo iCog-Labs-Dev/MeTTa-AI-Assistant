@@ -1,12 +1,15 @@
 import os
 from typing import Optional, Literal
+from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from app.dependencies import (
     get_embedding_model_dep,
     get_qdrant_client_dep,
     get_llm_provider_dep,
     get_mongo_db,
+    get_kms,
+    get_current_user
 )
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.core.clients.llm_clients import LLMProvider
@@ -40,11 +43,14 @@ async def create_session(mongo_db=Depends(get_mongo_db)):
 @router.post("/", summary="Chat with RAG system")
 async def chat(
     request: Request,
+    response: Response, 
     chat_request: ChatRequest,
     model_dep=Depends(get_embedding_model_dep),
     qdrant=Depends(get_qdrant_client_dep),
     default_llm=Depends(get_llm_provider_dep),
     mongo_db=Depends(get_mongo_db),
+    current_user = Depends(get_current_user),
+    kms = Depends(get_kms)
 ):
 
     query, provider, model = (
@@ -61,6 +67,26 @@ async def chat(
     collection_name = os.getenv("COLLECTION_NAME")
     if not collection_name:
         raise HTTPException(status_code=500, detail="COLLECTION_NAME not set")
+    
+    if not provider:
+        raise HTTPException(status_code=400, detail="Provider must be specified")
+    
+    # Extract cookies
+    encrypted_key = request.cookies.get(provider.lower())
+    if not encrypted_key:
+        raise HTTPException(status_code=401, detail=f"Missing API key cookie for provider '{provider.lower()}'. ")
+
+    api_key = await kms.decrypt_api_key(encrypted_key, current_user["id"], provider.lower(), mongo_db)
+    # refresh encrypted_api_key expiry date | sliding expiration refresh
+    response.set_cookie(
+        key=provider.lower(), 
+        value=encrypted_key, 
+        httponly=True, 
+        samesite="Strict",
+        secure=True,
+        expires=(datetime.now(timezone.utc) + timedelta(days=7))
+        )
+    
     try:
         retriever = EmbeddingRetriever(
             model=model_dep, qdrant=qdrant, collection_name=collection_name
@@ -92,7 +118,7 @@ async def chat(
             ]
 
             result = await generator.generate_response(
-                query, top_k=top_k, include_sources=True, history=history
+                query, top_k=top_k, api_key=api_key, include_sources=True, history=history
             )
 
             await insert_chat_message(
