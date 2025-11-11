@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react'
 import { Input } from './input'
 import { Button } from './button'
 import { Label } from './label'
+import ProviderSelect from './ProviderSelect'
 
 function ModelSelector() {
   const { models, activeId, setActive, addModel: addModelToStore } = useModelStore()
@@ -99,17 +100,11 @@ function ModelSelector() {
               <form onSubmit={addModel} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="provider">Provider</Label>
-                  <select
-                    id="provider"
+                  <ProviderSelect
                     value={newModel.provider}
-                    onChange={e => setNewModel({...newModel, provider: e.target.value})}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-gray-400 dark:focus:ring-gray-600"
+                    onChange={value => setNewModel({...newModel, provider: value})}
                     required
-                  >
-                    <option value="">Select a provider</option>
-                    <option value="Google">Google (Gemini)</option>
-                    <option value="OpenAI">OpenAI</option>
-                  </select>
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="api-key">API Key</Label>
