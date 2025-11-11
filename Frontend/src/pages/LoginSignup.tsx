@@ -4,12 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Button } from '../components/ui/button'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Sun, Moon } from 'lucide-react'
 import { useUserStore } from '../store/useUserStore'
+import { useTheme } from '../hooks/useTheme'
 
 function LoginSignupPage() {
   const navigate = useNavigate()
   const setUser = useUserStore((state) => state.setUser)
+  const { theme, setTheme } = useTheme()
   const [mode, setMode] = useState<'login' | 'signup'>('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,19 +27,32 @@ function LoginSignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-950 text-gray-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 p-4 transition-colors">
+      {/* Theme Toggle */}
+      <button
+        onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        className="fixed top-4 right-4 p-2 rounded-lg bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+        title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      >
+        {theme === 'light' ? (
+          <Moon className="w-5 h-5 text-zinc-700 dark:text-zinc-300" />
+        ) : (
+          <Sun className="w-5 h-5 text-zinc-700 dark:text-zinc-300" />
+        )}
+      </button>
+      
       <div className="w-full max-w-md">
-        <div className="flex border border-gray-800 rounded-t-md overflow-hidden relative">
+        <div className="flex border border-zinc-200 dark:border-zinc-800 rounded-t-md overflow-hidden relative">
           <div 
-            className={`absolute bottom-0 left-0 h-0.5 bg-white transition-all duration-300 ease-in-out ${
+            className={`absolute bottom-0 left-0 h-0.5 bg-zinc-900 dark:bg-zinc-100 transition-all duration-300 ease-in-out ${
               mode === 'login' ? 'w-1/2 translate-x-0' : 'w-1/2 translate-x-full'
             }`}
           />
           <button
             className={`flex-1 py-3 text-sm font-medium transition-all duration-300 ${
               mode === 'login'
-                ? 'bg-gray-900 text-white'
-                : 'bg-transparent text-gray-500 hover:text-gray-300'
+                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100'
+                : 'bg-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             }`}
             onClick={() => setMode('login')}
           >
@@ -46,8 +61,8 @@ function LoginSignupPage() {
           <button
             className={`flex-1 py-3 text-sm font-medium transition-all duration-300 ${
               mode === 'signup'
-                ? 'bg-gray-900 text-white'
-                : 'bg-transparent text-gray-500 hover:text-gray-300'
+                ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100'
+                : 'bg-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             }`}
             onClick={() => setMode('signup')}
           >
@@ -56,17 +71,17 @@ function LoginSignupPage() {
         </div>
 
         {mode === 'login' ? (
-          <Card className="rounded-t-none bg-gray-900 border-gray-800">
+          <Card className="rounded-t-none bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
             <CardHeader>
-              <CardTitle className="text-lg md:text-xl text-white">Sign In</CardTitle>
-              <CardDescription className="text-xs md:text-sm text-gray-400">
+              <CardTitle className="text-lg md:text-xl text-zinc-900 dark:text-zinc-100">Sign In</CardTitle>
+              <CardDescription className="text-xs md:text-sm text-zinc-600 dark:text-zinc-400">
                 Enter your email below to login to your account
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-white">Email</Label>
+                  <Label htmlFor="email" className="text-zinc-900 dark:text-zinc-100">Email</Label>
                   <Input
                     id="email"
                     type="email"
@@ -74,11 +89,11 @@ function LoginSignupPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-500"
+                    className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password" className="text-white">Password</Label>
+                  <Label htmlFor="password" className="text-zinc-900 dark:text-zinc-100">Password</Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -87,35 +102,35 @@ function LoginSignupPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-500 pr-10"
+                      className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full bg-white text-black hover:bg-gray-200">
+                <Button type="submit" className="w-full bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200">
                   Login
                 </Button>
               </form>
             </CardContent>
           </Card>
         ) : (
-          <Card className="rounded-t-none bg-gray-900 border-gray-800">
+          <Card className="rounded-t-none bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
             <CardHeader>
-              <CardTitle className="text-lg md:text-xl text-white">Sign Up</CardTitle>
-              <CardDescription className="text-xs md:text-sm text-gray-400">
+              <CardTitle className="text-lg md:text-xl text-zinc-900 dark:text-zinc-100">Sign Up</CardTitle>
+              <CardDescription className="text-xs md:text-sm text-zinc-600 dark:text-zinc-400">
                 Enter your information to create an account
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email-signup" className="text-white">Email</Label>
+                  <Label htmlFor="email-signup" className="text-zinc-900 dark:text-zinc-100">Email</Label>
                   <Input
                     id="email-signup"
                     type="email"
@@ -123,11 +138,11 @@ function LoginSignupPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-500"
+                    className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password-signup" className="text-white">Password</Label>
+                  <Label htmlFor="password-signup" className="text-zinc-900 dark:text-zinc-100">Password</Label>
                   <div className="relative">
                     <Input
                       id="password-signup"
@@ -136,19 +151,19 @@ function LoginSignupPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-500 pr-10"
+                      className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password-confirm" className="text-white">Confirm Password</Label>
+                  <Label htmlFor="password-confirm" className="text-zinc-900 dark:text-zinc-100">Confirm Password</Label>
                   <div className="relative">
                     <Input
                       id="password-confirm"
@@ -157,18 +172,18 @@ function LoginSignupPage() {
                       required
                       value={passwordConfirmation}
                       onChange={(e) => setPasswordConfirmation(e.target.value)}
-                      className="bg-gray-900 border-gray-800 text-white placeholder:text-gray-500 pr-10"
+                      className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 pr-10"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300"
                     >
                       {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full bg-white text-black hover:bg-gray-200">
+                <Button type="submit" className="w-full bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200">
                   Create an account
                 </Button>
               </form>
