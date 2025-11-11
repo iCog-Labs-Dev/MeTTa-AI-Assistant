@@ -109,7 +109,6 @@ function ModelSelector() {
                     <option value="">Select a provider</option>
                     <option value="Google">Google (Gemini)</option>
                     <option value="OpenAI">OpenAI</option>
-                    <option value="Anthropic">Anthropic</option>
                   </select>
                 </div>
                 <div className="space-y-2">
