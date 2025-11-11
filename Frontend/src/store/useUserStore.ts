@@ -5,6 +5,7 @@ interface UserState {
   username: string
   email: string
   isAuthenticated: boolean
+  accountCreatedAt: number | null;
   setUser: (email: string) => void
   setUsername: (username: string) => void
   logout: () => void
@@ -16,6 +17,7 @@ export const useUserStore = create<UserState>()(
       username: '',
       email: '',
       isAuthenticated: false,
+      accountCreatedAt: null,
       setUser: (email) => {
         const username = email.split('@')[0]
         set({
@@ -30,6 +32,7 @@ export const useUserStore = create<UserState>()(
           username: '',
           email: '',
           isAuthenticated: false,
+          accountCreatedAt: null,
         }),
     }),
     {
