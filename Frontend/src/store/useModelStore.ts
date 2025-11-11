@@ -2,6 +2,17 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Model } from '../types'
 
+export interface Provider {
+  id: string
+  name: string
+  displayName: string
+}
+
+export const AVAILABLE_PROVIDERS: Provider[] = [
+  { id: 'google', name: 'Google', displayName: 'Google (Gemini)' },
+  { id: 'openai', name: 'OpenAI', displayName: 'OpenAI' },
+]
+
 interface ModelState {
   models: Model[]
   activeId: string
