@@ -6,6 +6,7 @@ from qdrant_client import AsyncQdrantClient
 from app.core.clients.llm_clients import LLMClient
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.chunk_annotation_service import ChunkAnnotationService
+from app.services.key_management_service import KMS
 from app.db.users import UserRole
 
 
@@ -45,6 +46,10 @@ def get_annotation_service(
 ) -> ChunkAnnotationService:
     """Provide ChunkAnnotationService that orchestrates chunk retrieval and annotation."""
     return ChunkAnnotationService(repository=repository, llm_provider=llm_provider)
+
+def get_kms(request: Request) -> KMS:
+    '''Key management service class dependency'''
+    return request.app.state.kms
 
 
 def get_current_user(request: Request) -> dict:

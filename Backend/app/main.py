@@ -14,8 +14,9 @@ from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import VectorParams, Distance
 from app.db.users import seed_admin
 from app.core.utils.llm_utils import LLMClientFactory
-from app.routers import chunks, auth, protected,chunk_annotation, chat
+from app.routers import chunks, auth, protected,chunk_annotation, chat, key_management
 from app.repositories.chunk_repository import ChunkRepository
+from app.services.key_management_service import KMS
 
 load_dotenv()
 
@@ -93,6 +94,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         f"Default LLM provider: {app.state.default_llm_provider.get_model_name()}"
     )
 
+    # ===== Key management service setup =====
+    KEK = os.getenv("KEY_ENCRYPTION_KEY")
+    if not KEK:
+        raise ValueError("KEY_ENCRYPTION_KEY environment variable is required")
+    
+    try:
+        app.state.kms = KMS(KEK)
+    except ValueError as e:
+        logger.error(f"Invalid KMS_KEK: {e}")
+        raise
+
+    logger.info("Key Management Service initialized")
     yield  # -----> Application runs here
 
     # === Shutdown cleanup ===
@@ -118,6 +131,7 @@ app.include_router(auth.router)
 app.include_router(protected.router)
 app.include_router(chat.router)
 app.include_router(chunk_annotation.router)
+app.include_router(key_management.router)
 
 
 @app.middleware("http") 
