@@ -1,11 +1,19 @@
 import { useState } from 'react'
-import { useModelStore } from '../store/useModelStore'
-import { useUserStore } from '../store/useUserStore'
-import { useTheme } from '../hooks/useTheme'
-import { X, Plus, Pencil, Trash2, User, Palette, Globe, ArrowLeft, ChevronRight } from 'lucide-react'
-import { Button } from './ui/button'
-import { Input } from './ui/input'
-import { Label } from './ui/label'
+import { useModelStore } from '../../store/useModelStore'
+import { useUserStore } from '../../store/useUserStore'
+import { useTheme } from '../../hooks/useTheme'
+import { X, User, Palette, Globe, ArrowLeft, ChevronRight, Plus } from 'lucide-react'
+import ModelList from '../ui/ModelList'
+import ModelForm from '../ui/ModelForm'
+import { Button } from '../ui/button'
+import { 
+  createModelFromForm, 
+  updateModelFromForm, 
+  modelToFormData, 
+  validateModelForm,
+  filterModels,
+  ModelFormData
+} from '../../lib/models'
 
 type SettingsTab = 'general' | 'models' | 'account' | null
 
@@ -21,13 +29,12 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingModel, setEditingModel] = useState<string | null>(null)
-  const [formData, setFormData] = useState({ provider: '', apiKey: '' })
+  const [formData, setFormData] = useState<ModelFormData>({ provider: '', apiKey: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   if (!isOpen) return null
 
-  const customModels = models.filter(m => m.isCustom)
-  const builtInModels = models.filter(m => !m.isCustom)
+  const { customModels, builtInModels } = filterModels(models)
   
   // Get avatar initial from email
   const avatarInitial = email ? email.charAt(0).toUpperCase() : 'U'
@@ -40,42 +47,22 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
 
   function handleAddModel(e: React.FormEvent) {
     e.preventDefault()
-    if (!formData.provider.trim() || !formData.apiKey.trim()) return
-    
-    const id = formData.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
-    addModel({
-      id,
-      name: formData.provider,
-      apiKey: formData.apiKey,
-      provider: formData.provider,
-      isCustom: true
-    })
-    
-    setFormData({ provider: '', apiKey: '' })
-    setShowAddModal(false)
+    if (!validateModelForm(formData)) return
+    addModel(createModelFromForm(formData))
+    closeModal()
   }
 
   function handleUpdateModel(e: React.FormEvent) {
     e.preventDefault()
-    if (!editingModel || !formData.provider.trim() || !formData.apiKey.trim()) return
-    
-    updateModel(editingModel, {
-      name: formData.provider,
-      apiKey: formData.apiKey,
-      provider: formData.provider
-    })
-    
-    setFormData({ provider: '', apiKey: '' })
-    setEditingModel(null)
+    if (!editingModel || !validateModelForm(formData)) return
+    updateModel(editingModel, updateModelFromForm(formData))
+    closeModal()
   }
 
   function handleEdit(modelId: string) {
     const model = models.find(m => m.id === modelId)
     if (model) {
-      setFormData({
-        provider: model.provider || '',
-        apiKey: model.apiKey || ''
-      })
+      setFormData(modelToFormData(model))
       setEditingModel(modelId)
     }
   }
@@ -220,61 +207,24 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
             <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-6">
               Manage AI models and API configurations
             </p>
+            
+            <ModelList 
+              title="Available Models"
+              models={builtInModels}
+              isCustom={false}
+              isMobile
+            />
 
-            {/* Built-in Models */}
-            <div className="mb-6">
-              <h3 className="text-sm font-medium mb-3 text-zinc-700 dark:text-zinc-300">Available Models</h3>
-              <div className="space-y-2">
-                {builtInModels.map(model => (
-                  <div key={model.id} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="font-medium text-sm">{model.name}</h4>
-                        <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">{model.provider}</p>
-                      </div>
-                      <span className="text-xs px-2 py-1 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400">
-                        Built-in
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom Models */}
             {customModels.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium mb-3 text-zinc-700 dark:text-zinc-300">Custom Models</h3>
-                <div className="space-y-2">
-                  {customModels.map(model => (
-                    <div key={model.id} className="bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-200 dark:border-zinc-800 p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-sm">{model.name}</h4>
-                          <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
-                            {model.provider || 'Custom'} • {model.apiKey ? '••••' + model.apiKey.slice(-4) : 'No API key'}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleEdit(model.id)}
-                            className="p-2 rounded-lg hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors"
-                            title="Edit"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(model.id)}
-                            className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors text-red-600 dark:text-red-400"
-                            title="Delete"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+              <div className="mt-6">
+                <ModelList 
+                  title="Custom Models"
+                  models={customModels}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  isCustom={true}
+                  isMobile
+                />
               </div>
             )}
           </div>
@@ -318,7 +268,6 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
         </div>
       )}
 
-      {/* Add/Edit Modal */}
       {(showAddModal || editingModel) && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={closeModal}>
           <div className="w-full max-w-md rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -334,48 +283,18 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <form onSubmit={editingModel ? handleUpdateModel : handleAddModel} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="provider">Provider</Label>
-                  <select
-                    id="provider"
-                    value={formData.provider}
-                    onChange={e => setFormData({ ...formData, provider: e.target.value })}
-                    className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
-                    required
-                  >
-                    <option value="">Select a provider</option>
-                    <option value="Google">Google (Gemini)</option>
-                    <option value="OpenAI">OpenAI</option>
-                    <option value="Anthropic">Anthropic</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="api-key">API Key</Label>
-                  <Input
-                    id="api-key"
-                    type="password"
-                    placeholder="Enter your key"
-                    value={formData.apiKey}
-                    onChange={e => setFormData({ ...formData, apiKey: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="flex justify-end gap-3 pt-2">
-                  <Button type="button" variant="outline" onClick={closeModal}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">
-                    {editingModel ? 'Update Model' : 'Save Model'}
-                  </Button>
-                </div>
-              </form>
+              <ModelForm 
+                formData={formData}
+                onFormChange={setFormData}
+                onSubmit={editingModel ? handleUpdateModel : handleAddModel}
+                onCancel={closeModal}
+                isEditing={!!editingModel}
+              />
             </div>
           </div>
         </div>
       )}
 
-      {/* Confirm Delete Modal */}
       {confirmDeleteId && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setConfirmDeleteId(null)}>
           <div className="w-full max-w-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>

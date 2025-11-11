@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import ChatLayout from '../layout/ChatLayout'
 import ChatMessageList from '../components/chat/ChatMessageList'
 import ChatInput from '../components/chat/ChatInput'
-import SettingsModal from '../components/SettingsModal'
+import SettingsModal from '../components/modals/SettingsModal'
 import type { Thread, Message } from '../types'
 
 // Dummy MeTTa content for different threads
