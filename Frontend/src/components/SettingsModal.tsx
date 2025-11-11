@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useModelStore } from '../store/useModelStore'
 import { useUserStore } from '../store/useUserStore'
 import { useTheme } from '../hooks/useTheme'
@@ -6,6 +6,7 @@ import { X, Plus, Pencil, Trash2, User, Palette, Globe, Check } from 'lucide-rea
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Label } from './ui/label'
+import MobileSettingsModal from './MobileSettingsModal'
 
 type SettingsTab = 'general' | 'models' | 'account'
 
@@ -25,8 +26,25 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [isEditingName, setIsEditingName] = useState(false)
   const [editedName, setEditedName] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   if (!isOpen) return null
+
+  // Render mobile version on small screens
+  if (isMobile) {
+    return <MobileSettingsModal isOpen={isOpen} onClose={onClose} />
+  }
 
   const customModels = models.filter(m => m.isCustom)
   const builtInModels = models.filter(m => !m.isCustom)
@@ -99,7 +117,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12" onClick={onClose}>
       <div className="h-[85vh] w-[90vw] max-w-6xl flex bg-zinc-50 dark:bg-zinc-950 text-zinc-900 dark:text-zinc-50 rounded-xl shadow-2xl overflow-hidden border border-zinc-200 dark:border-zinc-800" onClick={(e) => e.stopPropagation()}>
       {/* Sidebar */}
       <div className="w-64 bg-white dark:bg-black border-r border-zinc-200 dark:border-zinc-800 flex flex-col">
@@ -209,7 +227,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   size="sm"
                 >
                   <Plus className="w-4 h-4" />
-                  Add Model
+                  Add Your own Key
                 </Button>
               </div>
 
@@ -310,7 +328,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="text-lg font-semibold">
-                    {editingModel ? 'Edit Model' : 'Add a Model'}
+                    {editingModel ? 'Edit Model' : 'Add a Key'}
                   </h3>
                   <button
                     onClick={closeModal}
