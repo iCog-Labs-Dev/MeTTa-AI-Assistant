@@ -91,9 +91,9 @@ async def get_chat_session_by_id(session_id: str, mongo_db: Database = None) -> 
 
 
 async def get_chat_sessions(
+    user_id: str,
     page: int = 1,
     limit: int = 20,
-    user_id: str = None,  # you can keep it optional for compatibility
     mongo_db: Database = None,
 ) -> dict:
     """
