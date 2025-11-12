@@ -3,6 +3,7 @@ from typing import Optional, Literal
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from bson import ObjectId
 from app.dependencies import (
     get_embedding_model_dep,
     get_qdrant_client_dep,
@@ -121,16 +122,21 @@ async def chat(
                 query, top_k=top_k, api_key=api_key, include_sources=True, history=history
             )
 
+            response_id = f"resp_{ObjectId()}"
+
             await insert_chat_message(
                 {
                     "sessionId": session_id,
                     "role": "assistant",
                     "content": result.get("response", ""),
+                    "responseId": response_id,
                 },
                 mongo_db=mongo_db,
             )
             if created_new_session:
                 result["session_id"] = session_id
+            
+            result["responseId"] = response_id
             return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
