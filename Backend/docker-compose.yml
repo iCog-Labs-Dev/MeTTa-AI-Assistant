@@ -23,7 +23,7 @@ services:
     tty: true
 
   qdrant:
-    image: qdrant/qdrant:v1.7.3
+    image: qdrant/qdrant:v1.15.1
     ports:
       - "6333:6333"
     volumes:
