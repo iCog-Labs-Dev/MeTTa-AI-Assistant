@@ -4,7 +4,7 @@ import os
 from loguru import logger
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict
-from app.core.middleware import AuthMiddleware
+from app.core.middleware import AuthMiddleware, UserWindowRateLimiter
 from pymongo import AsyncMongoClient
 from pymongo.errors import PyMongoError
 from dotenv import load_dotenv
@@ -118,6 +118,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(AuthMiddleware)
+app.add_middleware(
+    UserWindowRateLimiter,
+    redis_url= os.getenv("REDIS_URL", "redis://redis:6379/0"),
+    max_requests= int(os.getenv("MAX_REQUESTS", 100)),
+    window_seconds= int(os.getenv("WINDOW_SECONDS", 86400))
+)
 app.include_router(chunks.router)
 app.include_router(auth.router)
 app.include_router(protected.router)

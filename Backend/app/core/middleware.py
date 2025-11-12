@@ -1,10 +1,11 @@
-from fastapi import Request
+from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 import os
 from loguru import logger
+from redis.asyncio import Redis
 
 ALGORITHM = "HS256"
 
@@ -24,16 +25,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         # Allow unauthenticated access to auth endpoints, health checks, and preflight
         PUBLIC_PATHS = [
-                "/api/auth/",
-                "/health",
-                "/openapi.json",
-                "/docs",
-                "/redoc",
-            ]
+            "/api/auth/",
+            "/health",
+            "/openapi.json",
+            "/docs",
+            "/redoc",
+        ]
 
-        if (
-            request.method == "OPTIONS"
-            or any(request.url.path.startswith(path) for path in PUBLIC_PATHS)
+        if request.method == "OPTIONS" or any(
+            request.url.path.startswith(path) for path in PUBLIC_PATHS
         ):
             return await call_next(request)
 
@@ -59,6 +59,63 @@ class AuthMiddleware(BaseHTTPMiddleware):
             logger.exception("Unexpected error while processing auth token")
             return JSONResponse(
                 status_code=500, content={"detail": "Internal authentication error"}
+            )
+
+        return await call_next(request)
+
+
+class UserWindowRateLimiter(BaseHTTPMiddleware):
+    def __init__(
+        self,
+        app,
+        redis_url="redis://localhost:6379/0",
+        max_requests: int = 100,
+        window_seconds: int = 86400,
+    ):
+        super().__init__(app)
+        self.redis = Redis.from_url(redis_url, decode_responses=True)
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+
+    def _is_using_user_api_key(self, request: Request) -> bool:
+        """
+        Check if the request is using user's own API key.
+        This is determined by checking if the user has API key cookies set.
+        """
+
+        gemini_cookie = request.cookies.get("gemini")
+        openai_cookie = request.cookies.get("openai")
+
+        return bool(gemini_cookie or openai_cookie)
+
+    async def dispatch(self, request: Request, call_next):
+        if not request.url.path.startswith("/api/chat"):
+            return await call_next(request)
+
+        if self._is_using_user_api_key(request):
+            user = getattr(request.state, "user", None)
+            user_id = user.get("id") if user else "anonymous"
+            logger.debug(
+                f"Rate limiting skipped for user {user_id} - using own API key"
+            )
+            return await call_next(request)
+
+        user = getattr(request.state, "user", None)
+        user_id = user.get("id") if user else request.client.host
+        logger.debug(f"Rate limiting applied for user {user_id} - using system API key")
+
+        redis_key = f"ratelimit:rolling24h:{user_id}"
+
+        req_count = await self.redis.incr(redis_key)
+        if req_count == 1:
+            await self.redis.expire(redis_key, self.window_seconds)
+
+        if req_count > self.max_requests:
+            ttl_remaining = await self.redis.ttl(redis_key)
+            logger.warning(f"Rate limit exceeded for user {user_id}")
+            raise HTTPException(
+                status_code=429,
+                detail=f"Rate limit exceeded. Try again in {ttl_remaining} seconds.",
             )
 
         return await call_next(request)
