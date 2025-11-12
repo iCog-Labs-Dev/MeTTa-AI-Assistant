@@ -14,7 +14,7 @@ from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import VectorParams, Distance
 from app.db.users import seed_admin
 from app.core.utils.llm_utils import LLMClientFactory
-from app.routers import chunks, auth, protected,chunk_annotation, chat, key_management
+from app.routers import chunks, auth, protected,chunk_annotation, chat, key_management, chat_sessions
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
 
@@ -132,6 +132,7 @@ app.include_router(protected.router)
 app.include_router(chat.router)
 app.include_router(chunk_annotation.router)
 app.include_router(key_management.router)
+app.include_router(chat_sessions.router)
 
 
 @app.middleware("http") 
