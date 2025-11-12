@@ -31,7 +31,7 @@ async def list_sessions(
     List chat sessions with pagination.
     """
     user_id = current_user["id"]
-
+    
     try:
         result = await get_chat_sessions(
             page=page, limit=limit, user_id=user_id, mongo_db=mongo_db
@@ -47,6 +47,7 @@ async def list_sessions(
 @router.get("/{session_id}", response_model=ChatSessionWithMessages)
 async def get_session(
     session_id: str,
+    current_user: dict = Depends(get_current_user),
     mongo_db: Database = Depends(get_mongo_db),
 ):
     """
@@ -58,6 +59,10 @@ async def get_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Session with ID {session_id} not found",
         )
+
+    if session.get("userId") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+        
     messages = await get_messages_for_session(session_id, mongo_db=mongo_db)
     session["messages"] = messages
     return session
@@ -66,6 +71,7 @@ async def get_session(
 async def delete_session(
     session_id: str,
     mongo_db: Database = Depends(get_mongo_db),
+    current_user: dict = Depends(get_current_user),
 ):
     """
     Delete a chat session by its ID.
@@ -76,6 +82,9 @@ async def delete_session(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Session with ID {session_id} not found",
         )
+
+    if existing_session.get("userId") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     try:
         deleted_count = await delete_chat_session(session_id, mongo_db=mongo_db)
