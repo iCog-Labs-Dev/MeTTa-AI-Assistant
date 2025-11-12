@@ -9,6 +9,7 @@ from typing import Union, List
 from app.model.chunk import ChunkSchema
 from app.model.chat_message import ChatMessageSchema
 from app.model.chat_session import ChatSessionSchema
+from app.model.feedback import FeedbackSchema
 import time
 
 
@@ -328,3 +329,62 @@ async def delete_chat_session(session_id: str, mongo_db: Database = None) -> int
     collection = _get_collection(mongo_db, "chat_sessions")
     result = await collection.delete_one({"sessionId": session_id})
     return result.deleted_count
+
+
+# ----------------------------------
+# FEEDBACK CRUD
+# ----------------------------------
+async def insert_feedback(feedback_data: dict, mongo_db: Database = None) -> Optional[str]:
+    """
+    Insert feedback into database.
+    Returns feedbackId on success, None on failure.
+    """
+    collection = _get_collection(mongo_db, "feedback")
+    try:
+        feedback = FeedbackSchema(**feedback_data)
+        await collection.insert_one(feedback.model_dump())
+        logger.info(f"Feedback inserted: {feedback.feedbackId}")
+        return feedback.feedbackId
+    except Exception as e:
+        logger.error(f"Error inserting feedback: {e}")
+        return None
+
+
+async def get_feedback_by_response(response_id: str, mongo_db: Database = None) -> List[dict]:
+    """
+    Get all feedback for a specific response.
+    """
+    collection = _get_collection(mongo_db, "feedback")
+    cursor = collection.find({"responseId": response_id}).sort("createdAt", -1)
+    return [doc async for doc in cursor]
+
+
+async def get_feedback_stats(mongo_db: Database = None) -> dict:
+    """
+    Get feedback statistics (positive, neutral, negative counts).
+    """
+    collection = _get_collection(mongo_db, "feedback")
+    stats = await collection.aggregate([
+        {
+            "$group": {
+                "_id": None,
+                "totalFeedback": {"$sum": 1},
+                "positiveFeedback": {
+                    "$sum": {"$cond": [{"$eq": ["$sentiment", "positive"]}, 1, 0]}
+                },
+                "neutralFeedback": {
+                    "$sum": {"$cond": [{"$eq": ["$sentiment", "neutral"]}, 1, 0]}
+                },
+                "negativeFeedback": {
+                    "$sum": {"$cond": [{"$eq": ["$sentiment", "negative"]}, 1, 0]}
+                }
+            }
+        }
+    ]).to_list(None)
+    
+    return stats[0] if stats else {
+        "totalFeedback": 0,
+        "positiveFeedback": 0,
+        "neutralFeedback": 0,
+        "negativeFeedback": 0
+    }
