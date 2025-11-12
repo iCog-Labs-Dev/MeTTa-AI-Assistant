@@ -8,3 +8,4 @@ class ChatMessageSchema(BaseModel):
     role: Literal["user", "assistant"]
     content: str
     createdAt: Optional[int] = None
+    responseId: Optional[str] = None
