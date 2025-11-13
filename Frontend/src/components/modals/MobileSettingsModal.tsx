@@ -24,7 +24,7 @@ interface MobileSettingsModalProps {
 
 function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
   const { models, addModel, updateModel, removeModel } = useModelStore()
-  const { email, accountCreatedAt } = useUserStore()
+  const { email, username, userId, isAuthenticated, accountCreatedAt } = useUserStore()
   const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<SettingsTab>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -36,8 +36,9 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
 
   const { customModels, builtInModels } = filterModels(models)
   
-  // Get avatar initial from email
-  const avatarInitial = email ? email.charAt(0).toUpperCase() : 'U'
+  // Get avatar initial from username or email
+  const displayName = username || (email ? email.split('@')[0] : 'User')
+  const avatarInitial = displayName.charAt(0).toUpperCase()
   
   const sidebarItems = [
     { id: 'general' as SettingsTab, label: 'General', icon: Palette },
@@ -257,12 +258,40 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
                   {avatarInitial}
                 </div>
                 <div>
-                  <p className="text-sm text-zinc-600 dark:text-zinc-400">{email || 'user@example.com'}</p>
-                  {accountCreatedAt && (
-                    <p className="text-xs text-zinc-500 dark:text-zinc-500">Account created on: {new Date(accountCreatedAt).toLocaleDateString()}</p>
+                  {isAuthenticated ? (
+                    <>
+                      <p className="font-medium">{displayName}</p>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">{email}</p>
+                      {userId && <p className="text-xs text-zinc-500 dark:text-zinc-500">ID: {userId}</p>}
+                      {accountCreatedAt && (
+                        <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
+                          Account created: {new Date(accountCreatedAt).toLocaleDateString()}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-medium">Guest User</p>
+                      <p className="text-sm text-zinc-600 dark:text-zinc-400">Not signed in</p>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-500 mt-1">
+                        <a href="/login" className="text-blue-600 dark:text-blue-400 hover:underline">Sign in</a> to access your account
+                      </p>
+                    </>
                   )}
                 </div>
               </div>
+              
+              {isAuthenticated && (
+                <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
+                  <Button 
+                    variant="outline" 
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                    onClick={() => useUserStore.getState().logout()}
+                  >
+                    Sign Out
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
