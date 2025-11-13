@@ -1,11 +1,10 @@
-from fastapi import Request, HTTPException, Depends
+from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 import os
 from loguru import logger
-from app.dependencies import get_current_user
 from redis.asyncio import Redis
 
 ALGORITHM = "HS256"
