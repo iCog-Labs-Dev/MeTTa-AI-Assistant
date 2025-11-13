@@ -5,6 +5,7 @@ import { Input } from './input'
 import { Button } from './button'
 import { Label } from './label'
 import ProviderSelect from './ProviderSelect'
+import { getProviderById } from '../../lib/providers'
 
 function ModelSelector() {
   const { models, activeId, setActive, addModel: addModelToStore } = useModelStore()
@@ -30,10 +31,17 @@ function ModelSelector() {
   function addModel(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     if (!newModel.provider.trim() || !newModel.apiKey.trim()) return
+    
+    // Generate a unique ID using the provider name and timestamp
     const id = newModel.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+    
+    // Get the provider info to use the correct name
+    const providerInfo = getProviderById(newModel.provider)
+    const displayName = providerInfo?.displayName || newModel.provider
+    
     addModelToStore({ 
       id, 
-      name: newModel.provider, 
+      name: displayName, 
       apiKey: newModel.apiKey,
       provider: newModel.provider,
       isCustom: true
