@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import LoginSignupPage from './pages/LoginSignup'
 import ChatPage from './pages/Chat'
-import { isAuthenticated } from './lib/api'
+import { isAuthenticated } from './lib/auth'
 
 function App() {
   // Initialize authentication state when app loads
