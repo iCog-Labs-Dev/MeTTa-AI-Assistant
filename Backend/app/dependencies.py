@@ -8,6 +8,7 @@ from app.repositories.chunk_repository import ChunkRepository
 from app.services.chunk_annotation_service import ChunkAnnotationService
 from app.services.key_management_service import KMS
 from app.db.users import UserRole
+from app.services.feedback_service import FeedbackService
 
 
 def get_mongo_client(request: Request) -> AsyncMongoClient:
@@ -46,6 +47,11 @@ def get_annotation_service(
 ) -> ChunkAnnotationService:
     """Provide ChunkAnnotationService that orchestrates chunk retrieval and annotation."""
     return ChunkAnnotationService(repository=repository, llm_provider=llm_provider)
+
+
+def get_feedback_service(mongo_db: Database = Depends(get_mongo_db)) -> FeedbackService:
+    """Provide FeedbackService instance wired with the MongoDB dependency."""
+    return FeedbackService(mongo_db)
 
 def get_kms(request: Request) -> KMS:
     '''Key management service class dependency'''
