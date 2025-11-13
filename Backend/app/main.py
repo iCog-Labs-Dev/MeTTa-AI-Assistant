@@ -63,11 +63,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     if not qdrant_host or not collection_name:
         raise RuntimeError("QDRANT_HOST and COLLECTION_NAME must be set in .env")
+   
 
     if isinstance(qdrant_host, str) and qdrant_host.startswith(("http://", "https://")):
         app.state.qdrant_client = AsyncQdrantClient(url=qdrant_host)
     else:
         app.state.qdrant_client = AsyncQdrantClient(host=qdrant_host, port=qdrant_port)
+        
+    try:
+        await create_collection_if_not_exists(app.state.qdrant_client, collection_name)
+        logger.info("Qdrant collection setup completed")
+    except Exception as e:
+        logger.error(f"Failed to create Qdrant collection: {e}")
+        raise
     # Setup metadata indexes (optional, non-blocking)
     try:
         await setup_metadata_indexes(app.state.qdrant_client, collection_name)
