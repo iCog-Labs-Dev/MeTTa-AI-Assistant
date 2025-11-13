@@ -8,7 +8,7 @@ from typing import Optional
 from loguru import logger
 import google.generativeai as genai
 from dotenv import load_dotenv
-from .rewriter import PromptRewriter
+from app.core.prompt_rewriter.rewriter import PromptRewriter
 
 load_dotenv()
 
@@ -24,8 +24,7 @@ except Exception as e:
 class LLMPromptRewriter(PromptRewriter):
     """
     A PromptRewriter that uses an LLM to rewrite prompts.
-    Preserves code blocks while allowing the LLM to modify the natural language parts.
-    Can also detect and wrap MeTTa code using LLM intelligence.
+    The LLM handles code detection, wrapping, and preservation intelligently.
     """
     
     def __init__(
@@ -33,7 +32,6 @@ class LLMPromptRewriter(PromptRewriter):
         model: str = "gemini-1.5-flash",
         temperature: float = 0.3,
         max_tokens: int = 1000,
-        auto_detect_metta: bool = True,
         **kwargs
     ):
         """
@@ -43,14 +41,12 @@ class LLMPromptRewriter(PromptRewriter):
             model: Gemini model name
             temperature: Sampling temperature (0.0-1.0)
             max_tokens: Maximum output tokens
-            auto_detect_metta: Whether to auto-detect and wrap MeTTa code
         
         Raises:
             ValueError: If API key is not set or parameters are invalid
         """
         super().__init__(**kwargs)
         
-
         if not isinstance(temperature, (int, float)) or not 0.0 <= temperature <= 1.0:
             raise ValueError("Temperature must be between 0.0 and 1.0")
         if not isinstance(max_tokens, int) or max_tokens <= 0:
@@ -63,11 +59,10 @@ class LLMPromptRewriter(PromptRewriter):
         self.model = genai.GenerativeModel(model)
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.auto_detect_metta = auto_detect_metta
     
     async def rewrite(self, prompt: str, **kwargs) -> str:
         """
-        Enhanced rewrite method that can auto-detect MeTTa code before rewriting.
+        Rewrite method that uses LLM to detect and wrap MeTTa code before rewriting.
         
         Args:
             prompt: The input prompt to rewrite
@@ -76,15 +71,9 @@ class LLMPromptRewriter(PromptRewriter):
         Returns:
             The rewritten prompt with detected MeTTa code properly wrapped
         """
-
-        if self.auto_detect_metta and not self._has_code_blocks(prompt):
-            prompt = await self.detect_and_wrap_metta_code(prompt)
+        prompt = await self.detect_and_wrap_metta_code(prompt)
         
         return await super().rewrite(prompt, **kwargs)
-    
-    def _has_code_blocks(self, text: str) -> bool:
-        """Check if text already has code blocks."""
-        return "```" in text
     
     async def detect_and_wrap_metta_code(self, text: str) -> str:
         """
@@ -207,6 +196,10 @@ Output: "The expression ```metta\n(+ 1 2)\n``` should equal 3"
             
             response = await asyncio.to_thread(_generate_content)
             
+            if not response.text:
+                logger.warning(f"LLM response blocked or empty. Returning original text.")
+                return text
+            
             rewritten = response.text.strip()
             return rewritten
             
@@ -220,7 +213,6 @@ Output: "The expression ```metta\n(+ 1 2)\n``` should equal 3"
         model: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        auto_detect_metta: Optional[bool] = None,
         **kwargs
     ) -> 'LLMPromptRewriter':
         """
@@ -230,7 +222,5 @@ Output: "The expression ```metta\n(+ 1 2)\n``` should equal 3"
             model=model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
             temperature=float(temperature or os.getenv("GEMINI_TEMPERATURE", 0.3)),
             max_tokens=int(max_tokens or os.getenv("GEMINI_MAX_TOKENS", 1000)),
-            auto_detect_metta=auto_detect_metta if auto_detect_metta is not None else 
-                             os.getenv("AUTO_DETECT_METTA", "true").lower() == "true",
             **kwargs
         )
