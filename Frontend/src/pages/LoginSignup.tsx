@@ -4,9 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../co
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Button } from '../components/ui/button'
-import { Eye, EyeOff, Sun, Moon } from 'lucide-react'
+import { Eye, EyeOff, Sun, Moon, AlertCircle } from 'lucide-react'
 import { useUserStore } from '../store/useUserStore'
 import { useTheme } from '../hooks/useTheme'
+import { signup, login } from '../lib/auth'
 
 function LoginSignupPage() {
   const navigate = useNavigate()
@@ -18,12 +19,47 @@ function LoginSignupPage() {
   const [passwordConfirmation, setPasswordConfirmation] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    // Save user info to store - username extracted from email
-    setUser(email)
-    navigate('/chat')
+    setError('')
+    setIsLoading(true)
+
+    try {
+      if (mode === 'signup') {
+        // Validate password confirmation
+        if (password !== passwordConfirmation) {
+          setError('Passwords do not match')
+          setIsLoading(false)
+          return
+        }
+
+        // Call signup API
+        const response = await signup(email, password)
+        console.log('Signup successful:', response.user_id)
+        
+        // After signup, automatically login
+        await login(email, password)
+        setUser(email, response.user_id)
+        navigate('/chat')
+      } else {
+        // Call login API
+        await login(email, password)
+        setUser(email)
+        navigate('/chat')
+      }
+    } catch (err: any) {
+      console.error('Auth error:', err)
+      setError(
+        err.response?.data?.detail || 
+        err.message || 
+        'An error occurred. Please try again.'
+      )
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -54,7 +90,10 @@ function LoginSignupPage() {
                 ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100'
                 : 'bg-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             }`}
-            onClick={() => setMode('login')}
+            onClick={() => {
+              setMode('login')
+              setError('')
+            }}
           >
             Sign In
           </button>
@@ -64,7 +103,10 @@ function LoginSignupPage() {
                 ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100'
                 : 'bg-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             }`}
-            onClick={() => setMode('signup')}
+            onClick={() => {
+              setMode('signup')
+              setError('')
+            }}
           >
             Sign Up
           </button>
@@ -80,6 +122,12 @@ function LoginSignupPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="flex items-center gap-2 p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-zinc-900 dark:text-zinc-100">Email</Label>
                   <Input
@@ -89,6 +137,7 @@ function LoginSignupPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
                     className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
                   />
                 </div>
@@ -102,6 +151,7 @@ function LoginSignupPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      disabled={isLoading}
                       className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 pr-10"
                     />
                     <button
@@ -113,8 +163,12 @@ function LoginSignupPage() {
                     </button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200">
-                  Login
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="w-full bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Logging in...' : 'Login'}
                 </Button>
               </form>
             </CardContent>
@@ -129,6 +183,12 @@ function LoginSignupPage() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="flex items-center gap-2 p-3 rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900">
+                    <AlertCircle className="w-4 h-4 text-red-600 dark:text-red-400" />
+                    <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email-signup" className="text-zinc-900 dark:text-zinc-100">Email</Label>
                   <Input
@@ -138,6 +198,7 @@ function LoginSignupPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoading}
                     className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400"
                   />
                 </div>
@@ -151,6 +212,7 @@ function LoginSignupPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
+                      disabled={isLoading}
                       className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 pr-10"
                     />
                     <button
@@ -172,6 +234,7 @@ function LoginSignupPage() {
                       required
                       value={passwordConfirmation}
                       onChange={(e) => setPasswordConfirmation(e.target.value)}
+                      disabled={isLoading}
                       className="bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-500 dark:placeholder:text-zinc-400 pr-10"
                     />
                     <button
@@ -183,8 +246,12 @@ function LoginSignupPage() {
                     </button>
                   </div>
                 </div>
-                <Button type="submit" className="w-full bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200">
-                  Create an account
+                <Button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="w-full bg-zinc-900 dark:bg-zinc-100 text-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-zinc-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? 'Creating account...' : 'Create an account'}
                 </Button>
               </form>
             </CardContent>

@@ -4,70 +4,26 @@ import ChatMessageList from '../components/chat/ChatMessageList'
 import ChatInput from '../components/chat/ChatInput'
 import SettingsModal from '../components/modals/SettingsModal'
 import type { Thread, Message } from '../types'
+import { sendChatMessage } from '../lib/chat'
 
-// Dummy MeTTa content for different threads
-const METTA_INTRO_MESSAGES: Message[] = [
-  { 
-    id: 'm1', 
-    role: 'assistant', 
-    content: 'Hello! I\'m your MeTTa AI Assistant. MeTTa (Meta Type Talk) is a programming language designed for AI and cognitive computing. How can I help you learn about MeTTa today?', 
-    timestamp: Date.now() - 10000 
-  },
-  { 
-    id: 'm2', 
-    role: 'user', 
-    content: 'What is MeTTa?', 
-    timestamp: Date.now() - 9000 
-  },
-  { 
-    id: 'm3', 
-    role: 'assistant', 
-    content: 'MeTTa is a meta-language for AI that combines symbolic and sub-symbolic approaches. It\'s part of the OpenCog Hyperon project and is designed to enable more flexible and powerful AI reasoning. MeTTa supports pattern matching, type checking, and can work with neural networks seamlessly.', 
-    timestamp: Date.now() - 8000 
-  }
-]
+// Empty initial messages for new chats
+const EMPTY_MESSAGES: Message[] = []
 
-const RAG_BRAINSTORM_MESSAGES: Message[] = [
-  { 
-    id: 'm1', 
-    role: 'assistant', 
-    content: 'Let\'s brainstorm about RAG (Retrieval-Augmented Generation) in MeTTa!', 
-    timestamp: Date.now() - 15000 
-  },
-  { 
-    id: 'm2', 
-    role: 'user', 
-    content: 'How can I implement RAG with MeTTa?', 
-    timestamp: Date.now() - 14000 
-  },
-  { 
-    id: 'm3', 
-    role: 'assistant', 
-    content: 'In MeTTa, you can implement RAG by combining symbolic knowledge retrieval with neural embeddings. You\'d use MeTTa\'s pattern matching to query your knowledge base, then use the results to augment prompts for language models. The beauty of MeTTa is that it can natively handle both the symbolic reasoning and the neural components.', 
-    timestamp: Date.now() - 13000 
-  }
-]
-
-// AI response generator
-function generateAIResponse(userMessage: string): string {
-  const responses = [
-    `That's an interesting question about "${userMessage}". In MeTTa, we approach this through symbolic reasoning combined with neural processing.`,
-    `Great question! MeTTa's type system and pattern matching make it perfect for handling queries like "${userMessage}".`,
-    `Let me help you with that. MeTTa provides powerful abstractions for working with concepts related to "${userMessage}".`,
-    `Regarding "${userMessage}", MeTTa's meta-language capabilities allow for flexible representation and reasoning.`,
-    `That's a key concept! In MeTTa, "${userMessage}" can be expressed using its unique combination of symbolic and sub-symbolic features.`
-  ]
-  return responses[Math.floor(Math.random() * responses.length)]
+// Loading state for chat responses
+interface LoadingState {
+  threadId: string;
+  messageId: string;
 }
 
 function ChatPage() {
   const [threads, setThreads] = useState<Thread[]>([
-    { id: 't1', title: 'Introduction to MeTTa', messages: METTA_INTRO_MESSAGES, createdAt: Date.now() - 20000, updatedAt: Date.now() - 8000 },
-    { id: 't2', title: 'RAG Implementation', messages: RAG_BRAINSTORM_MESSAGES, createdAt: Date.now() - 25000, updatedAt: Date.now() - 13000 },
+    { id: 't1', title: 'New Chat', messages: EMPTY_MESSAGES, createdAt: Date.now(), updatedAt: Date.now() },
   ])
   const [activeThreadId, setActiveThreadId] = useState('t1')
-  const [messages, setMessages] = useState<Message[]>(METTA_INTRO_MESSAGES)
+  const [messages, setMessages] = useState<Message[]>(EMPTY_MESSAGES)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [loadingState, setLoadingState] = useState<LoadingState | null>(null)
 
   // Load messages when switching threads
   useEffect(() => {
@@ -77,7 +33,7 @@ function ChatPage() {
     }
   }, [activeThreadId, threads])
 
-  function handleSend(text: string) {
+  async function handleSend(text: string) {
     if (!text.trim()) return
     
     const userMessage: Message = {
@@ -87,19 +43,13 @@ function ChatPage() {
       timestamp: Date.now()
     }
     
-    const aiMessage: Message = {
-      id: `m${Date.now() + 1}`,
-      role: 'assistant',
-      content: generateAIResponse(text),
-      timestamp: Date.now() + 500
-    }
+    // Add user message immediately
+    setMessages(prev => [...prev, userMessage])
     
-    setMessages(prev => [...prev, userMessage, aiMessage])
-    
-    // Update thread messages
+    // Update thread with user message
     setThreads(prev => prev.map(t => 
       t.id === activeThreadId 
-        ? { ...t, messages: [...t.messages, userMessage, aiMessage], updatedAt: Date.now() }
+        ? { ...t, messages: [...t.messages, userMessage], updatedAt: Date.now() }
         : t
     ))
     
@@ -110,6 +60,63 @@ function ChatPage() {
       setThreads(prev => prev.map(t => 
         t.id === activeThreadId ? { ...t, title: newTitle } : t
       ))
+    }
+    
+    // Create temporary loading message
+    const tempId = `m${Date.now() + 1}`
+    const loadingMessage: Message = {
+      id: tempId,
+      role: 'assistant',
+      content: 'Thinking...',
+      timestamp: Date.now() + 100
+    }
+    
+    setMessages(prev => [...prev, loadingMessage])
+    setLoadingState({ threadId: activeThreadId, messageId: tempId })
+    setIsLoading(true)
+    
+    try {
+      // Call the actual API
+      const response = await sendChatMessage(text)
+      
+      // Replace loading message with actual response
+      const aiMessage: Message = {
+        id: tempId,
+        role: 'assistant',
+        content: response.response,
+        timestamp: Date.now()
+      }
+      
+      setMessages(prev => prev.map(m => m.id === tempId ? aiMessage : m))
+      
+      // Update thread with AI message
+      setThreads(prev => prev.map(t => 
+        t.id === activeThreadId 
+          ? { ...t, messages: t.messages.map(m => m.id === tempId ? aiMessage : m), updatedAt: Date.now() }
+          : t
+      ))
+    } catch (error) {
+      console.error('Error sending message:', error)
+      
+      // Replace loading message with error
+      const errorMessage: Message = {
+        id: tempId,
+        role: 'assistant',
+        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        timestamp: Date.now()
+      }
+      
+      setMessages(prev => prev.map(m => m.id === tempId ? errorMessage : m))
+      
+      // Update thread with error message
+      setThreads(prev => prev.map(t => 
+        t.id === activeThreadId 
+          ? { ...t, messages: t.messages.map(m => m.id === tempId ? errorMessage : m), updatedAt: Date.now() }
+          : t
+      ))
+    } finally {
+      setIsLoading(false)
+      setLoadingState(null)
     }
   }
 
