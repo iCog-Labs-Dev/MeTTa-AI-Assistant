@@ -98,7 +98,11 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
             
             return await call_next(request)
 
-
+        user_role = payload.get("role")
+        if user_role != "user":
+            logger.debug(f"Rate limiting skipped for user {user_id} - not a regular user")
+            return await call_next(request)
+        
         logger.debug(f"Rate limiting applied for user {user_id} - using system API key")
 
         redis_key = f"ratelimit:rolling24h:{user_id}"
