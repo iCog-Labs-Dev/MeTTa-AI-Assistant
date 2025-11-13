@@ -46,7 +46,7 @@ async def submit_feedback(
             "feedbackId": feedback_id,
             "responseId": request.responseId,
             "sessionId": request.sessionId,
-            "userId": current_user.get("userId") or current_user.get("id"),
+            "userId": current_user.get("id"),
             "sentiment": request.sentiment,
             "comment": request.comment,
         }
