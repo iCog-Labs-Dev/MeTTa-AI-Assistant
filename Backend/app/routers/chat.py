@@ -15,7 +15,8 @@ from app.dependencies import (
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.core.clients.llm_clients import LLMProvider
 from app.rag.generator.rag_generator import RAGGenerator
-from app.db.db import insert_chat_message, get_last_messages, create_chat_session
+from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
+
 from loguru import logger
 
 
@@ -33,13 +34,6 @@ class ChatRequest(BaseModel):
     mode: Literal["search", "generate"] = "generate"
     top_k: int = Field(default=5, ge=1, le=50)
     session_id: Optional[str] = None
-
-
-@router.post("/session", summary="Create a new chat session")
-async def create_session(mongo_db=Depends(get_mongo_db)):
-    sid = await create_chat_session(mongo_db=mongo_db)
-    return {"session_id": sid}
-
 
 @router.post("/", summary="Chat with RAG system")
 async def chat(
@@ -59,11 +53,12 @@ async def chat(
         chat_request.provider,
         chat_request.model,
     )
+
     mode, top_k = chat_request.mode, chat_request.top_k
     session_id = chat_request.session_id
     created_new_session = False
     if not session_id:
-        session_id = await create_chat_session(mongo_db=mongo_db)
+        session_id = await create_chat_session(current_user["id"],mongo_db=mongo_db)
         created_new_session = True
     collection_name = os.getenv("COLLECTION_NAME")
     if not collection_name:
@@ -71,22 +66,21 @@ async def chat(
     
     if not provider:
         raise HTTPException(status_code=400, detail="Provider must be specified")
-    
     # Extract cookies
     encrypted_key = request.cookies.get(provider.lower())
-    if not encrypted_key:
-        raise HTTPException(status_code=401, detail=f"Missing API key cookie for provider '{provider.lower()}'. ")
+    api_key = ""
 
-    api_key = await kms.decrypt_api_key(encrypted_key, current_user["id"], provider.lower(), mongo_db)
-    # refresh encrypted_api_key expiry date | sliding expiration refresh
-    response.set_cookie(
-        key=provider.lower(), 
-        value=encrypted_key, 
-        httponly=True, 
-        samesite="Strict",
-        secure=True,
-        expires=(datetime.now(timezone.utc) + timedelta(days=7))
-        )
+    if encrypted_key:
+        api_key = await kms.decrypt_api_key(encrypted_key, current_user["id"], provider.lower(), mongo_db)
+        # refresh encrypted_api_key expiry date | sliding expiration refresh
+        response.set_cookie(
+            key=provider.lower(), 
+            value=encrypted_key, 
+            httponly=True, 
+            samesite="Strict",
+            secure=True,
+            expires=(datetime.now(timezone.utc) + timedelta(days=7))
+            )
     
     try:
         retriever = EmbeddingRetriever(
@@ -117,10 +111,15 @@ async def chat(
                 {"role": m.get("role"), "content": m.get("content", "")}
                 for m in raw_history
             ]
-
-            result = await generator.generate_response(
-                query, top_k=top_k, api_key=api_key, include_sources=True, history=history
-            )
+            
+            if encrypted_key:
+                result = await generator.generate_response(
+                    query, top_k=top_k,api_key=api_key, include_sources=True, history=history,
+                )
+            else:
+                result = await generator.generate_response(
+                    query, top_k=top_k, api_key=None, include_sources=True, history=history
+                )
 
             response_id = f"resp_{ObjectId()}"
 
