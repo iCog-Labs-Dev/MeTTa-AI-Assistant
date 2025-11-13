@@ -1,20 +1,13 @@
-/**
- * Chat related types
- */
+// Chat related types
 
 export interface CreateSessionResponse {
   session_id: string;
 }
 
-/**
- * Request parameters for a chat API call
- */
+// Request parameters for a chat API call
 export interface ChatRequest {
-  /** The user's query text */
   query: string;
-  /** Provider ID (e.g., 'openai', 'gemini') */
   provider?: string;
-  /** Optional session ID for continuing conversations */
   session_id?: string;
 }
 

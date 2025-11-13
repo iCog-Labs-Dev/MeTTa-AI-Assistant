@@ -12,9 +12,7 @@ interface ModelState {
   removeModel: (id: string) => void
 }
 
-/**
- * Default models available in the application
- */
+// Default models available in the application
 const DEFAULT_MODELS: Model[] = [
   { 
     id: 'default-gemini', 
@@ -24,11 +22,7 @@ const DEFAULT_MODELS: Model[] = [
   }
 ];
 
-/**
- * Model store using Zustand
- * 
- * Manages the collection of available models and the currently active model
- */
+// Manages the collection of available models and the currently active model
 export const useModelStore = create<ModelState>()(
   persist(
     (set) => ({
