@@ -1,6 +1,7 @@
 import { Model } from '../types'
-import { AVAILABLE_PROVIDERS } from '../store/useModelStore'
+import { AVAILABLE_PROVIDERS, getProviderById } from '../lib/providers'
 
+// Form data for creating or updating a model
 export interface ModelFormData {
   provider: string
   apiKey: string
@@ -8,10 +9,16 @@ export interface ModelFormData {
 
 // Creates a new model object from form data
 export function createModelFromForm(formData: ModelFormData): Model {
+  // Generate a unique ID using the provider name and timestamp
   const id = formData.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+  
+  // Get the provider info to use the correct name
+  const providerInfo = getProviderById(formData.provider)
+  const displayName = providerInfo?.displayName || formData.provider
+  
   return {
     id,
-    name: formData.provider,
+    name: displayName,
     apiKey: formData.apiKey,
     provider: formData.provider,
     isCustom: true
@@ -20,8 +27,12 @@ export function createModelFromForm(formData: ModelFormData): Model {
 
 // Updates model data from form
 export function updateModelFromForm(formData: ModelFormData): Partial<Model> {
+  // Get the provider info to use the correct name
+  const providerInfo = getProviderById(formData.provider)
+  const displayName = providerInfo?.displayName || formData.provider
+  
   return {
-    name: formData.provider,
+    name: displayName,
     apiKey: formData.apiKey,
     provider: formData.provider
   }
@@ -35,17 +46,13 @@ export function modelToFormData(model: Model): ModelFormData {
   }
 }
 
-/**
- * Validates form data
- */
+// Validates model form data
 export function validateModelForm(formData: ModelFormData): boolean {
-  const isValidProvider = AVAILABLE_PROVIDERS.some(p => p.name === formData.provider)
+  const isValidProvider = AVAILABLE_PROVIDERS.some(provider => provider.id === formData.provider)
   return formData.provider.trim() !== '' && formData.apiKey.trim() !== '' && isValidProvider
 }
 
-/**
- * Gets available provider options
- */
+// Gets available provider options
 export function getAvailableProviders() {
   return AVAILABLE_PROVIDERS
 }
