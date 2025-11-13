@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
    
 
     if isinstance(qdrant_host, str) and qdrant_host.startswith(("http://", "https://")):
-        app.state.qdrant_client = AsyncQdrantClient(url=qdrant_host)
+        app.state.qdrant_client = AsyncQdrantClient(url=qdrant_host, api_key=os.getenv("QDRANT_API_KEY"))
     else:
         app.state.qdrant_client = AsyncQdrantClient(host=qdrant_host, port=qdrant_port)
         
