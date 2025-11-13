@@ -124,7 +124,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(lifespan=lifespan)
-# app.add_middleware(AuthMiddleware)
+app.add_middleware(AuthMiddleware)
 app.include_router(chunks.router)
 app.include_router(auth.router)
 app.include_router(protected.router)
