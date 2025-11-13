@@ -165,7 +165,7 @@ async def delete_chunk(chunk_id: str, mongo_db: Database = None) -> int:
 async def mark_ingestion_complete(
     site_name: str, total_chunks: int, mongo_db: Database = None
 ) -> None:
-    """;
+    """
     Mark an ingestion process as complete for a specific site.
     """
     ingestion_collection = _get_collection(mongo_db, "ingestion_status")
