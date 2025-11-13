@@ -68,7 +68,7 @@ function ChatHeader({ onToggleSidebar, onOpenSettings }: ChatHeaderProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium truncate">{displayName}</div>
-                  <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{email || 'user@example.com'}</div>
+                  <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{email || 'Not signed in'}</div>
                 </div>
               </div>
             </div>

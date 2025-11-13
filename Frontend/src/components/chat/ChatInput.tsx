@@ -23,7 +23,7 @@ function ChatInput({ onSend }: ChatInputProps) {
           <textarea
             value={text}
             onChange={e => setText(e.target.value)}
-            placeholder="Ask anything"
+            placeholder="Ask about MeTTa, programming concepts, or AI research..."
             rows={1}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
