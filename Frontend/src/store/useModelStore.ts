@@ -15,10 +15,10 @@ interface ModelState {
 // Default models available in the application
 const DEFAULT_MODELS: Model[] = [
   { 
-    id: 'default-gemini', 
-    name: 'Default Gemini', 
-    provider: 'gemini', 
-    requiresApiKey: false 
+    id: 'default',
+    name: 'default',
+    provider: 'default',
+    requiresApiKey: false
   }
 ];
 
