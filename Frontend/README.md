@@ -34,16 +34,16 @@ A modern, responsive chat interface for the MeTTa AI Assistant. Built with React
 
 ## Features
 
-- **Interactive Chat Interface** - Real-time messaging with thread management
-- **Theme Support** - Light/Dark mode with instant switching
-- **Multi-Model Management** - Add, edit, and switch between AI models
-- **Fully Responsive** - Mobile-first design with adaptive layouts
-- **Settings Modal** - Comprehensive user and model settings
-- **Search Functionality** - Quick search through chat history
-- **Feedback System** - Rate AI responses with thumbs up/down
-- **Thread Organization** - Manage multiple conversation threads
-- **Authentication** - Secure login/signup flow
-- **Keyboard Shortcuts** - Efficient navigation and actions
+- **Interactive Chat Interface** - Real-time messaging with thread management and markdown rendering.
+- **Theme Support** - Light/Dark mode with instant switching.
+- **Single Default Model** - A single, pre-configured default model for a streamlined user experience.
+- **Fully Responsive** - Mobile-first design with adaptive layouts.
+- **Settings Modal** - Comprehensive user settings.
+- **Search Functionality** - Quick search through chat history.
+- **Feedback System** - Rate AI responses with thumbs up/down.
+- **Thread Organization** - Manage multiple conversation threads.
+- **Authentication** - Secure login/signup flow with automatic redirection.
+- **Keyboard Shortcuts** - Efficient navigation and actions.
 
 ---
 
@@ -140,10 +140,18 @@ Frontend/
 │   │   └── useUserStore.ts   # User state
 │   │
 │   ├── types/              # TypeScript definitions
-│   │   └── index.ts
+│   │   ├── index.ts
+│   │   ├── chat.ts
+│   │   ├── user.ts
+│   │   └── auth.ts
 │   │
 │   ├── lib/                # Utility functions
-│   │   └── utils.ts
+│   │   ├── utils.ts
+│   │   ├── axios.ts
+│   │   ├── auth.ts
+│   │   ├── chat.ts
+│   │   ├── models.ts
+│   │   └── providers.ts
 │   │
 │   ├── App.tsx             # Root component
 │   ├── main.tsx            # Entry point
@@ -333,10 +341,8 @@ Linting rules and plugins
 - Suggestion cards for quick actions
 
 ### Model Management
-- Built-in models (no API key required)
-- Custom model addition
-- API key management
-- Model switching
+- **Single Default Model**: The application is configured with a single, default model to simplify the user experience.
+- **No API Key Required**: The default model does not require an API key.
 
 ### Settings
 - User profile management
@@ -359,6 +365,7 @@ Linting rules and plugins
 - **Optimized Images**: Proper sizing and formats
 - **Minimal Bundle**: Tree-shaking and minification
 - **Fast Refresh**: Instant feedback during development
+- **Efficient State Management**: Optimized re-renders with Zustand
 
 ---
 
@@ -369,6 +376,37 @@ Linting rules and plugins
 - [Vite Guide](https://vitejs.dev/guide/)
 - [TailwindCSS Docs](https://tailwindcss.com/docs)
 - [Zustand Documentation](https://zustand-demo.pmnd.rs/)
+- [React Router Docs](https://reactrouter.com/)
+- [Lucide Icons](https://lucide.dev/)
+
+## Development Guidelines
+
+### Code Style
+
+- Use functional components with TypeScript
+- Follow the Airbnb Style Guide with TypeScript support
+- Use ESLint and Prettier for consistent formatting
+- Write meaningful commit messages following Conventional Commits
+
+### Pull Requests
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+### Testing
+
+- Write unit tests for utility functions
+- Test components with React Testing Library
+- Ensure all tests pass before submitting a PR
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
