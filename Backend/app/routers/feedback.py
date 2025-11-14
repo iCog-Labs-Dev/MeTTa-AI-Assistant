@@ -1,349 +1,299 @@
-from typing import List, Optional, Dict, Any
-from bson import ObjectId
-from pymongo.database import Database
-from pymongo.collection import Collection
+from typing import Optional, List
 from loguru import logger
-import time
-import asyncio
-import pymongo.errors
+from fastapi import APIRouter, HTTPException, Depends, status, Query
+from pydantic import BaseModel, Field
 
+from app.dependencies import get_current_user, get_feedback_service
+from app.services.feedback_service import FeedbackService
 from app.model.feedback import FeedbackSchema, FeedbackStatsSchema
 
 
 # ============================================================================
-# CONFIGURATION & TIMEOUT SETTINGS
+# CONFIGURATION
 # ============================================================================
-DB_OPERATION_TIMEOUT = 10  
-MAX_FEEDBACK_BATCH = 1000  
+MAX_COMMENT_LENGTH = 300
+FEEDBACK_RATING_GOOD = "good_response"
+FEEDBACK_RATING_BAD = "bad_response"
+ALLOWED_RATINGS = {FEEDBACK_RATING_GOOD, FEEDBACK_RATING_BAD}
 
 
-async def _get_feedback_collection(mongo_db: Database) -> Collection:
-    """Get feedback collection from MongoDB instance. """
-    if mongo_db is None:
-        raise RuntimeError("Database connection not initialized")
-
-    # get_collection is normally synchronous in pymongo, but some async
-    # clients or test mocks may return a coroutine. Support both.
-    coll = mongo_db.get_collection("feedback")
-    # If the result is awaitable (coroutine), await it.
-    try:
-        if hasattr(coll, "__await__"):
-            coll = await coll
-    except TypeError:
-        # Not awaitable
-        pass
-
-    return coll
+router = APIRouter(
+    prefix="/api/feedback",
+    tags=["feedback"],
+    responses={
+        200: {"description": "Success"},
+        201: {"description": "Created"},
+        400: {"description": "Bad request"},
+        401: {"description": "Unauthorized"},
+        422: {"description": "Validation error"},
+        500: {"description": "Internal server error"},
+    },
+)
 
 
-async def insert_feedback(feedback_data: dict, mongo_db: Database) -> Optional[str]:
-    """
-    Insert new feedback into MongoDB.
-
-    Args:
-        feedback_data: Validated feedback data.
-        mongo_db: Active MongoDB instance.
-
-    Returns:
-        feedbackId or None on failure.
-    """
-
-    collection = await _get_feedback_collection(mongo_db)
+# Request/Response Schemas
+class FeedbackSubmitRequest(BaseModel):
+    """Request schema for feedback submission via JSON body."""
+    responseId: str = Field(..., min_length=1, description="ID of the response being rated")
+    sessionId: str = Field(..., min_length=1, description="ID of the chat session")
+    rating: str = Field(
+        ..., 
+        description=f"Binary rating: {FEEDBACK_RATING_GOOD} or {FEEDBACK_RATING_BAD}"
+    )
+    comment: Optional[str] = Field(
+        None, 
+        max_length=MAX_COMMENT_LENGTH,
+        description=f"Optional user comment (max {MAX_COMMENT_LENGTH} chars)"
+    )
     
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "responseId": "resp-12345",
+                "sessionId": "sess-abc123",
+                "rating": FEEDBACK_RATING_GOOD,
+                "comment": "Clear and helpful response!",
+            }
+        }
+
+
+class FeedbackResponse(BaseModel):
+    """Standard response schema for feedback operations."""
+    status: str = Field(..., description="Operation status: 'success' or 'error'")
+    feedbackId: Optional[str] = Field(
+        None, description="ID of the created feedback record"
+    )
+    message: str = Field(..., description="Human-readable message")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "status": "success",
+                "feedbackId": "507f1f77bcf86cd799439011",
+                "message": "Feedback submitted successfully",
+            }
+        }
+
+
+class FeedbackListResponse(BaseModel):
+    """Response schema for feedback list endpoints."""
+    feedback: List[dict] = Field(..., description="List of feedback documents")
+    count: int = Field(..., description="Number of feedback records")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "feedback": [
+                    {
+                        "feedbackId": "507f1f77bcf86cd799439011",
+                        "responseId": "resp-12345",
+                        "rating": "good_response",
+                        "comment": "Helpful!",
+                        "createdAt": 1699900000000,
+                    }
+                ],
+                "count": 1,
+            }
+        }
+
+
+@router.post(
+    "/submit",
+    response_model=FeedbackResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Submit feedback for a chat response",
+)
+async def submit_feedback(
+    request: FeedbackSubmitRequest,
+    current_user: dict = Depends(get_current_user),
+    service: FeedbackService = Depends(get_feedback_service),
+) -> FeedbackResponse:
+    """
+    Submit feedback for a chat response.
+    
+    Accepts a binary rating (good_response or bad_response) and optional comment.
+    Feedback is immediately stored for analytics and future fine-tuning.
+
+    """
     try:
-        # Convert to FeedbackSchema to ensure all fields are properly initialized
-        if not isinstance(feedback_data, FeedbackSchema):
-            feedback = FeedbackSchema(**feedback_data)
-        else:
-            feedback = feedback_data
+        user_id = current_user.get("id")
+        if not user_id:
+            logger.warning("Feedback submission attempted without valid user ID")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User ID not found in authentication",
+            )
         
-        # Insert with timeout protection
-        try:
-            result = await asyncio.wait_for(
-                collection.insert_one(feedback.model_dump()),
-                timeout=DB_OPERATION_TIMEOUT
+        # Validate rating
+        if request.rating not in ALLOWED_RATINGS:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"rating must be one of {list(ALLOWED_RATINGS)}",
             )
-            
-            if not result.inserted_id:
-                logger.error("Insert operation returned no ID - this should never happen")
-                return None
-            
-            logger.info(
-                f"Feedback inserted: feedbackId={feedback.feedbackId}, "
-                f"responseId={feedback.responseId}, userId={feedback.userId}, "
-                f"rating={feedback.rating}"
+        
+        # Submit feedback
+        feedback_id = await service.submit_feedback(
+            response_id=request.responseId,
+            session_id=request.sessionId,
+            user_id=user_id,
+            rating=request.rating,
+            comment=request.comment,
+        )
+        
+        if not feedback_id:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to store feedback",
             )
-            return feedback.feedbackId
-            
-        except asyncio.TimeoutError:
-            logger.error(f"Database insert timeout after {DB_OPERATION_TIMEOUT}s for response {feedback.responseId}")
-            return None
-            
+        
+        return FeedbackResponse(
+            status="success",
+            feedbackId=feedback_id,
+            message="Feedback submitted successfully",
+        )
+        
+    except HTTPException:
+        raise
     except ValueError as e:
-        logger.error(f"Feedback validation error: {e}")
-        return None
-    except pymongo.errors.DuplicateKeyError as e:
-        logger.warning(f"Duplicate feedback record: {e}")
-        return None
-    except pymongo.errors.WriteError as e:
-        logger.error(f"Database write error: {e}")
-        return None
+        logger.warning(f"Validation error in feedback submission: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(e),
+        )
     except Exception as e:
-        logger.exception(f"Failed to insert feedback: {e}")
-        return None
+        logger.exception(f"Unexpected error during feedback submission: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred",
+        )
 
 
-async def get_feedback_by_response_id(
-    response_id: str, mongo_db: Database
-) -> List[dict]:
+@router.get(
+    "/response/{response_id}",
+    response_model=FeedbackListResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get feedback for a specific response",
+)
+async def get_response_feedback(
+    response_id: str,
+    current_user: dict = Depends(get_current_user),
+    service: FeedbackService = Depends(get_feedback_service),
+) -> FeedbackListResponse:
     """
     Retrieve all feedback for a specific response.
     
-    Args:
-        response_id: ID of the response to query
-        mongo_db: MongoDB database instance
-        
-    Returns:
-        List of feedback documents for the response
-    """
-    collection = await _get_feedback_collection(mongo_db)
+    Returns a list of feedback documents including ratings, comments,
+    and submission timestamps, ordered by creation date (newest first).
     
+    **Path Parameters:**
+    - response_id: ID of the response to query
+    """
     try:
-        cursor = collection.find({"responseId": response_id}).sort("createdAt", -1)
-        # If the collection.find returned an awaitable (some mocks), await it
-        if hasattr(cursor, "__await__"):
-            cursor = await cursor
-
-        # Support both async and sync cursors/mocks
-        if hasattr(cursor, "__aiter__"):
-            feedback_list = [doc async for doc in cursor]
-        else:
-            feedback_list = [doc for doc in cursor]
+        user_id = current_user.get("id")
+        if not response_id or not response_id.strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="response_id is required",
+            )
         
-        logger.debug(f"Retrieved {len(feedback_list)} feedback records for response {response_id}")
-        return feedback_list
+        feedback_list = await service.get_response_feedback(response_id)
         
-    except Exception as e:
-        logger.exception(f"Failed to retrieve feedback for response {response_id}: {e}")
-        return []
-
-
-async def get_feedback_by_session_id(
-    session_id: str, mongo_db: Database
-) -> List[dict]:
-    """
-    Retrieve all feedback for a specific session.
-    
-    Args:
-        session_id: ID of the session to query
-        mongo_db: MongoDB database instance
-        
-    Returns:
-        List of feedback documents for the session
-    """
-    collection = await _get_feedback_collection(mongo_db)
-    
-    try:
-        cursor = collection.find({"sessionId": session_id}).sort("createdAt", -1)
-        # If the collection.find returned an awaitable (some mocks), await it
-        if hasattr(cursor, "__await__"):
-            cursor = await cursor
-
-        # Support both async and sync cursors/mocks
-        if hasattr(cursor, "__aiter__"):
-            feedback_list = [doc async for doc in cursor]
-        else:
-            feedback_list = [doc for doc in cursor]
-        
-        logger.debug(f"Retrieved {len(feedback_list)} feedback records for session {session_id}")
-        return feedback_list
-        
-    except Exception as e:
-        logger.exception(f"Failed to retrieve feedback for session {session_id}: {e}")
-        return []
-
-
-async def get_feedback_stats(
-    filter_query: Optional[Dict[str, Any]] = None, 
-    mongo_db: Database = None
-) -> FeedbackStatsSchema:
-    """
-    Compute feedback statistics using MongoDB aggregation.
-
-    Args:
-        filter_query: Optional filter (e.g., {"sessionId": "abc123"}).
-        mongo_db: MongoDB database instance.
-
-    Returns:
-        FeedbackStatsSchema with counts and percentages.
-    """
-
-    collection = await _get_feedback_collection(mongo_db)
-    
-    try:
-        filter_query = filter_query or {}
-        
-        # Use aggregation pipeline for efficiency
-        pipeline = [
-            {"$match": filter_query},
-            {
-                "$group": {
-                    "_id": "$rating",
-                    "count": {"$sum": 1},
-                }
-            },
-        ]
-        
-        stats_cursor = collection.aggregate(pipeline)
-        # If aggregate returned a coroutine (mock), await it
-        if hasattr(stats_cursor, "__await__"):
-            stats_cursor = await stats_cursor
-
-        # Support both async and sync aggregation cursors/mocks
-        if hasattr(stats_cursor, "__aiter__"):
-            stats_data = [doc async for doc in stats_cursor]
-        else:
-            stats_data = [doc for doc in stats_cursor]
-        
-        # Calculate totals and counts from aggregation results
-        total_count = 0
-        good_count = 0
-        bad_count = 0
-        
-        for stat in stats_data:
-            total_count += stat["count"]
-            if stat["_id"] == "good_response":
-                good_count = stat["count"]
-            elif stat["_id"] == "bad_response":
-                bad_count = stat["count"]
-        
-        # Calculate percentages
-        good_percentage = (good_count / total_count * 100) if total_count > 0 else 0
-        bad_percentage = (bad_count / total_count * 100) if total_count > 0 else 0
-        
-        stats = FeedbackStatsSchema(
-            totalFeedback=total_count,
-            goodCount=good_count,
-            badCount=bad_count,
-            goodPercentage=round(good_percentage, 2),
-            badPercentage=round(bad_percentage, 2),
+        logger.info(
+            f"Response feedback retrieval: user={user_id}, response={response_id}, "
+            f"feedback_records={len(feedback_list)}"
         )
         
-        logger.debug(f"Computed feedback stats: {stats.model_dump()}")
+        return FeedbackListResponse(
+            feedback=feedback_list,
+            count=len(feedback_list),
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error retrieving feedback for response {response_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve feedback",
+        )
+
+
+@router.get(
+    "/session/{session_id}",
+    response_model=dict,
+    status_code=status.HTTP_200_OK,
+    summary="Get feedback for a specific session",
+)
+async def get_session_feedback(
+    session_id: str,
+    current_user: dict = Depends(get_current_user),
+    service: FeedbackService = Depends(get_feedback_service),
+) -> dict:
+    """
+    Retrieve all feedback for a specific session with statistics.
+    
+    Returns a list of feedback documents for all responses in a session,
+    along with aggregated statistics for that session.
+    
+    **Path Parameters:**
+    - session_id: ID of the session to query
+    """
+    try:
+        user_id = current_user.get("id")
+        if not session_id or not session_id.strip():
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="session_id is required",
+            )
+        
+        feedback_list = await service.get_session_feedback(session_id)
+        stats = await service.get_stats(session_id=session_id)
+        
+        logger.info(
+            f"Session feedback retrieval: user={user_id}, session={session_id}, "
+            f"feedback_records={len(feedback_list)}"
+        )
+        
+        return {
+            "feedback": feedback_list,
+            "stats": stats.model_dump(),
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Error retrieving feedback for session {session_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve feedback",
+        )
+
+
+@router.get(
+    "/stats",
+    response_model=FeedbackStatsSchema,
+    status_code=status.HTTP_200_OK,
+    summary="Get global feedback statistics",
+)
+async def get_feedback_stats(
+    current_user: dict = Depends(get_current_user),
+    service: FeedbackService = Depends(get_feedback_service),
+) -> FeedbackStatsSchema:
+    """
+    Retrieve global feedback statistics.
+    
+    Returns aggregated feedback metrics including total count, good/bad ratio,
+    and percentages. 
+    
+    """
+    try:
+        stats = await service.get_stats()
+        logger.debug(f"Global feedback stats computed: {stats.model_dump()}")
         return stats
         
     except Exception as e:
-        logger.exception(f"Failed to compute feedback statistics: {e}")
-        return FeedbackStatsSchema(
-            totalFeedback=0, goodCount=0, badCount=0, 
-            goodPercentage=0.0, badPercentage=0.0
+        logger.exception(f"Error computing feedback statistics: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to compute statistics",
         )
-
-
-async def get_feedback_for_export(
-    filter_query: Optional[Dict[str, Any]] = None,
-    mongo_db: Database = None
-) -> List[Dict[str, Any]]:
-    """
-    Fetch feedback records not yet used for training.
-
-    Args:
-        filter_query: Optional MongoDB filter.
-        mongo_db: MongoDB database instance.
-
-    Returns:
-        List of feedback documents ready for export.
-    """
-
-    collection = await _get_feedback_collection(mongo_db)
-    
-    try:
-        query = {"usedForTraining": False}
-        if filter_query:
-            query.update(filter_query)
-        
-        cursor = collection.find(query).sort("createdAt", 1)
-        # If the collection.find returned an awaitable (some mocks), await it
-        if hasattr(cursor, "__await__"):
-            cursor = await cursor
-
-        # Support both async and sync cursors/mocks
-        if hasattr(cursor, "__aiter__"):
-            export_data = [doc async for doc in cursor]
-        else:
-            export_data = [doc for doc in cursor]
-        
-        logger.debug(f"Retrieved {len(export_data)} feedback records for export")
-        return export_data
-        
-    except Exception as e:
-        logger.exception(f"Failed to retrieve feedback for export: {e}")
-        return []
-
-
-async def mark_feedback_as_used(
-    feedback_ids: list, mongo_db: Database
-) -> int:
-    """
-    Mark feedback records as used for training.
-    
-    Args:
-        feedback_ids: List of feedbackIds to mark
-        mongo_db: MongoDB database instance
-        
-    Returns:
-        Number of documents updated
-    """
-    collection = await _get_feedback_collection(mongo_db)
-    
-    try:
-        update_call = collection.update_many(
-            {"feedbackId": {"$in": feedback_ids}},
-            {"$set": {"usedForTraining": True}},
-        )
-        # Support both async and sync update_many implementations
-        if hasattr(update_call, "__await__"):
-            result = await update_call
-        else:
-            result = update_call
-        
-        logger.info(f"Marked {result.modified_count} feedback records as used for training")
-        return result.modified_count
-        
-    except Exception as e:
-        logger.exception(f"Failed to mark feedback as used: {e}")
-        return 0
-
-
-async def ensure_feedback_indexes(mongo_db: Database) -> None:
-    """
-    Create indexes for optimal feedback queries.
-
-    """
-    collection = _get_feedback_collection(mongo_db)
-    
-    try:
-        # Index for querying feedback by response
-        idx1 = collection.create_index("responseId")
-        if hasattr(idx1, "__await__"):
-            await idx1
-
-        # Index for querying feedback by session
-        idx2 = collection.create_index("sessionId")
-        if hasattr(idx2, "__await__"):
-            await idx2
-
-        # Index for querying feedback by user
-        idx3 = collection.create_index("userId")
-        if hasattr(idx3, "__await__"):
-            await idx3
-
-        # Compound index for faster export queries
-        idx4 = collection.create_index([("usedForTraining", 1), ("createdAt", 1)])
-        if hasattr(idx4, "__await__"):
-            await idx4
-        
-        logger.info("Feedback indexes created successfully")
-        
-    except Exception as e:
-        logger.warning(f"Failed to create feedback indexes: {e}")
