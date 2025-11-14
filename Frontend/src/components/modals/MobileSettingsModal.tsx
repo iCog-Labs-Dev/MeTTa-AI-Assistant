@@ -282,14 +282,8 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
               </div>
               
               {isAuthenticated && (
-                <div className="pt-2 border-t border-zinc-200 dark:border-zinc-800">
-                  <Button 
-                    variant="outline" 
-                    className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                    onClick={() => useUserStore.getState().logout()}
-                  >
-                    Sign Out
-                  </Button>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs text-gray-500">User ID: {userId}</span>
                 </div>
               )}
             </div>
