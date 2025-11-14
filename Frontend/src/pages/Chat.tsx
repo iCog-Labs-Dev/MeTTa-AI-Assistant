@@ -20,105 +20,98 @@ function ChatPage() {
     { id: 't1', title: 'New Chat', messages: EMPTY_MESSAGES, createdAt: Date.now(), updatedAt: Date.now() },
   ])
   const [activeThreadId, setActiveThreadId] = useState('t1')
-  const [messages, setMessages] = useState<Message[]>(EMPTY_MESSAGES)
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [loadingState, setLoadingState] = useState<LoadingState | null>(null)
 
-  // Load messages when switching threads
-  useEffect(() => {
-    const activeThread = threads.find(t => t.id === activeThreadId)
-    if (activeThread) {
-      setMessages(activeThread.messages)
-    }
-  }, [activeThreadId, threads])
+  const messages = threads.find(t => t.id === activeThreadId)?.messages || EMPTY_MESSAGES;
 
+// In the handleSend function, update the loading message creation and state updates
   async function handleSend(text: string) {
-    if (!text.trim()) return
-    
-    const userMessage: Message = {
-      id: `m${Date.now()}`,
-      role: 'user',
-      content: text,
-      timestamp: Date.now()
-    }
-    
-    // Add user message immediately
-    setMessages(prev => [...prev, userMessage])
-    
-    // Update thread with user message
-    setThreads(prev => prev.map(t => 
-      t.id === activeThreadId 
-        ? { ...t, messages: [...t.messages, userMessage], updatedAt: Date.now() }
-        : t
-    ))
-    
-    // Auto-rename "New Chat" to first message
-    const activeThread = threads.find(t => t.id === activeThreadId)
-    if (activeThread && activeThread.title === 'New Chat') {
-      const newTitle = text.slice(0, 30) + (text.length > 30 ? '...' : '')
-      setThreads(prev => prev.map(t => 
-        t.id === activeThreadId ? { ...t, title: newTitle } : t
-      ))
-    }
-    
-    // Create temporary loading message
-    const tempId = `m${Date.now() + 1}`
-    const loadingMessage: Message = {
-      id: tempId,
-      role: 'assistant',
-      content: 'Thinking...',
-      timestamp: Date.now() + 100
-    }
-    
-    setMessages(prev => [...prev, loadingMessage])
-    setLoadingState({ threadId: activeThreadId, messageId: tempId })
-    setIsLoading(true)
-    
-    try {
-      // Call the actual API
-      const response = await sendChatMessage(text)
-      
+    const activeThread = threads.find(t => t.id === activeThreadId);
+    if (!activeThread) return;
+
+    const isNewChat = activeThread.messages.length === 0;
+    let currentSessionId = activeThread.sessionId;
+  if (!text.trim() || isLoading) return;
+
+  const userMessage: Message = {
+    id: `m${Date.now()}`,
+    role: 'user',
+    content: text,
+    timestamp: Date.now()
+  };
+
+  // Add user and loading messages to the active thread
+  const tempId = `m${Date.now() + 1}`;
+  const loadingMessage: Message = {
+    id: tempId,
+    role: 'assistant',
+    content: 'Thinking...',
+    timestamp: Date.now() + 1,
+    isLoading: true
+  };
+  
+      setThreads(prev =>
+      prev.map(t =>
+        t.id === activeThreadId
+          ? { ...t, messages: [...t.messages, userMessage, loadingMessage] }
+          : t
+      )
+    );
+  setIsLoading(true);
+
+                  try {
+      const response = await sendChatMessage(text, undefined, currentSessionId);
+
+      // If this is a new chat, update the thread with the session ID and title from the response
+      if (isNewChat && response.session_id) {
+        const newTitle = text.substring(0, 30) + (text.length > 30 ? '...' : '');
+        setThreads(prev =>
+          prev.map(t =>
+            t.id === activeThreadId
+              ? { ...t, sessionId: response.session_id, title: newTitle }
+              : t
+          )
+        );
+      }
+
       // Replace loading message with actual response
       const aiMessage: Message = {
-        id: tempId,
+        id: tempId, // Same ID as loading message to replace it
         role: 'assistant',
-        content: response.response,
+        content: response?.response || 'Sorry, I could not generate a response.',
         timestamp: Date.now()
-      }
-      
-      setMessages(prev => prev.map(m => m.id === tempId ? aiMessage : m))
-      
-      // Update thread with AI message
-      setThreads(prev => prev.map(t => 
-        t.id === activeThreadId 
-          ? { ...t, messages: t.messages.map(m => m.id === tempId ? aiMessage : m), updatedAt: Date.now() }
+      };
+
+        setThreads(prev =>
+      prev.map(t =>
+        t.id === activeThreadId
+          ? { ...t, messages: t.messages.map(m => m.id === tempId ? aiMessage : m) }
           : t
-      ))
-    } catch (error) {
-      console.error('Error sending message:', error)
-      
-      // Replace loading message with error
-      const errorMessage: Message = {
-        id: tempId,
-        role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
-        timestamp: Date.now()
-      }
-      
-      setMessages(prev => prev.map(m => m.id === tempId ? errorMessage : m))
-      
-      // Update thread with error message
-      setThreads(prev => prev.map(t => 
-        t.id === activeThreadId 
-          ? { ...t, messages: t.messages.map(m => m.id === tempId ? errorMessage : m), updatedAt: Date.now() }
+      )
+    );
+
+  } catch (error) {
+    console.error('Error sending message:', error);
+    // Update loading message with error
+    const errorMessage: Message = {
+      id: tempId,
+      role: 'assistant',
+      content: 'Sorry, there was an error processing your request.',
+      timestamp: Date.now()
+    };
+        setThreads(prev =>
+      prev.map(t =>
+        t.id === activeThreadId
+          ? { ...t, messages: t.messages.map(m => m.id === tempId ? errorMessage : m) }
           : t
-      ))
-    } finally {
-      setIsLoading(false)
-      setLoadingState(null)
-    }
+      )
+    );
+  } finally {
+    setIsLoading(false);
   }
+}
 
   function handleNewChat() {
     // Only create new chat if we're not already on an empty new chat
@@ -137,8 +130,7 @@ function ChatPage() {
     }
     setThreads(prev => [newThread, ...prev])
     setActiveThreadId(newId)
-    setMessages([])
-  }
+      }
 
   function handleRenameThread(id: string, newTitle: string) {
     setThreads(prev => prev.map(t => t.id === id ? { ...t, title: newTitle } : t))
@@ -151,19 +143,13 @@ function ChatPage() {
     if (id === activeThreadId) {
       if (remainingThreads.length > 0) {
         setActiveThreadId(remainingThreads[0].id)
-        setMessages(remainingThreads[0].messages)
-      } else {
+              } else {
         handleNewChat()
       }
     }
   }
 
   function handleFeedback(messageId: string, feedback: 'up' | 'down') {
-    // Update message feedback in current messages
-    setMessages(prev => prev.map(m => 
-      m.id === messageId ? { ...m, feedback } : m
-    ))
-    
     // Update message feedback in threads
     setThreads(prev => prev.map(t => 
       t.id === activeThreadId 

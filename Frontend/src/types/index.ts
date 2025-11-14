@@ -24,6 +24,7 @@ export interface Message {
   content: string
   timestamp: number
   feedback?: 'up' | 'down' | null
+  isLoading?: boolean
 }
 
 export interface Thread {
@@ -32,4 +33,5 @@ export interface Thread {
   messages: Message[]
   createdAt: number
   updatedAt: number
+  sessionId?: string
 }

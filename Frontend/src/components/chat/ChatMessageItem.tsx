@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ThumbsUp, ThumbsDown, Copy, Check } from 'lucide-react'
 import type { Message } from '../../types'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 interface ChatMessageItemProps {
   message: Message
@@ -10,6 +12,25 @@ interface ChatMessageItemProps {
 function ChatMessageItem({ message, onFeedback }: ChatMessageItemProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [loadingDots, setLoadingDots] = useState('.')
+  
+  // Handle loading animation
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>;
+    
+    if (message.isLoading) {
+      interval = setInterval(() => {
+        setLoadingDots(prev => {
+          if (prev.length >= 3) return '.';
+          return prev + '.';
+        });
+      }, 300);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [message.isLoading]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(message.content);
@@ -24,12 +45,23 @@ function ChatMessageItem({ message, onFeedback }: ChatMessageItemProps) {
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className={`w-full max-w-md px-3 py-1.5 rounded-2xl text-xs leading-[1.4] break-words ${
-          message.role === 'user' 
-            ? 'bg-black dark:bg-white text-white dark:text-black' 
-            : 'bg-gray-100 dark:bg-gray-900 border border-gray-200 dark:border-gray-800'
+        <div className={`w-full text-sm leading-relaxed break-words ${
+          message.role === 'user' ? 'bg-black dark:bg-white text-white dark:text-black rounded-2xl px-3 py-2' : ''
         }`}>
-          {message.content}
+          <div>
+            {message.isLoading || message.content === 'Thinking...' ? (
+            <div className="flex items-center">
+              <span>Thinking</span>
+              <span className="w-8 text-left">{loadingDots}</span>
+            </div>
+          ) : (
+            <div className="markdown-content">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {message.content}
+              </ReactMarkdown>
+            </div>
+          )}
+          </div>
         </div>
         
         {/* Feedback buttons - only show for assistant messages */}

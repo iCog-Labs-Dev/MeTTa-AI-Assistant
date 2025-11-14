@@ -21,7 +21,9 @@
     "lucide-react": "^0.471.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0",
     "react-router-dom": "^6.28.0",
+    "remark-gfm": "^4.0.1",
     "tailwind-merge": "^2.5.4",
     "zustand": "^5.0.8"
   },
