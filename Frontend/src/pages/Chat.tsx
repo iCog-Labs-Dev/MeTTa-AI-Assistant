@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import ChatLayout from '../layout/ChatLayout'
 import ChatMessageList from '../components/chat/ChatMessageList'
 import ChatInput from '../components/chat/ChatInput'
 import SettingsModal from '../components/modals/SettingsModal'
 import type { Thread, Message } from '../types'
+import { useUserStore } from '../store/useUserStore'
 import { sendChatMessage } from '../lib/chat'
 
 // Empty initial messages for new chats
@@ -16,6 +18,14 @@ interface LoadingState {
 }
 
 function ChatPage() {
+  const { isAuthenticated } = useUserStore();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login');
+    }
+  }, [isAuthenticated, navigate]);
   const [threads, setThreads] = useState<Thread[]>([
     { id: 't1', title: 'New Chat', messages: EMPTY_MESSAGES, createdAt: Date.now(), updatedAt: Date.now() },
   ])
