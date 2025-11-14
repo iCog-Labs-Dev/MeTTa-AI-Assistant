@@ -268,13 +268,13 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </div>
                 </div>
 
-                <div className="space-y-4">
+                {/* <div className="space-y-4">
                   {isAuthenticated && (
                     <div className="flex justify-between items-center">
                       <span className="text-xs text-gray-500">User ID: {userId}</span>
                     </div>
                   )}
-                </div>
+                </div> */}
               </div>
             </div>
           )}

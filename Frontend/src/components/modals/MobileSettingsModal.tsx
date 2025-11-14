@@ -281,11 +281,11 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
                 </div>
               </div>
               
-              {isAuthenticated && (
+              {/* {isAuthenticated && (
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500">User ID: {userId}</span>
                 </div>
-              )}
+              )} */}
             </div>
           </div>
         </div>
