@@ -3,34 +3,17 @@ import os
 from typing import List, Optional
 from enum import Enum
 from abc import ABC, abstractmethod
-from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain.chat_models import init_chat_model
 from app.core.utils.retry import async_retry, RetryConfig
-
 
 class LLMQuotaExceededError(Exception):
     """Raised when the LLM service returns a quota/rate limit error."""
-
     pass
 
 
 class LLMProvider(str, Enum):
     OPENAI = "openai"
     GEMINI = "gemini"
-
-
-class LLMClient(ABC):
-    @abstractmethod
-    async def generate_text(self, prompt: str, **kwargs) -> str:
-        pass
-
-    @abstractmethod
-    def get_provider(self) -> LLMProvider:
-        pass
-
-    @abstractmethod
-    def get_model_name(self) -> str:
-        pass
 
 
 def _is_rate_limit(err: Exception) -> bool:
@@ -44,27 +27,53 @@ def _is_rate_limit(err: Exception) -> bool:
         or "insufficient_quota" in msg
     )
 
+class BaseLLMClient(ABC):
+    
+    @abstractmethod
+    async def generate_text(self, prompt: str, **kwargs) -> str:
+        pass
 
-class GeminiClient(LLMClient):
+    @abstractmethod
+    def get_provider(self) -> LLMProvider:
+        pass
+
+    @abstractmethod
+    def get_model_name(self) -> str:
+        pass
+    
+
+
+class LLMClient(BaseLLMClient):
+
     def __init__(
         self,
-        model_name: str = "gemini-2.5-flash",
+        provider: LLMProvider,
+        model_name: Optional[str] = None,
         api_keys: Optional[List[str]] = None,
         retry_cfg: Optional[RetryConfig] = None,
     ) -> None:
-        self._model_name = model_name
+        self._provider = provider
         self._retry_cfg = retry_cfg or RetryConfig()
-        keys = api_keys or _load_gemini_keys_from_env()
-        if not keys:
-            raise ValueError("No Gemini API keys provided")
-        self._keys = keys
         self._idx = 0
 
+        if provider == LLMProvider.GEMINI:
+            self._model_name = model_name or "gemini-2.5-flash"
+            self._keys = api_keys or _load_gemini_keys_from_env()
+            if not self._keys:
+                raise ValueError("No Gemini API keys provided")
+        elif provider == LLMProvider.OPENAI:
+            self._model_name = model_name or "gpt-3.5-turbo"
+            self._keys = api_keys or _load_openai_keys_from_env()
+            if not self._keys:
+                raise ValueError("No OpenAI API keys provided")
+        else:
+            raise ValueError(f"Unsupported provider: {provider}")
+
     def get_provider(self) -> LLMProvider:
-        return LLMProvider.GEMINI
+        return self._provider
 
     def get_model_name(self) -> str:
-        return f"gemini:{self._model_name}"
+        return f"{self._provider.value}:{self._model_name}"
 
     def _next_key(self) -> str:
         key = self._keys[self._idx % len(self._keys)]
@@ -72,79 +81,32 @@ class GeminiClient(LLMClient):
         return key
 
     async def _call_generate(self, prompt: str, api_key: Optional[str] = None, **kwargs):
-        if api_key:
-            current_key = api_key
-        else:
-            current_key = self._next_key()
+        current_key = api_key or self._next_key()
 
-        client = ChatGoogleGenerativeAI(
-            model=self._model_name,
-            google_api_key=current_key,
-            temperature=kwargs.get("temperature", 0.7),
-            max_output_tokens=kwargs.get("max_tokens", 1000),
-        )
+        temperature = kwargs.get("temperature", 0.7)
+        max_tokens = kwargs.get("max_tokens", 1000)
+
+        if self._provider == LLMProvider.GEMINI:
+            client = init_chat_model(
+                model=self._model_name,
+                model_provider="google_genai",
+                google_api_key=current_key,
+                temperature=temperature,
+            )
+        else:  # OpenAI
+            client = init_chat_model(
+                model=self._model_name,
+                model_provider="openai",
+                api_key=current_key,
+                temperature=temperature,
+            )
+
         response = await client.ainvoke(prompt)
         return response
-
-    async def generate_text(
-        self, prompt: str, api_key: Optional[str] = None, *, temperature: float = 0.7, max_tokens: int = 1000, **kwargs
-    ) -> str:
-        try:
-            resp = await self._generate_with_retry(
-                prompt, api_key, temperature=temperature, max_tokens=max_tokens, **kwargs
-            )
-            return resp.content.strip()
-        except Exception as e:
-            if _is_rate_limit(e):
-                raise LLMQuotaExceededError(f"Rate limit/quota exceeded: {e}") from e
-            raise
 
     @async_retry(retry_on=_is_rate_limit)
     async def _generate_with_retry(self, prompt: str, api_key: Optional[str] = None, **kwargs):
         return await self._call_generate(prompt, api_key, **kwargs)
-
-
-class OpenAIClient(LLMClient):
-    def __init__(
-        self,
-        model_name: str = "gpt-3.5-turbo",
-        api_keys: Optional[List[str]] = None,
-        retry_cfg: Optional[RetryConfig] = None,
-    ) -> None:
-        self._model_name = model_name
-        self._retry_cfg = retry_cfg or RetryConfig()
-        keys = api_keys or _load_openai_keys_from_env()
-        if not keys:
-            raise ValueError("No OpenAI API keys provided")
-        self._keys = keys
-        self._idx = 0
-
-    def get_provider(self) -> LLMProvider:
-        return LLMProvider.OPENAI
-
-    def get_model_name(self) -> str:
-        return f"openai:{self._model_name}"
-
-    def _next_key(self) -> str:
-        key = self._keys[self._idx % len(self._keys)]
-        self._idx += 1
-        return key
-
-    async def _call_generate(self, prompt: str, api_key: Optional[str] = None, **kwargs):
-
-        if api_key:
-            current_key = api_key
-        else:
-            current_key = self._next_key()
-
-        client = ChatOpenAI(
-            model=self._model_name,
-            api_key=current_key,
-            temperature=kwargs.get("temperature", 0.7),
-            max_tokens=kwargs.get("max_tokens", 1000),
-        )
-        response = await client.ainvoke(prompt)
-        return response
 
     async def generate_text(
         self, prompt: str, api_key: Optional[str] = None, *, temperature: float = 0.7, max_tokens: int = 1000, **kwargs
@@ -153,15 +115,12 @@ class OpenAIClient(LLMClient):
             resp = await self._generate_with_retry(
                 prompt, api_key=api_key, temperature=temperature, max_tokens=max_tokens, **kwargs
             )
-            return resp.content.strip()
+            content = getattr(resp, "content", None)
+            return content if content is not None else "[No content generated]"
         except Exception as e:
             if _is_rate_limit(e):
                 raise LLMQuotaExceededError(f"Rate limit/quota exceeded: {e}") from e
             raise
-
-    @async_retry(retry_on=_is_rate_limit)
-    async def _generate_with_retry(self, prompt: str, api_key: Optional[str] = None, **kwargs):
-        return await self._call_generate(prompt, api_key=api_key, **kwargs)
 
 
 def _load_gemini_keys_from_env() -> List[str]:
