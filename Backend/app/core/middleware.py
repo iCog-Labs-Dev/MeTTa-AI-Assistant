@@ -67,7 +67,7 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
-        redis_url="redis://localhost:6379/0",
+        redis_url="redis://redis:6379/0",
         max_requests: int = 100,
         window_seconds: int = 86400,
     ):
