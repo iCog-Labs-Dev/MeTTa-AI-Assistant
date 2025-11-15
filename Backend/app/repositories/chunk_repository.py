@@ -1,4 +1,5 @@
-from loguru import logger
+import os
+from app.core.logging import logger
 from pymongo.database import Database
 from typing import Optional, List
 import time

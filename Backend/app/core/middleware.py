@@ -4,11 +4,9 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from jose import JWTError, jwt
 from jose.exceptions import ExpiredSignatureError
 import os
-from loguru import logger
+from app.core.logging import logger
 
 ALGORITHM = "HS256"
-
-
 class AuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         self.secret_key = os.getenv("JWT_SECRET")

@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr
 from bson import ObjectId
 from pymongo.database import Database
 from passlib.context import CryptContext
-from loguru import logger
+from app.core.logging import logger
 from app.db.db import _get_collection
 import os
 from enum import Enum

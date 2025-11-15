@@ -2,7 +2,7 @@ import asyncio
 import uuid
 from qdrant_client.models import PointStruct
 from app.db.db import get_chunks, update_embedding_status
-from loguru import logger
+from app.core.logging import logger
 
 async def embedding_pipeline(collection_name, mongo_db, model, qdrant, batch_size: int = 50):
     """Runs the full embedding pipeline."""
