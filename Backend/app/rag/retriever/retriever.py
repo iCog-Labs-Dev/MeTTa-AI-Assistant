@@ -1,4 +1,3 @@
-import os
 from app.rag.embedding.pipeline import embedding_user_input
 from app.core.logging import logger
 from qdrant_client.models import ScoredPoint
