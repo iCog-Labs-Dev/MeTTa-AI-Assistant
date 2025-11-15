@@ -36,6 +36,10 @@ from pymongo import AsyncMongoClient
 from pymongo.database import Database
 
 from dotenv import load_dotenv
+from app.core.logging import setup_logging
+
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[DOC_INGEST] ")
+
 
 load_dotenv()
 

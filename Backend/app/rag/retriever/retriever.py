@@ -1,9 +1,12 @@
+import os
 from app.rag.embedding.pipeline import embedding_user_input
-from loguru import logger
+from app.core.logging import setup_logging
 from qdrant_client.models import ScoredPoint
 from app.rag.retriever.schema import Document
 import asyncio
 from typing import Dict, List, Tuple
+
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[RETRIVER] ")
 
 
 class EmbeddingRetriever:

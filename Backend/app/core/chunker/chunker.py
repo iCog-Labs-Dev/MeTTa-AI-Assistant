@@ -4,7 +4,9 @@ from typing import List, Dict, Any
 from pymongo.database import Database as DB
 from app.core.chunker import metta_ast_parser, preprocess, utils
 from app.db.db import insert_chunks, clear_symbols_index
-from loguru import logger
+from app.core.logging import setup_logging
+
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[CHUNKER] ")
 
 def getSize(node: metta_ast_parser.SyntaxNode) -> int:
     """Gets the size of a node based on its source text length."""

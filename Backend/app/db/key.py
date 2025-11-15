@@ -1,8 +1,11 @@
-from loguru import logger
+import os
+from app.core.logging import setup_logging
 from typing import Optional, List
 from pymongo.database import Database
 from app.model.key import KeyModel
 from app.db.db import _get_collection
+
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[KEY] ")
 
 async def insert_dek(key_data: dict, mongo_db: Database = None) -> bool:
     """

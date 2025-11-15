@@ -1,6 +1,9 @@
+import os
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import PayloadSchemaType, VectorParams, Distance
-from loguru import logger
+from app.core.logging import setup_logging
+
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[METADATA_INDEX] ")
 
 async def create_collection_if_not_exists(qdrant_client: AsyncQdrantClient, collection_name: str):
     """Create Qdrant collection if it doesn't exist"""

@@ -2,10 +2,12 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from typing import Optional, Dict
 from pymongo.database import Database
-from loguru import logger
+from app.core.logging import setup_logging
 import os
 from app.db.db import _get_collection
 import time
+
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[AUTH] ")
 
 
 def get_secret_key():

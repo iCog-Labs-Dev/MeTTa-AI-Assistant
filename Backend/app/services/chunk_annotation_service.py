@@ -1,12 +1,14 @@
+import os
 import asyncio
 import time
 from typing import List, Optional
-from loguru import logger
+from app.core.logging import setup_logging
 
 from app.repositories.chunk_repository import ChunkRepository
 from app.model.chunk import ChunkSchema, AnnotationStatus
 from app.core.clients.llm_clients import LLMClient, LLMQuotaExceededError
 
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[CHUNK_ANN_SERVICE] ")
 
 # ------------------------------------------------------------------------------
 # CONFIGURABLE CONSTANTS

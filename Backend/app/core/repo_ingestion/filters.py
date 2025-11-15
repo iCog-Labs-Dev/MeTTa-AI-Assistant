@@ -2,8 +2,10 @@ import os
 import hashlib
 import json
 import shutil
-from loguru import logger
+from app.core.logging import setup_logging
 from typing import Optional, List, Dict
+
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[FILTERS] ")
 
 def hash_file_content(filepath: str) -> str:
     h = hashlib.sha256()
