@@ -1,4 +1,3 @@
-import os
 import shutil
 from app.core.logging import logger
 from pymongo.database import Database

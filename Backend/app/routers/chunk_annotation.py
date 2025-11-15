@@ -1,4 +1,3 @@
-import os
 from app.core.logging import logger
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks

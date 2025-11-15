@@ -95,7 +95,7 @@ class CompressedRotatingFileHandler(RotatingFileHandler):
 # ------------------------
 # Logging setup
 # ------------------------
-def setup_logging(log_level: str = "DEBUG") -> logging.Logger:
+def setup_logging(log_level: str = "DEBUG") -> None:
     """Configure logging: console, file (plain + JSON), error logs, rotation, compression, minimal library noise."""
     level = getattr(logging, log_level.upper(), logging.DEBUG)
 
@@ -147,9 +147,7 @@ def setup_logging(log_level: str = "DEBUG") -> logging.Logger:
         logging.getLogger(noisy_logger).setLevel(level)
 
     root_logger.info(f"Logging initialized at level {log_level}")
-    root_logger.info(f"Logs directory: {os.path.abspath(log_dir)}")
-
-    return root_logger
+    root_logger.info(f"Logs directory: {os.path.abspath(log_dir)}")                                                                                             
 
 # Initialize global logger when the module is imported
 logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO"))
