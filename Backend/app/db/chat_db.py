@@ -2,17 +2,13 @@ import os
 from typing import Optional, List
 from bson import ObjectId
 from pymongo.database import Database
-from app.core.logging import setup_logging
+from app.core.logging import logger
 from pymongo.errors import PyMongoError
 import math
 from datetime import datetime, timezone
 from app.model.chat_message import ChatMessageSchema
 from app.model.chat_session import ChatSessionSchema, ChatSessionWithMessages
 from app.db.db import _get_collection
-
-
-logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[CHAT_DB] ")
-
 
 # ----------------------------------
 # CHAT MESSAGES CRUD

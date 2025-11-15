@@ -1,11 +1,9 @@
 import os
-from app.core.logging import setup_logging
+from app.core.logging import logger
 from pymongo.database import Database
 from typing import Optional, List
 import time
 from app.model.chunk import ChunkSchema, AnnotationStatus
-
-logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[CHUNK_REPO] ")
 
 STALE_PENDING_THRESHOLD = 60 * 60
 

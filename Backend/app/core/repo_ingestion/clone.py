@@ -1,10 +1,8 @@
 import os
 import subprocess
 from urllib.parse import urlparse
-from app.core.logging import setup_logging
+from app.core.logging import logger
 from typing import List
-
-logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[CLONE] ")
 
 def get_repo_name(repo_url: str) -> str:
     """Extract repo name from URL, e.g. metta-moses.git → metta-moses"""

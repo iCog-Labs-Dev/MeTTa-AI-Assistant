@@ -1,5 +1,5 @@
 import os
-from app.core.logging import setup_logging
+from app.core.logging import logger
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 
@@ -10,8 +10,6 @@ from app.dependencies import get_annotation_service, require_role
 from app.model.chunk import ChunkSchema, AnnotationStatus
 
 from app.db.users import UserRole
-
-logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[CHUNK_ANNOTATION] ")
 
 router = APIRouter(prefix="/annotation", tags=["Chunk Annotation"])
 

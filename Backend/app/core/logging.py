@@ -22,7 +22,7 @@ LEVEL_COLORS = {
     "CRITICAL": "\033[91m",
 }
 RESET_COLOR = "\033[0m"
-MAX_MSG_LENGTH = 1000 
+MAX_MSG_LENGTH = 7000 
 
 # ------------------------
 # Helper: compress rotated logs
@@ -42,7 +42,7 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         msg = record.getMessage()
         if len(msg) > MAX_MSG_LENGTH:
-            msg = msg[:MAX_MSG_LENGTH] + "..."
+            msg = msg[:MAX_MSG_LENGTH] + "...[TRUNCATED]"
         log_entry = {
             "timestamp": datetime.fromtimestamp(record.created).isoformat(),
             "level": record.levelname,
@@ -57,7 +57,7 @@ class JSONFormatter(logging.Formatter):
         if record.exc_info:
             exc_text = self.formatException(record.exc_info)
             if len(exc_text) > MAX_MSG_LENGTH:
-                exc_text = exc_text[:MAX_MSG_LENGTH] + "..."
+                exc_text = exc_text[:MAX_MSG_LENGTH] + "...[TRUNCATED]"
             log_entry["exception"] = exc_text
         return json.dumps(log_entry, default=str)
 
@@ -66,7 +66,7 @@ class PlainFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         msg = record.getMessage()
         if len(msg) > MAX_MSG_LENGTH:
-            msg = msg[:MAX_MSG_LENGTH] + "..."
+            msg = msg[:MAX_MSG_LENGTH] + "...[TRUNCATED]"
         if record.exc_info:
             msg += "\n" + self.formatException(record.exc_info)
         return f"{self.formatTime(record, '%Y-%m-%d %H:%M:%S')} | {record.levelname:<8} | {record.filename}:{record.lineno}:{record.funcName} - {msg}"
@@ -77,34 +77,8 @@ class ColoredFormatter(logging.Formatter):
         color = LEVEL_COLORS.get(record.levelname, "")
         msg = record.getMessage()
         if len(msg) > MAX_MSG_LENGTH:
-            msg = msg[:MAX_MSG_LENGTH] + "..."
+            msg = msg[:MAX_MSG_LENGTH] + "...[TRUNCATED]"
         return f"{color}{self.formatTime(record, '%Y-%m-%d %H:%M:%S')} | {record.levelname:<8} | {record.filename}:{record.lineno}:{record.funcName} - {msg}{RESET_COLOR}"
-
-# ------------------------
-# Contextual Logger
-# ------------------------
-class ContextualLogger(logging.LoggerAdapter):
-    """Logger supporting prefixes and custom dimensions."""
-    def __init__(self, logger: logging.Logger, prefix: str = "", dimensions: Optional[dict] = None):
-        super().__init__(logger, {})
-        self.prefix = prefix
-        self.dimensions = dimensions or {}
-
-    def process(self, msg: str, kwargs: dict):
-        if self.prefix:
-            msg = f"{self.prefix}{msg}"
-        if "extra" not in kwargs:
-            kwargs["extra"] = {}
-        if self.dimensions:
-            kwargs["extra"]["custom_dimensions"] = {**kwargs["extra"].get("custom_dimensions", {}), **self.dimensions}
-        return msg, kwargs
-
-    def with_prefix(self, prefix: str):
-        return ContextualLogger(self.logger, prefix, self.dimensions)
-
-    def with_context(self, **dimensions):
-        new_dimensions = {**self.dimensions, **dimensions}
-        return ContextualLogger(self.logger, self.prefix, new_dimensions)
 
 # ------------------------
 # RotatingFileHandler subclass with compression
@@ -122,7 +96,7 @@ class CompressedRotatingFileHandler(RotatingFileHandler):
 # ------------------------
 # Logging setup
 # ------------------------
-def setup_logging(log_level: str = "DEBUG") -> ContextualLogger:
+def setup_logging(log_level: str = "DEBUG") -> logging.Logger:
     """Configure logging: console, file (plain + JSON), error logs, rotation, compression, minimal library noise."""
     level = getattr(logging, log_level.upper(), logging.DEBUG)
 
@@ -176,4 +150,7 @@ def setup_logging(log_level: str = "DEBUG") -> ContextualLogger:
     root_logger.info(f"Logging initialized at level {log_level}")
     root_logger.info(f"Logs directory: {os.path.abspath(log_dir)}")
 
-    return ContextualLogger(root_logger)
+    return root_logger
+
+# Initialize global logger when the module is imported
+logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO"))

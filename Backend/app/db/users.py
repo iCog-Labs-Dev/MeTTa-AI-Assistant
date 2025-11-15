@@ -4,12 +4,10 @@ from pydantic import BaseModel, EmailStr
 from bson import ObjectId
 from pymongo.database import Database
 from passlib.context import CryptContext
-from app.core.logging import setup_logging
+from app.core.logging import logger
 from app.db.db import _get_collection
 import os
 from enum import Enum
-
-logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO")).with_prefix("[USERS] ")
 
 # Define an Enum for user roles
 class UserRole(Enum):
