@@ -1,4 +1,3 @@
-import os
 import asyncio
 import uuid
 from qdrant_client.models import PointStruct
