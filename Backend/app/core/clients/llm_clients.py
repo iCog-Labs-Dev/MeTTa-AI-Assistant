@@ -115,7 +115,8 @@ class LLMClient(BaseLLMClient):
             resp = await self._generate_with_retry(
                 prompt, api_key=api_key, temperature=temperature, max_tokens=max_tokens, **kwargs
             )
-            return getattr(resp, "content", None) or "[No content generated]"
+            content = getattr(resp, "content", None)
+            return content if content is not None else "[No content generated]"
         except Exception as e:
             if _is_rate_limit(e):
                 raise LLMQuotaExceededError(f"Rate limit/quota exceeded: {e}") from e
