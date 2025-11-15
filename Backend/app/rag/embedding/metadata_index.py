@@ -1,4 +1,3 @@
-import os
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import PayloadSchemaType, VectorParams, Distance
 from app.core.logging import logger
