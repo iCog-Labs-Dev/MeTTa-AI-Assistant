@@ -37,7 +37,7 @@ function ChatHeader({ onToggleSidebar, onOpenSettings }: ChatHeaderProps) {
   }, [showProfile])
 
   return (
-    <header className="px-3 py-2.5 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-black">
+    <header className="px-3 py-2 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-black">
       <div className="flex items-center gap-2.5">
         {onToggleSidebar && (
           <button

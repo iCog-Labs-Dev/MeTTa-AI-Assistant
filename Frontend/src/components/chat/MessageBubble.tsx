@@ -9,7 +9,7 @@ interface ChatMessageItemProps {
   onFeedback?: (messageId: string, feedback: 'up' | 'down') => void
 }
 
-function ChatMessageItem({ message, onFeedback }: ChatMessageItemProps) {
+function MessageBubble({ message, onFeedback }: ChatMessageItemProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [copied, setCopied] = useState(false)
   const [loadingDots, setLoadingDots] = useState('.')
@@ -101,4 +101,4 @@ function ChatMessageItem({ message, onFeedback }: ChatMessageItemProps) {
   )
 }
 
-export default ChatMessageItem
+export default MessageBubble

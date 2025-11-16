@@ -6,7 +6,7 @@ interface ChatInputProps {
   maxWidthClass?: string
 }
 
-function ChatInput({ onSend }: ChatInputProps) {
+function MessageInput({ onSend }: ChatInputProps) {
   const [text, setText] = useState('')
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -47,4 +47,4 @@ function ChatInput({ onSend }: ChatInputProps) {
   )
 }
 
-export default ChatInput
+export default MessageInput

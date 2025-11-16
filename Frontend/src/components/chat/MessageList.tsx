@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import type { Message, SuggestionCard } from '../../types'
-import ChatMessageItem from './ChatMessageItem'
+import ChatMessageItem from './MessageBubble'
 
 interface ChatMessageListProps {
   messages: Message[]
@@ -15,7 +15,7 @@ const suggestionCards: SuggestionCard[] = [
   { title: 'Symbolic reasoning', subtitle: 'Combining with neural networks' },
 ]
 
-function ChatMessageList({ messages, onSuggestionClick, onFeedback }: ChatMessageListProps) {
+function MessageList({ messages, onSuggestionClick, onFeedback }: ChatMessageListProps) {
   const showWelcome = messages.length === 0
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -32,9 +32,9 @@ function ChatMessageList({ messages, onSuggestionClick, onFeedback }: ChatMessag
             <h1 className="text-3xl font-semibold mb-1.5">What's on your mind today?</h1>
             <p className="text-gray-500 dark:text-gray-400 mb-8 text-sm">Start a conversation with MeTTa AI</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 w-full max-w-2xl">
-              {suggestionCards.map((card, i) => (
+              {suggestionCards.map((card) => (
                 <button
-                  key={i}
+                  key={card.title}
                   onClick={() => onSuggestionClick(`${card.title} ${card.subtitle}`)}
                   className="text-left p-3 rounded-xl border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-900 transition-colors group"
                 >
@@ -57,4 +57,4 @@ function ChatMessageList({ messages, onSuggestionClick, onFeedback }: ChatMessag
   )
 }
 
-export default ChatMessageList
+export default MessageList
