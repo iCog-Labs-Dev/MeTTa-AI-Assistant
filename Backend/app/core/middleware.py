@@ -67,9 +67,9 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
     def __init__(
         self,
         app,
-        redis_url="redis://redis:6379/0",
-        max_requests: int = 100,
-        window_seconds: int = 86400,
+        redis_url,
+        max_requests: int,
+        window_seconds: int,
     ):
         super().__init__(app)
         self.redis = Redis.from_url(redis_url, decode_responses=True)
@@ -88,9 +88,12 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         if not request.url.path.startswith("/api/chat"):
             return await call_next(request)
         
-        token = request.headers.get("Authorization")
-        payload = jwt.decode(token[7:], self.secret_key, algorithms=[ALGORITHM])
-        user_id = payload.get("sub")
+        user = getattr(request.state, "user", None)
+        if not user:
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+
+        user_id = user["id"]
+        user_role = user.get("role")
 
         if self._is_using_user_api_key(request):
             
@@ -98,14 +101,13 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
             
             return await call_next(request)
 
-        user_role = payload.get("role")
         if user_role != "user":
             logger.debug(f"Rate limiting skipped for user {user_id} - not a regular user")
             return await call_next(request)
         
         logger.debug(f"Rate limiting applied for user {user_id} - using system API key")
 
-        redis_key = f"ratelimit:rolling24h:{user_id}"
+        redis_key = f"ratelimit:rolling{self.window_seconds // 3600}h:{user_id}"
 
         req_count = await self.redis.incr(redis_key)
         
@@ -119,5 +121,5 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
                 status_code=429,
                 detail=f"Rate limit exceeded. Try again in {ttl_remaining} seconds.",
             )
-
+        
         return await call_next(request)

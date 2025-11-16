@@ -9,16 +9,28 @@ from pymongo import AsyncMongoClient
 from pymongo.errors import PyMongoError
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
-from app.rag.embedding.metadata_index import setup_metadata_indexes, create_collection_if_not_exists
+from app.rag.embedding.metadata_index import (
+    setup_metadata_indexes,
+    create_collection_if_not_exists,
+)
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import VectorParams, Distance
 from app.db.users import seed_admin
 from app.core.utils.llm_utils import LLMClientFactory
-from app.routers import chunks, auth, protected,chunk_annotation, chat, key_management, chat_sessions
+from app.routers import (
+    chunks,
+    auth,
+    protected,
+    chunk_annotation,
+    chat,
+    key_management,
+    chat_sessions,
+)
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
 
 load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -26,11 +38,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     mongo_uri = os.getenv("MONGO_URI")
     mongo_db_name = os.getenv("MONGO_DB")
     if not mongo_uri:
-        logger.error("MONGO_URI is not set. Please set the MONGO_URI environment variable.")
+        logger.error(
+            "MONGO_URI is not set. Please set the MONGO_URI environment variable."
+        )
         raise RuntimeError("MONGO_URI environment variable is required")
-    
+
     if not mongo_db_name:
-        logger.error("MONGO_DB is not set. Please set the MONGO_DB environment variable.")
+        logger.error(
+            "MONGO_DB is not set. Please set the MONGO_DB environment variable."
+        )
         raise RuntimeError("MONGO_DB environment variable is required")
 
     app.state.mongo_client = AsyncMongoClient(mongo_uri)
@@ -63,13 +79,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     if not qdrant_host or not collection_name:
         raise RuntimeError("QDRANT_HOST and COLLECTION_NAME must be set in .env")
-   
 
     if isinstance(qdrant_host, str) and qdrant_host.startswith(("http://", "https://")):
         app.state.qdrant_client = AsyncQdrantClient(url=qdrant_host)
     else:
         app.state.qdrant_client = AsyncQdrantClient(host=qdrant_host, port=qdrant_port)
-        
+
     try:
         await create_collection_if_not_exists(app.state.qdrant_client, collection_name)
         logger.info("Qdrant collection setup completed")
@@ -82,7 +97,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Metadata indexes setup completed")
     except Exception as e:
         logger.warning(f"Metadata index setup skipped or failed: {e}")
-
 
     # === Embedding Model Setup ===
     app.state.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
@@ -98,7 +112,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     KEK = os.getenv("KEY_ENCRYPTION_KEY")
     if not KEK:
         raise ValueError("KEY_ENCRYPTION_KEY environment variable is required")
-    
+
     try:
         app.state.kms = KMS(KEK)
     except ValueError as e:
@@ -125,13 +139,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(lifespan=lifespan)
-app.add_middleware(AuthMiddleware)
 app.add_middleware(
     UserWindowRateLimiter,
-    redis_url= os.getenv("REDIS_URL", "redis://redis:6379/0"),
-    max_requests= int(os.getenv("MAX_REQUESTS", 100)),
-    window_seconds= int(os.getenv("WINDOW_SECONDS", 86400))
+    redis_url=os.getenv("REDIS_URL", "redis://redis:6379/0"),
+    max_requests=int(os.getenv("MAX_REQUESTS", 100)),
+    window_seconds=int(os.getenv("WINDOW_SECONDS", 86400)),
 )
+app.add_middleware(AuthMiddleware)
 app.include_router(chunks.router)
 app.include_router(auth.router)
 app.include_router(protected.router)
@@ -141,7 +155,7 @@ app.include_router(key_management.router)
 app.include_router(chat_sessions.router)
 
 
-@app.middleware("http") 
+@app.middleware("http")
 async def log_requests(request: Request, call_next) -> Response:
     start_time = time.time()
     response = await call_next(request)
