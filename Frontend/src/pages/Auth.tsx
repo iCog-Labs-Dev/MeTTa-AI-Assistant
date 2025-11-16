@@ -9,7 +9,7 @@ import { useUserStore } from '../store/useUserStore'
 import { useTheme } from '../hooks/useTheme'
 import { signup, login } from '../lib/auth'
 
-function LoginSignupPage() {
+function Auth() {
   const navigate = useNavigate()
   const setUser = useUserStore((state) => state.setUser)
   const { theme, setTheme } = useTheme()
@@ -262,4 +262,4 @@ function LoginSignupPage() {
   )
 }
 
-export default LoginSignupPage
+export default Auth
