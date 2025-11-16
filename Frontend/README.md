@@ -20,6 +20,7 @@
 - [Tech Stack](#-tech-stack)
 - [Getting Started](#-getting-started)
 - [Project Structure](#-project-structure)
+- [Configuration & Customization](#configuration--customization)
 - [Development](#-development)
 - [Building](#-building)
 - [Code Style](#-code-style)
@@ -87,6 +88,99 @@ npm install
 npm run dev
 ```
 
+> **Note:** The structure above reflects the current architecture (chat layout moved into `pages/Chat.tsx`, `Sidebar.tsx` under `components/`, etc.). If you change the layout or rename core components, update this section.
+
+---
+
+## Configuration & Customization
+
+This section points to the key places you’ll edit when changing models/providers, session pagination limits, or general chat behavior.
+
+### Models & Providers
+
+**Available providers (Gemini, OpenAI, etc.)**
+
+- File: `src/lib/providers.ts`
+- Export: `AVAILABLE_PROVIDERS`
+  - Each entry has `id`, `name`, `displayName`, `requiresApiKey`.
+- **To add or remove a provider**:
+  - Add/remove entries in `AVAILABLE_PROVIDERS`.
+  - Ensure `id` matches what the backend expects (e.g. `"gemini"`, `"openai"`).
+
+**Model store (what models the user can select)**
+
+- File: `src/store/useModelStore.ts`
+- Important pieces:
+  - `DEFAULT_MODELS`: default model list (initial app models).
+  - `models`, `activeId`: stored models and the currently active one.
+  - `addModel`, `updateModel`, `removeModel`, `setActive`: actions used by UI.
+- Persistence:
+  - Wrapped with `persist(...)` so models survive page reloads using localStorage.
+- **To change default models**: edit `DEFAULT_MODELS`.
+- **To disable persistence**: adjust/remove the `persist` wrapper.
+
+**Model UI and helpers**
+
+- Header selector: `src/components/ui/ModelSelector.tsx`
+  - Reads from `useModelStore` and lets the user pick/add models.
+- Settings modals:
+  - Desktop: `src/components/modals/SettingsModal.tsx`
+  - Mobile: `src/components/modals/MobileSettingsModal.tsx`
+- Model utilities: `src/lib/models.ts`
+  - `createModelFromForm`, `updateModelFromForm`, `modelToFormData`, `validateModelForm`, `filterModels`.
+
+If you change the `Model` type shape, also update:
+
+- `src/types/user.ts` / `src/types/chat.ts` as needed.
+- `src/lib/models.ts` and `src/store/useModelStore.ts` (so creation/editing stays consistent).
+
+### Session Pagination (Sidebar Sessions)
+
+Sessions in the left sidebar are loaded from the backend in pages.
+
+**Store logic**
+
+- File: `src/store/useChatStore.ts`
+- Key fields in `ChatState`:
+  - `sessions`, `sessionsPage`, `hasMoreSessions`, `sessionsStatus`.
+- `loadSessions()`:
+  - Calls `apiGetChatSessions(1, 20)` → loads page 1 with a **limit of 20 sessions**.
+  - Sets `sessions`, `sessionsPage = 1`, and `hasMoreSessions` from `response.has_next`.
+  - For sessions without `title`, fetches messages via `apiGetSessionMessages(sessionId)` and derives the title from the **first user message**.
+- `loadMoreSessions()`:
+  - Uses `nextPage = sessionsPage + 1` and calls `apiGetChatSessions(nextPage, 20)`.
+  - Appends new sessions (deduped by `sessionId`).
+  - Derives titles from first user message for newly loaded sessions.
+
+**Sidebar UI**
+
+- File: `src/components/Sidebar.tsx`
+- Pulls from `useChatStore`:
+  - `sessions`, `sessionsStatus`, `hasMoreSessions`, `isLoadingSessions`, `loadMoreSessions`.
+- Renders a **"Load more"** pill-style button when `hasMoreSessions` is `true`.
+
+**To change the pagination limit**:
+
+1. Open `src/store/useChatStore.ts`.
+2. Search for `apiGetChatSessions(1, 20)` and `apiGetChatSessions(nextPage, 20)`.
+3. Replace `20` with your desired limit (e.g. `50`).
+4. Make sure the backend supports that `limit` and returns `has_next` accordingly.
+
+### Where to Update When Layout/Architecture Changes
+
+When you significantly change the layout or architecture of the chat UI, make sure to update:
+
+- **This README**:
+  - Update the **Project Structure** section (paths like `pages/Chat.tsx`, `components/Sidebar.tsx`).
+  - Update the **Configuration & Customization** section if you move or rename:
+    - `useChatStore`, `useModelStore`
+    - `providers.ts`, `models.ts`
+    - `Sidebar`, `SettingsModal`, `ModelSelector`
+- **Configuration points in code**:
+  - If you remove features (e.g. model management), also clean up unused files and adjust this README so it doesn’t reference removed components.
+
+You can also reserve a small component (for example `src/components/ui/ChangelogBanner.tsx`) to surface release notes from a static source or an API. If you do, document how to update/disable it here.
+
 The app will be available at `http://localhost:5173`
 
 ### Quick Commands
@@ -111,32 +205,32 @@ npm run lint            # Run ESLint
 Frontend/
 ├── src/
 │   ├── components/          # Reusable UI components
-│   │   ├── chat/           # Chat-specific components
+│   │   ├── chat/            # Chat-specific components
 │   │   │   ├── ChatHeader.tsx
-│   │   │   ├── ChatInput.tsx
-│   │   │   ├── ChatMessageItem.tsx
-│   │   │   └── ChatMessageList.tsx
-│   │   ├── ui/             # Base UI components
+│   │   │   ├── MessageInput.tsx
+│   │   │   ├── MessageBubble.tsx
+│   │   │   └── MessageList.tsx
+│   │   ├── ui/              # Base UI components
 │   │   │   ├── button.tsx
 │   │   │   ├── input.tsx
 │   │   │   ├── ModelSelector.tsx
 │   │   │   ├── ThemeToggle.tsx
 │   │   │   └── SearchModal.tsx
-│   │   └── SettingsModal.tsx
+│   │   ├── modals/          # Settings / dialog components
+│   │   │   ├── SettingsModal.tsx
+│   │   │   └── MobileSettingsModal.tsx
+│   │   └── Sidebar.tsx      # Navigation + sessions sidebar
 │   │
-│   ├── pages/              # Page components
-│   │   ├── Chat.tsx        # Main chat interface
-│   │   └── LoginSignup.tsx # Authentication page
-│   │
-│   ├── layout/             # Layout components
-│   │   ├── ChatLayout.tsx  # Chat page layout
-│   │   └── Sidebar.tsx     # Navigation sidebar
+│   ├── pages/               # Page components
+│   │   ├── Chat.tsx         # Main chat interface
+│   │   └── Auth.tsx         # Authentication page
 │   │
 │   ├── hooks/              # Custom React hooks
 │   │   └── useTheme.ts     # Theme management hook
 │   │
 │   ├── store/              # Zustand stores
 │   │   ├── useModelStore.ts  # Model state
+│   │   ├── useChatStore.ts   # Chat sessions/messages state
 │   │   └── useUserStore.ts   # User state
 │   │
 │   ├── types/              # TypeScript definitions
