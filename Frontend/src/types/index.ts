@@ -27,7 +27,7 @@ export interface Message {
   isLoading?: boolean
 }
 
-export interface Thread {
+export interface Session {
   id: string
   title: string
   messages: Message[]
