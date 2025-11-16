@@ -1,5 +1,5 @@
 import * as chatService from '../services/chatService';
-import type { ChatRequest } from '../types/chat';
+import type { ChatRequest, ChatResponse } from '../services/chatService';
 
 // Create a new chat session
 export const createChatSession = async () => {
@@ -9,7 +9,7 @@ export const createChatSession = async () => {
 // Send a chat message
 export const sendChatMessage = async (
   query: string,
-  provider?: string,
+  provider?: 'openai' | 'gemini',
   sessionId?: string
 ) => {
   const data: ChatRequest = {
@@ -18,5 +18,5 @@ export const sendChatMessage = async (
     session_id: sessionId,
   };
   
-  return chatService.chat(data);
+  return chatService.sendMessage(data) as Promise<ChatResponse>;
 };
