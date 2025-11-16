@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
-import LoginSignupPage from './pages/LoginSignup'
-import ChatPage from './pages/Chat'
+import Auth from './pages/Auth'
+import Chat from './pages/Chat'
 import { isAuthenticated } from './lib/auth'
 
 function App() {
@@ -15,8 +15,8 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginSignupPage />} />
-        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/login" element={<Auth />} />
+        <Route path="/chat" element={<Chat />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
