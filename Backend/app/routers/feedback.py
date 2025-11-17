@@ -7,7 +7,8 @@ from loguru import logger
 
 from app.model.feedback import FeedbackSentiment
 from app.db import db
-from app.dependencies import get_mongo_db, get_current_user
+from app.dependencies import get_mongo_db, get_current_user, require_role
+from app.db.users import UserRole
 
 router = APIRouter(
     prefix="/api/feedback",
@@ -58,7 +59,7 @@ async def submit_feedback(
                 detail="Failed to save feedback"
             )
         
-        logger.info(f"Feedback {feedback_id} submitted by {current_user.get('userId')}")
+        logger.info(f"Feedback {feedback_id} submitted by {current_user.get('id')}")
         return {
             "feedbackId": feedback_id,
             "message": "Feedback submitted successfully",
@@ -76,9 +77,11 @@ async def submit_feedback(
 async def get_feedback_for_response(
     response_id: str,
     mongo_db: Database = Depends(get_mongo_db),
-    current_user: dict = Depends(get_current_user),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
-    """Get all feedback for a response"""
+    """
+    Get all feedback for a specific response (Admin only)
+    """
     try:
         feedbacks = await db.get_feedback_by_response(response_id, mongo_db)
         return {
@@ -97,7 +100,7 @@ async def get_feedback_for_response(
 @router.get("/stats")
 async def get_stats(
     mongo_db: Database = Depends(get_mongo_db),
-    current_user: dict = Depends(get_current_user),
+    _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """Get feedback statistics"""
     try:
