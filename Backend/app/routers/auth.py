@@ -1,10 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Depends
-from app.db.users import create_user, UserCreate
+from app.db.users import create_user, UserCreate, UserRole
 from app.services.auth import authenticate_user, create_access_token, create_refresh_token, get_secret_key
 from app.db.db import _get_collection  
 from app.dependencies import get_mongo_db  
 from pymongo.database import Database
-from pymongo.collection import Collection
 from bson import ObjectId
 from pydantic import BaseModel 
 from jose import JWTError, jwt
@@ -31,9 +30,14 @@ class TokenResponse(BaseModel):
 
 @router.post("/signup", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def signup(user: UserCreate, mongo_db: Database = Depends(get_mongo_db)):
-    user_id = await create_user(user, mongo_db)
-    if not user_id:
-        raise HTTPException(status_code=400, detail="User creation failed")
+    user.role = UserRole.USER
+    try:
+        user_id = await create_user(user, mongo_db)
+    except ValueError:
+        raise HTTPException(status_code=400, detail={"message": "Email in use"})
+    except Exception:
+        raise HTTPException(status_code=500, detail="User creation failed")
+        
     return {"message": "User created", "user_id": str(user_id)}
 
 @router.post("/login", response_model=TokenResponse)

@@ -3,8 +3,6 @@ from typing import Dict, Any, Optional, List
 from app.core.clients.llm_clients import (
     LLMClient,
     LLMProvider,
-    GeminiClient,
-    OpenAIClient,
 )
 from app.core.utils.retry import RetryConfig
 
@@ -18,22 +16,21 @@ class LLMClientFactory:
         retry_cfg: Optional[RetryConfig] = None,
         **kwargs,
     ) -> LLMClient:
-        if provider == LLMProvider.GEMINI:
-            return GeminiClient(
-                model_name=model_name or "gemini-2.5-flash",
-                api_keys=api_keys,
-                retry_cfg=retry_cfg,
-                **kwargs,
-            )
-        elif provider == LLMProvider.OPENAI:
-            return OpenAIClient(
-                model_name=model_name or "gpt-3.5-turbo",
-                api_keys=api_keys,
-                retry_cfg=retry_cfg,
-                **kwargs,
-            )
-        else:
+        if provider not in (LLMProvider.GEMINI, LLMProvider.OPENAI):
             raise ValueError(f"Unsupported provider: {provider}")
+
+        if not model_name:
+            model_name = (
+                "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-3.5-turbo"
+            )
+
+        return LLMClient(
+            provider=provider,
+            model_name=model_name,
+            api_keys=api_keys,
+            retry_cfg=retry_cfg,
+            **kwargs,
+        )
 
     @staticmethod
     def create_default_client() -> LLMClient:
@@ -57,13 +54,24 @@ class LLMResponseFormatter:
         }
 
     @staticmethod
-    def build_rag_prompt(query: str, context: str) -> str:
+    def build_rag_prompt(
+        query: str, context: str, history: Optional[List[Dict[str, str]]] = None
+    ) -> str:
+        history_block = ""
+        if history:
+            lines = ["Conversation History:"]
+            for m in history:
+                role = m.get("role", "user").capitalize()
+                content = m.get("content", "").strip()
+                lines.append(f"{role}: {content}")
+            history_block = "\n" + "\n".join(lines) + "\n"
         return f"""You are Metta AI Assistant, an intelligent assistant designed to accelerate the development and adoption of the MeTTa programming language—central to the Hyperon framework for AGI. Your primary role is to help developers write, understand, and translate MeTTa code using your knowledge base.
 
 Based on the following context from the MeTTa knowledge base, provide a comprehensive and accurate answer to the user's question about MeTTa programming, Hyperon framework, or related AGI concepts.
 
 Context:
 {context}
+{history_block}
 
 User Question: {query}
 

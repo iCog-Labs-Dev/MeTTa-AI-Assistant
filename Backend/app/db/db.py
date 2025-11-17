@@ -1,5 +1,4 @@
-from typing import Literal, List, Optional, Union
-from pydantic import BaseModel
+from typing import List, Optional, Union
 from bson import ObjectId
 from pymongo.errors import BulkWriteError
 from pymongo.database import Database
@@ -258,3 +257,4 @@ async def clear_symbols_index(mongo_db: Database = None) -> None:
         """
         symbols_collection = _get_collection(mongo_db, "symbols")
         await symbols_collection.delete_many({})
+

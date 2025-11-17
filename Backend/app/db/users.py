@@ -3,7 +3,6 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr
 from bson import ObjectId
 from pymongo.database import Database
-from pymongo.collection import Collection
 from passlib.context import CryptContext
 from loguru import logger
 from app.db.db import _get_collection
@@ -20,7 +19,9 @@ class UserBase(BaseModel):
     role: UserRole  # Use Enum for role validation
 
 class UserCreate(UserBase):
+    email: EmailStr
     password: str
+    role: Optional[UserRole]
 
 class UserInDB(UserBase):
     id: Optional[ObjectId] = None
