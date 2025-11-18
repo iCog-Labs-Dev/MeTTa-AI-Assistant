@@ -257,4 +257,3 @@ async def clear_symbols_index(mongo_db: Database = None) -> None:
         """
         symbols_collection = _get_collection(mongo_db, "symbols")
         await symbols_collection.delete_many({})
-

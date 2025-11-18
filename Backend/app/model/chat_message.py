@@ -7,4 +7,5 @@ class ChatMessageSchema(BaseModel):
     sessionId: str
     role: Literal["user", "assistant"]
     content: str
+    responseId: Optional[str] = None
     createdAt: datetime
