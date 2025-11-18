@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useEffect } from 'react'
 import Auth from './pages/Auth'
 import Chat from './pages/Chat'
+import NotFoundPage from './pages/NotFound'
 import { isAuthenticated } from './lib/auth'
 
 function App() {
@@ -17,7 +18,7 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<Auth />} />
         <Route path="/chat" element={<Chat />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
   )
