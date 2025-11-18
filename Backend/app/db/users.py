@@ -21,7 +21,7 @@ class UserBase(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role: Optional[UserRole]
+    role: Optional[UserRole] = UserRole.USER
 
 class UserInDB(UserBase):
     id: Optional[ObjectId] = None

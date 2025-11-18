@@ -75,7 +75,6 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         self.redis = Redis.from_url(redis_url, decode_responses=True)
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-        self.secret_key = os.getenv("JWT_SECRET")
 
     def _is_using_user_api_key(self, request: Request) -> bool:
         
@@ -121,5 +120,11 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
                 status_code=429,
                 detail=f"Rate limit exceeded. Try again in {ttl_remaining} seconds.",
             )
+            
+        response = await call_next(request)
         
-        return await call_next(request)
+        response.headers["X-RateLimit-Limit"] = str(self.max_requests)
+        response.headers["X-RateLimit-Remaining"] = str(self.max_requests - req_count)
+        response.headers["X-RateLimit-Reset"] = str(await self.redis.ttl(redis_key))
+        
+        return response

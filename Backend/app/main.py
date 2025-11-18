@@ -141,9 +141,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     UserWindowRateLimiter,
-    redis_url=os.getenv("REDIS_URL", "redis://redis:6379/0"),
-    max_requests=int(os.getenv("MAX_REQUESTS", 100)),
-    window_seconds=int(os.getenv("WINDOW_SECONDS", 86400)),
+    redis_url=os.getenv("REDIS_URL"),
+    max_requests=int(os.getenv("MAX_REQUESTS")),
+    window_seconds=int(os.getenv("WINDOW_SECONDS")),
 )
 app.add_middleware(AuthMiddleware)
 app.include_router(chunks.router)
