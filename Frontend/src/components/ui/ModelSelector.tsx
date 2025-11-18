@@ -6,6 +6,7 @@ import { Button } from './button'
 import { Label } from './label'
 import ProviderSelect from './ProviderSelect'
 import { getProviderById } from '../../lib/providers'
+import { useKMS } from '../../hooks/useKMS'
 
 function ModelSelector() {
   const { models, activeId, setActive, addModel: addModelToStore } = useModelStore()
@@ -14,6 +15,10 @@ function ModelSelector() {
   const [showAdd, setShowAdd] = useState(false)
   const [newModel, setNewModel] = useState({ provider: '', apiKey: '' })
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const { storeAPIKey, isLoading: isKmsLoading, error: kmsError } = useKMS()
+  const [localError, setLocalError] = useState<string | null>(null)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [closeTimer, setCloseTimer] = useState<number | null>(null)
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -28,26 +33,68 @@ function ModelSelector() {
     }
   }, [open])
 
-  function addModel(e: React.FormEvent<HTMLFormElement>) {
+  async function addModel(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
-    if (!newModel.provider.trim() || !newModel.apiKey.trim()) return
-    
-    // Generate a unique ID using the provider name and timestamp
-    const id = newModel.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
-    
-    // Get the provider info to use the correct name
-    const providerInfo = getProviderById(newModel.provider)
-    const displayName = providerInfo?.displayName || newModel.provider
-    
-    addModelToStore({ 
-      id, 
-      name: displayName, 
-      apiKey: newModel.apiKey,
-      provider: newModel.provider,
-      isCustom: true
-    })
-    setNewModel({ provider: '', apiKey: '' })
+    setLocalError(null)
+    setSuccessMessage(null)
+
+    if (!newModel.provider.trim() || !newModel.apiKey.trim()) {
+      setLocalError('Provider and API key are required')
+      return
+    }
+
+    try {
+      // First store the API key via KMS so backend can use it via cookies
+      const result = await storeAPIKey(newModel.apiKey, newModel.provider)
+
+      if (!result.success) {
+        setLocalError(result.error || 'Failed to store API key')
+        return
+      }
+
+      const message = result.message || `API key for ${newModel.provider} stored successfully!`
+      setSuccessMessage(message)
+
+      // Generate a unique ID using the provider name and timestamp
+      const id = newModel.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+
+      // Get the provider info to use the correct name
+      const providerInfo = getProviderById(newModel.provider)
+      const displayName = providerInfo?.displayName || newModel.provider
+
+      addModelToStore({ 
+        id, 
+        name: displayName, 
+        apiKey: newModel.apiKey,
+        provider: newModel.provider,
+        isCustom: true
+      })
+
+      setLocalError(null)
+      if (closeTimer) {
+        window.clearTimeout(closeTimer)
+      }
+      const timer = window.setTimeout(() => {
+        setShowAdd(false)
+        setSuccessMessage(null)
+        setNewModel({ provider: '', apiKey: '' })
+        setCloseTimer(null)
+      }, 1500)
+      setCloseTimer(timer)
+    } catch (err) {
+      setLocalError(err instanceof Error ? err.message : 'Failed to add model')
+    }
+  }
+
+  function closeAddModal() {
+    if (closeTimer) {
+      window.clearTimeout(closeTimer)
+      setCloseTimer(null)
+    }
     setShowAdd(false)
+    setLocalError(null)
+    setSuccessMessage(null)
+    setNewModel({ provider: '', apiKey: '' })
   }
 
   return (
@@ -89,7 +136,7 @@ function ModelSelector() {
       {showAdd && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
-          onClick={() => setShowAdd(false)}
+          onClick={closeAddModal}
         >
           <div 
             className="w-full max-w-md rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-black shadow-2xl"
@@ -99,7 +146,7 @@ function ModelSelector() {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold">Add a Model</h3>
                 <button 
-                  onClick={() => setShowAdd(false)} 
+                  onClick={closeAddModal} 
                   className="p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors"
                 >
                   ✕
@@ -125,16 +172,27 @@ function ModelSelector() {
                     required
                   />
                 </div>
+                {(localError || kmsError) && (
+                  <div className="p-2 text-xs text-red-600 bg-red-50 dark:bg-red-900/20 rounded-md">
+                    {localError || kmsError}
+                  </div>
+                )}
+                {successMessage && (
+                  <div className="p-2 text-xs text-green-600 bg-green-50 dark:bg-green-900/20 rounded-md">
+                    {successMessage}
+                  </div>
+                )}
                 <div className="flex justify-end gap-3 pt-2">
                   <Button 
                     type="button" 
                     variant="outline"
                     onClick={() => setShowAdd(false)}
+                    disabled={isKmsLoading}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit">
-                    Save Model
+                  <Button type="submit" disabled={isKmsLoading}>
+                    {isKmsLoading ? 'Saving...' : 'Save Model'}
                   </Button>
                 </div>
               </form>

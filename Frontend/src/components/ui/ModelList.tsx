@@ -1,5 +1,5 @@
 import { Model } from '../../types'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 
 interface ModelListProps {
   title: string
@@ -33,17 +33,6 @@ function ModelList({ title, models, onEdit, onDelete, isMobile = false, isCustom
               </div>
               {isCustom ? (
                 <div className={`flex items-center gap-1 ${!isMobile ? 'opacity-0 group-hover:opacity-100 transition-opacity' : ''}`}>
-                  <button
-                    onClick={() => onEdit && onEdit(model.id)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isMobile 
-                        ? 'hover:bg-zinc-200 dark:hover:bg-zinc-800' 
-                        : 'hover:bg-zinc-100 dark:hover:bg-zinc-900'
-                    }`}
-                    title="Edit"
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </button>
                   <button
                     onClick={() => onDelete && onDelete(model.id)}
                     className="p-2 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 transition-colors text-red-600 dark:text-red-400"

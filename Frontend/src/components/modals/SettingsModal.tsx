@@ -7,14 +7,13 @@ import MobileSettingsModal from './MobileSettingsModal'
 import ModelList from '../ui/ModelList'
 import ModelForm from '../ui/ModelForm'
 import { Button } from '../ui/button'
-import { 
-  createModelFromForm, 
-  updateModelFromForm, 
-  modelToFormData, 
-  validateModelForm,
+import {
+  createModelFromForm,
   filterModels,
-  ModelFormData
+  ModelFormData,
+  validateModelForm,
 } from '../../lib/models'
+import { useKMS } from '../../hooks/useKMS'
 
 type SettingsTab = 'general' | 'models' | 'account'
 
@@ -24,15 +23,15 @@ interface SettingsModalProps {
 }
 
 function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const { models, addModel, updateModel, removeModel } = useModelStore()
+  const { models, addModel, removeModel } = useModelStore()
   const { email, username, userId, isAuthenticated, accountCreatedAt } = useUserStore()
   const { theme, setTheme } = useTheme()
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [isMobile, setIsMobile] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [editingModel, setEditingModel] = useState<string | null>(null)
   const [formData, setFormData] = useState<ModelFormData>({ provider: '', apiKey: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  const { deleteAPIKey } = useKMS()
 
   useEffect(() => {
     const checkMobile = () => {
@@ -71,28 +70,32 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     closeModal()
   }
 
-  function handleUpdateModel(e: React.FormEvent) {
-    e.preventDefault()
-    if (!editingModel || !validateModelForm(formData)) return
-    updateModel(editingModel, updateModelFromForm(formData))
-    closeModal()
-  }
-
-  function handleEdit(modelId: string) {
-    const model = models.find(m => m.id === modelId)
-    if (model) {
-      setFormData(modelToFormData(model))
-      setEditingModel(modelId)
-    }
-  }
-
-  function handleDelete(modelId: string) {
+  function handleDeleteRequest(modelId: string) {
     setConfirmDeleteId(modelId)
+  }
+
+  async function performDelete() {
+    if (!confirmDeleteId) return
+    const model = models.find(m => m.id === confirmDeleteId)
+    if (!model) {
+      setConfirmDeleteId(null)
+      return
+    }
+    if (model.provider) {
+      console.log('[SettingsModal] delete requested for', model.provider)
+      try {
+        await deleteAPIKey(model.provider)
+        console.log('[SettingsModal] delete succeeded for', model.provider)
+      } catch (err) {
+        console.error('Failed to delete key via KMS', err)
+      }
+    }
+    removeModel(model.id)
+    setConfirmDeleteId(null)
   }
 
   function closeModal() {
     setShowAddModal(false)
-    setEditingModel(null)
     setFormData({ provider: '', apiKey: '' })
   }
 
@@ -221,8 +224,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <ModelList 
                   title="Custom Models"
                   models={customModels}
-                  onEdit={handleEdit}
-                  onDelete={handleDelete}
+                  onDelete={handleDeleteRequest}
                   isCustom={true}
                 />
               )}
@@ -281,14 +283,12 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
       </div>
 
-      {(showAddModal || editingModel) && (
+      {showAddModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={closeModal}>
           <div className="w-full max-w-md rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">
-                  {editingModel ? 'Edit Model' : 'Add a Key'}
-                </h3>
+                <h3 className="text-lg font-semibold">Add a Key</h3>
                 <button
                   onClick={closeModal}
                   className="p-1 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
@@ -299,9 +299,9 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <ModelForm 
                 formData={formData}
                 onFormChange={setFormData}
-                onSubmit={editingModel ? handleUpdateModel : handleAddModel}
+                onSubmit={handleAddModel}
                 onCancel={closeModal}
-                isEditing={!!editingModel}
+                isEditing={false}
               />
             </div>
           </div>
@@ -318,10 +318,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
                 <Button 
                   className="bg-red-600 hover:bg-red-700 text-white"
-                  onClick={() => {
-                    removeModel(confirmDeleteId)
-                    setConfirmDeleteId(null)
-                  }}
+                  onClick={performDelete}
                 >
                   Delete
                 </Button>
