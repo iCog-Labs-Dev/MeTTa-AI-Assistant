@@ -4,7 +4,6 @@ import {
   getChatSessions as apiGetChatSessions,
   getSessionMessages as apiGetSessionMessages,
   deleteChatSession as apiDeleteChatSession,
-  createSession as apiCreateSession,
   sendMessage as apiSendMessage,
 } from '../services/chatService';
 import { refreshAccessToken, isAuthenticated } from '../lib/auth';

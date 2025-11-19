@@ -55,19 +55,6 @@ export const deleteChatSession = async (sessionId: string): Promise<void> => {
   }
 };
 
-// Create a new chat session by sending an initial message
-export const createSession = async (): Promise<{ sessionId: string }> => {
-  try {
-    // A new session is created implicitly by the backend when sending a message without a session_id.
-    // We send a dummy message to create the session and get the ID back.
-    const response = await sendMessage({ query: 'New chat' });
-    return { sessionId: response.session_id };
-  } catch (error) {
-    handleAxiosError(error, 'Session');
-    throw error;
-  }
-};
-
 // Send a chat message
 export const sendMessage = async (data: ChatRequest): Promise<ChatResponse> => {
   try {

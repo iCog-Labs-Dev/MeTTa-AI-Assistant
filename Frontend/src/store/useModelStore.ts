@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Model } from '../types'
-import { AVAILABLE_PROVIDERS, getProviderById } from '../lib/providers'
 
 interface ModelState {
   models: Model[]
