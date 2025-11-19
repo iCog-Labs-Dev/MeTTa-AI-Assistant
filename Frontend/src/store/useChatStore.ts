@@ -7,6 +7,7 @@ import {
   sendMessage as apiSendMessage,
 } from '../services/chatService';
 import { refreshAccessToken, isAuthenticated } from '../lib/auth';
+import { useModelStore } from './useModelStore';
 
 interface ChatState {
   sessions: ChatSession[];
@@ -370,11 +371,17 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     const isTempSession = selectedSessionId?.startsWith('temp-');
 
     try {
-      // For a temporary or brand-new session, let the backend create the session
+      const { models, activeId } = useModelStore.getState();
+      const activeModel = models.find((m) => m.id === activeId);
+      const provider =
+        activeModel?.provider === 'openai'
+          ? 'openai'
+          : 'gemini';
+
       const response = await apiSendMessage({
         query,
         session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
-        provider: 'gemini',
+        provider,
         mode: 'generate',
       });
 
@@ -425,10 +432,17 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
+          const { models, activeId } = useModelStore.getState();
+          const activeModel = models.find((m) => m.id === activeId);
+          const provider =
+            activeModel?.provider === 'openai'
+              ? 'openai'
+              : 'gemini';
+
           const response = await apiSendMessage({
             query,
             session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
-            provider: 'gemini',
+            provider,
             mode: 'generate',
           });
 
