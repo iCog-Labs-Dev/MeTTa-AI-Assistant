@@ -94,10 +94,9 @@ class CompressedRotatingFileHandler(RotatingFileHandler):
     def doRollover(self):
         super().doRollover()
         if self.backupCount > 0:
-            for i in range(self.backupCount, 0, -1):
-                sfn = f"{self.baseFilename}.{i}"
-                if os.path.exists(sfn):
-                    compress_file(sfn)
+            sfn = f"{self.baseFilename}.1"
+            if os.path.exists(sfn):
+                compress_file(sfn)
 
 # ------------------------
 # Logging setup
