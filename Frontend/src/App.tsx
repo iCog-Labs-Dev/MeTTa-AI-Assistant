@@ -12,10 +12,17 @@ function App() {
     isAuthenticated();
   }, []);
   
+  const authed = isAuthenticated();
+
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route
+          path="/"
+          element={
+            <Navigate to={authed ? '/chat' : '/login'} replace />
+          }
+        />
         <Route path="/login" element={<Auth />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="*" element={<NotFoundPage />} />
