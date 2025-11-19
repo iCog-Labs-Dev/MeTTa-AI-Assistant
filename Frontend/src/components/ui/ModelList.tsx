@@ -28,7 +28,6 @@ function ModelList({ title, models, onEdit, onDelete, isMobile = false, isCustom
                 <h4 className="font-medium text-sm">{model.name}</h4>
                 <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
                   {model.provider || 'Custom'}
-                  {isCustom && ` • ${model.apiKey ? '••••' + model.apiKey.slice(-4) : 'No API key'}`}
                 </p>
               </div>
               {isCustom ? (
