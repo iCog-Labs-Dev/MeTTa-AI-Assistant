@@ -25,7 +25,7 @@ function MessageList({ messages, onSuggestionClick, onFeedback }: ChatMessageLis
   }, [messages])
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-8" style={{ scrollbarWidth: 'thin' }}>
+    <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-8" style={{ scrollbarWidth: 'thin' }}>
       <div className="mx-auto max-w-2xl">
         {showWelcome ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh]">

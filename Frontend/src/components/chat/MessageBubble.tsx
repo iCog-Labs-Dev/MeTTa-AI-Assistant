@@ -41,11 +41,11 @@ function MessageBubble({ message, onFeedback }: ChatMessageItemProps) {
   return (
     <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
       <div 
-        className="relative group"
+        className="relative group max-w-full"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <div className={`w-full text-sm leading-relaxed break-words ${
+        <div className={`max-w-[min(100%,700px)] text-sm leading-relaxed break-words ${
           message.role === 'user' ? 'bg-black dark:bg-white text-white dark:text-black rounded-2xl px-3 py-2' : ''
         }`}>
           <div>
