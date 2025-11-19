@@ -77,8 +77,15 @@ class ColoredFormatter(logging.Formatter):
         msg = record.getMessage()
         if len(msg) > MAX_MSG_LENGTH:
             msg = msg[:MAX_MSG_LENGTH] + "...[TRUNCATED]"
+            
+        if record.exc_info:
+            exc_text = self.formatException(record.exc_info)
+            if len(exc_text) > MAX_MSG_LENGTH:
+                exc_text = exc_text[:MAX_MSG_LENGTH] + "...[TRUNCATED]"
+            msg += "\n" + exc_text
+       
         return f"{color}{self.formatTime(record, '%Y-%m-%d %H:%M:%S')} | {record.levelname:<8} | {record.filename}:{record.lineno}:{record.funcName} - {msg}{RESET_COLOR}"
-
+       
 # ------------------------
 # RotatingFileHandler subclass with compression
 # ------------------------
@@ -95,7 +102,7 @@ class CompressedRotatingFileHandler(RotatingFileHandler):
 # ------------------------
 # Logging setup
 # ------------------------
-def setup_logging(log_level: str = "DEBUG") -> None:
+def setup_logging(log_level: str = "DEBUG") -> logging.Logger:
     """Configure logging: console, file (plain + JSON), error logs, rotation, compression, minimal library noise."""
     level = getattr(logging, log_level.upper(), logging.DEBUG)
 
@@ -147,7 +154,9 @@ def setup_logging(log_level: str = "DEBUG") -> None:
         logging.getLogger(noisy_logger).setLevel(level)
 
     root_logger.info(f"Logging initialized at level {log_level}")
-    root_logger.info(f"Logs directory: {os.path.abspath(log_dir)}")                                                                                             
+    root_logger.info(f"Logs directory: {os.path.abspath(log_dir)}")
+
+    return root_logger
 
 # Initialize global logger when the module is imported
 logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO"))
