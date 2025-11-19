@@ -2,8 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Model } from '../types'
 
+type StoredModel = Omit<Model, 'apiKey'>
+
 interface ModelState {
-  models: Model[]
+  models: StoredModel[]
   activeId: string
   addModel: (model: Model) => void
   updateModel: (id: string, updates: Partial<Model>) => void
@@ -12,7 +14,7 @@ interface ModelState {
 }
 
 // Default models available in the application
-const DEFAULT_MODELS: Model[] = [
+const DEFAULT_MODELS: StoredModel[] = [
   { 
     id: 'default',
     name: 'default',
@@ -29,12 +31,15 @@ export const useModelStore = create<ModelState>()(
       models: [...DEFAULT_MODELS],
       activeId: DEFAULT_MODELS[0].id,
       
-      // Add a new model to the store
+      // Add a new model to the store, but never persist apiKey
       addModel: (model) =>
-        set((state) => ({
-          models: [...state.models, { ...model, isCustom: true }],
-          activeId: model.id,
-        })),
+        set((state) => {
+          const { apiKey, ...safeModel } = model as Model
+          return {
+            models: [...state.models, { ...safeModel, isCustom: true }],
+            activeId: model.id,
+          }
+        }),
       
       // Update an existing model
       updateModel: (id, updates) =>
