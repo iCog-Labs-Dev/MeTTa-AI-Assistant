@@ -127,10 +127,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(AuthMiddleware)
+
+frontend_url = os.getenv("FRONTEND_URL")
 origins = [
-   "*",
+    "http://localhost:5173",
 ]
 
+if frontend_url:
+    origins.append(frontend_url)
 
 app.add_middleware(
     CORSMiddleware,
