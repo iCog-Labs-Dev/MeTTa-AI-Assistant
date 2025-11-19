@@ -3,7 +3,7 @@ import { Button } from './button'
 import { Input } from './input'
 import { Label } from './label'
 import ProviderSelect from './ProviderSelect'
-import { useKMS } from '../../hooks/useKMS'
+import { ProviderMismatchInfo, StoreAPIKeyResult, useKMS } from '../../hooks/useKMS'
 import { useRef, useState, useEffect } from 'react'
 
 interface ModelFormProps {
@@ -19,6 +19,8 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [providerMismatch, setProviderMismatch] = useState<ProviderMismatchInfo | null>(null)
+  const [detectedProvider, setDetectedProvider] = useState<string | null>(null)
   const successTimer = useRef<number | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -28,9 +30,11 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
     setIsSubmitting(true)
     setError(null)
     setSuccess(null)
+    setProviderMismatch(null)
+    setDetectedProvider(null)
     
     try {
-      const result = await storeAPIKey(formData.apiKey, formData.provider)
+      const result: StoreAPIKeyResult = await storeAPIKey(formData.apiKey, formData.provider)
 
       if (result.success) {
         const message = result.message || `API key for ${formData.provider} stored successfully!`
@@ -45,6 +49,10 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
         }, 1400)
       } else {
         setError(result.error || 'Failed to store API key')
+        setProviderMismatch(result.providerMismatch ?? null)
+        if (result.providerMismatch?.detected) {
+          setDetectedProvider(result.providerMismatch.detected)
+        }
       }
     } catch (err) {
       setError('An error occurred while saving the API key')
@@ -68,6 +76,8 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
       successTimer.current = null
     }
     setSuccess(null)
+    setProviderMismatch(null)
+    setDetectedProvider(null)
     onCancel()
   }
 
@@ -97,6 +107,28 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
       {error && (
         <div className="p-2 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-md">
           {error}
+        </div>
+      )}
+
+      {providerMismatch && (
+        <div className="p-2 text-sm text-orange-600 bg-orange-50 dark:bg-orange-900/20 rounded-md space-y-2">
+          <p className="font-semibold">Detected provider mismatch</p>
+          <p>
+            API key appears to belong to <strong>{providerMismatch.detected}</strong> but{' '}
+            <strong>{providerMismatch.declared}</strong> was declared.
+          </p>
+          {providerMismatch.detail && (
+            <p className="text-xs text-orange-700 dark:text-orange-300 mt-1">{providerMismatch.detail}</p>
+          )}
+          {detectedProvider && (
+            <button
+              type="button"
+              className="text-xs font-semibold text-blue-600 dark:text-blue-400 underline"
+              onClick={() => onFormChange({ ...formData, provider: detectedProvider! })}
+            >
+              Switch to {detectedProvider}
+            </button>
+          )}
         </div>
       )}
       
