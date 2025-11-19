@@ -148,9 +148,10 @@ def setup_logging(log_level: str = "DEBUG") -> logging.Logger:
 
     # Minimal library noise filtering
     for noisy_logger in ("uvicorn", "uvicorn.error", "fastapi", "asyncio"):
-        logging.getLogger(noisy_logger).handlers = [console_handler]
-        logging.getLogger(noisy_logger).propagate = False
-        logging.getLogger(noisy_logger).setLevel(level)
+        nl = logging.getLogger(noisy_logger)
+        nl.handlers = []         
+        nl.propagate = True      
+        nl.setLevel(logging.WARNING)  
 
     root_logger.info(f"Logging initialized at level {log_level}")
     root_logger.info(f"Logs directory: {os.path.abspath(log_dir)}")
