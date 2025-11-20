@@ -75,7 +75,18 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         self.redis = Redis.from_url(redis_url, decode_responses=True)
         self.max_requests = max_requests
         self.window_seconds = window_seconds
-
+        self.atomic_incr_script = """
+            local key = KEYS[1]
+            local window_seconds = tonumber(ARGV[1])
+            
+            local current_count = redis.call('INCR', key)
+            
+            if current_count == 1 then
+                redis.call('EXPIRE', key, window_seconds)
+            end
+            
+            return current_count
+        """
     def _is_using_user_api_key(self, request: Request) -> bool:
         
         gemini_cookie = request.cookies.get("gemini")
@@ -106,12 +117,14 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         
         logger.debug(f"Rate limiting applied for user {user_id} - using system API key")
 
-        redis_key = f"ratelimit:rolling{self.window_seconds // 3600}h:{user_id}"
+        redis_key = f"ratelimit:fixed{self.window_seconds}s:{user_id}"
 
-        req_count = await self.redis.incr(redis_key)
-        
-        if req_count == 1:
-            await self.redis.expire(redis_key, self.window_seconds)
+        req_count = await self.redis.eval(
+            self.atomic_incr_script,
+            1,
+            redis_key,
+            self.window_seconds
+        )
 
         if req_count > self.max_requests:
             ttl_remaining = await self.redis.ttl(redis_key)
