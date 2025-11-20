@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 from pymongo.database import Database
 from app.core.chunker import metta_ast_parser 
 from app.db.db import get_all_symbols, upsert_symbol
-from loguru import logger
+from app.core.logging import logger
 
 # take the src code return the potential chunks retrieved from the symbol index table
 async def preprocess_code(repo_files: defaultdict, db: Database) -> List[List[str]]:

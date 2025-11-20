@@ -17,8 +17,7 @@ from app.core.clients.llm_clients import LLMProvider
 from app.rag.generator.rag_generator import RAGGenerator
 from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
 
-from loguru import logger
-
+from app.core.logging import logger
 
 router = APIRouter(
     prefix="/api/chat",

@@ -1,7 +1,7 @@
 ﻿from fastapi import FastAPI, Request, Response
 import time
 import os
-from loguru import logger
+from app.core.logging import logger
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict
 from app.core.middleware import AuthMiddleware
@@ -20,7 +20,6 @@ from app.services.key_management_service import KMS
 from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Application has started")
@@ -43,7 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Successfully connected to MongoDB")
         await seed_admin(app.state.mongo_db)
     except PyMongoError as e:
-        logger.exception("Failed to connect to MongoDB: {}", e)
+        logger.exception(f"Failed to connect to MongoDB: {e}")
         try:
             await app.state.mongo_client.close()
         except Exception:
@@ -102,11 +101,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     
     try:
         app.state.kms = KMS(KEK)
+        logger.info("Key Management Service initialized")
     except ValueError as e:
         logger.error(f"Invalid KMS_KEK: {e}")
         raise
 
-    logger.info("Key Management Service initialized")
     yield  # -----> Application runs here
 
     # === Shutdown cleanup ===
