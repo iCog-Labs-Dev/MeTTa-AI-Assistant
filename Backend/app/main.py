@@ -17,6 +17,7 @@ from app.core.utils.llm_utils import LLMClientFactory
 from app.routers import chunks, auth, protected, chunk_annotation, chat, key_management, chat_sessions, feedback
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -69,7 +70,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.qdrant_client = AsyncQdrantClient(url=qdrant_host)
     else:
         app.state.qdrant_client = AsyncQdrantClient(host=qdrant_host, port=qdrant_port)
-        
+    
     try:
         await create_collection_if_not_exists(app.state.qdrant_client, collection_name)
         logger.info("Qdrant collection setup completed")
@@ -126,6 +127,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(AuthMiddleware)
+
+frontend_url = os.getenv("FRONTEND_URL")
+origins = [
+    "http://localhost:5173",
+]
+
+if frontend_url:
+    origins.append(frontend_url)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(chunks.router)
 app.include_router(auth.router)
 app.include_router(protected.router)
