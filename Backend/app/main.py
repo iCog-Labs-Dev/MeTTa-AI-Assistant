@@ -28,6 +28,7 @@ from app.routers import (
 )
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
 
@@ -85,6 +86,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         app.state.qdrant_client = AsyncQdrantClient(host=qdrant_host, port=qdrant_port)
 
+    
     try:
         await create_collection_if_not_exists(app.state.qdrant_client, collection_name)
         logger.info("Qdrant collection setup completed")
@@ -146,11 +148,28 @@ app.add_middleware(
     window_seconds=int(os.getenv("WINDOW_SECONDS")),
 )
 app.add_middleware(AuthMiddleware)
+
+frontend_url = os.getenv("FRONTEND_URL")
+origins = [
+    "http://localhost:5173",
+]
+
+if frontend_url:
+    origins.append(frontend_url)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(chunks.router)
 app.include_router(auth.router)
 app.include_router(protected.router)
 app.include_router(chat.router)
 app.include_router(chunk_annotation.router)
+app.include_router(feedback.router)
 app.include_router(key_management.router)
 app.include_router(chat_sessions.router)
 
