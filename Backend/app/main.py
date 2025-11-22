@@ -25,6 +25,7 @@ from app.routers import (
     chat,
     key_management,
     chat_sessions,
+    feedback,
 )
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
