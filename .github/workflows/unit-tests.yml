@@ -37,6 +37,9 @@ jobs:
           MONGO_URI: mongodb://localhost:27017
           MONGO_DB: test_db
           KEY_ENCRYPTION_KEY: Gs8d0pOL_hhYuwRB_NKiVUh3-2j0PLQkm_i4iZGiEAk=
+          MAX_REQUESTS: "100"
+          WINDOW_SECONDS: "60"
+          REDIS_URL: redis://localhost:6379
         run: |
           pytest tests/unit \
             -v \
@@ -48,4 +51,4 @@ jobs:
       - name: Summary
         if: always()
         run: |
-          echo "## ✅ Backend Unit Tests Completed" >> $GITHUB_STEP_SUMMARY
+          echo "## Backend Unit Tests Completed" >> $GITHUB_STEP_SUMMARY
