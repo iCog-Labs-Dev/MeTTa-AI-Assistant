@@ -4,21 +4,35 @@ import os
 from loguru import logger
 from contextlib import asynccontextmanager
 from typing import AsyncIterator, Dict
-from app.core.middleware import AuthMiddleware
+from app.core.middleware import AuthMiddleware, UserWindowRateLimiter
 from pymongo import AsyncMongoClient
 from pymongo.errors import PyMongoError
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
-from app.rag.embedding.metadata_index import setup_metadata_indexes, create_collection_if_not_exists
+from app.rag.embedding.metadata_index import (
+    setup_metadata_indexes,
+    create_collection_if_not_exists,
+)
 from qdrant_client import AsyncQdrantClient
 from app.db.users import seed_admin
 from app.core.utils.llm_utils import LLMClientFactory
 from app.core.utils.helpers import get_required_env
-from app.routers import chunks, auth, protected, chunk_annotation, chat, key_management, chat_sessions, feedback
+from app.routers import (
+    chunks,
+    auth,
+    protected,
+    chunk_annotation,
+    chat,
+    key_management,
+    chat_sessions,
+    feedback
+)
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
+from fastapi.middleware.cors import CORSMiddleware
 
 load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -59,7 +73,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         app.state.qdrant_client = AsyncQdrantClient(url=qdrant_host, api_key=qdrant_api_key)
     else:
         app.state.qdrant_client = AsyncQdrantClient(host=qdrant_host, port=qdrant_port)
-        
+
+    
     try:
         await create_collection_if_not_exists(app.state.qdrant_client, collection_name)
         logger.info("Qdrant collection setup completed")
@@ -112,7 +127,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    UserWindowRateLimiter,
+    redis_url=os.getenv("REDIS_URL"),
+    max_requests=int(os.getenv("MAX_REQUESTS")),
+    window_seconds=int(os.getenv("WINDOW_SECONDS")),
+)
 app.add_middleware(AuthMiddleware)
+
+frontend_url = os.getenv("FRONTEND_URL")
+origins = [
+    "http://localhost:5173",
+]
+
+if frontend_url:
+    origins.append(frontend_url)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(chunks.router)
 app.include_router(auth.router)
 app.include_router(protected.router)
@@ -123,7 +160,7 @@ app.include_router(key_management.router)
 app.include_router(chat_sessions.router)
 
 
-@app.middleware("http") 
+@app.middleware("http")
 async def log_requests(request: Request, call_next) -> Response:
     start_time = time.time()
     response = await call_next(request)
