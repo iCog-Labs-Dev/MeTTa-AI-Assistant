@@ -1,71 +1,37 @@
-# MeTTa-AI-Assistant
 
-## Running the Backend
+<div align="center">
 
-### 1. Clone the repository
+# MeTTa AI Assistant
 
-```bash
-git clone https://github.com/iCog-Labs-Dev/MeTTa-AI-Assistant
-cd MeTTa-AI-Assistant/Backend
-```
+</div>
 
-### 2. Set up environment
+## Overview
 
-```bash
-cp .env.example .env
-# Update .env with your values
-```
+This repository contains the **MeTTa AI Assistant**, a RAG-based assistant designed for the [MeTTa](https://metta-lang.dev/) programming language (a domain-specific language used in the [Hyperon](https://hyperon.opencog.org/) AGI framework).
+The goal is to enable intelligent code assistance over MeTTa codebases.
 
-### 3. Ingest documents (first time setup)
+---
 
-Before running the application, you need to ingest documents:
-
-```bash
-docker compose run --rm api python -m app.scripts.ingest_docs
-```
-
-You can also use the `--force` flag to re-ingest documents:
-```bash
-docker compose run --rm api python -m app.scripts.ingest_docs --force
-```
-
-This only needs to be done once (unless you want to re-ingest with `--force`).
-
-### 4. Build and run using Docker
-
-```bash
-docker-compose up --build
-```
-
-This will start the FastAPI server on http://localhost:8000.
-
-### 5. Ingest documents (for local setup)
-
-Before running the application locally, you need to ingest documents:
-
-```bash
-python -m app.scripts.ingest_docs
-```
-
-You can also use the `--force` flag to re-ingest documents:
-```bash
-python -m app.scripts.ingest_docs --force
-```
-
-### 6. Run locally (without Docker)
-
-```bash
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/macOS
-venv\Scripts\activate     # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Start FastAPI server
-python -m run.py
+## Repository Structure
 
 ```
+.
+├── frontend/     # UI for interacting with the assistant
+├── backend/      # API, RAG pipeline, model integration
+└── experiment/   # Experiments on AST-based chunking and embeddings
+```
 
-Note: Remove the --reload flag in production.
+---
+
+## Setup Instructions
+
+Detailed setup guides are available in each component:
+
+* **Frontend:** [`./frontend/README.md`](https://github.com/iCog-Labs-Dev/MeTTa-AI-Assistant/blob/main/Frontend/README.md)
+* **Backend:** [`./backend/README.md`](https://github.com/iCog-Labs-Dev/MeTTa-AI-Assistant/blob/main/Backend/README.md)
+
+
+
+
+---
+
