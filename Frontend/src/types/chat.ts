@@ -4,7 +4,8 @@ export interface Message {
   content: string;
   timestamp: number;
   isLoading?: boolean;
-  feedback?: 'up' | 'down' | null;
+  feedback?: 'positive' | 'neutral' | 'negative' | null;
+  responseId?: string; // Backend response ID for feedback submission
 }
 
 export interface ChatSession {
