@@ -10,6 +10,7 @@ services:
     depends_on:
       - qdrant
       - mongo
+      - redis
     env_file:
       - .env
     environment:
@@ -23,7 +24,7 @@ services:
     tty: true
 
   qdrant:
-    image: qdrant/qdrant:v1.7.3
+    image: qdrant/qdrant:v1.15.1
     ports:
       - "6333:6333"
     volumes:
@@ -35,6 +36,10 @@ services:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
 
 volumes:
   qdrant_storage:
