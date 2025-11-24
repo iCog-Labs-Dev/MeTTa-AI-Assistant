@@ -3,6 +3,7 @@ Feedback CRUD operations for MongoDB.
 """
 
 from typing import List, Optional
+from datetime import datetime
 from pymongo.database import Database
 from pymongo.collection import Collection
 from loguru import logger
@@ -23,6 +24,56 @@ async def insert_feedback(feedback_data: dict, mongo_db: Database = None) -> Opt
         return feedback.feedbackId
     except Exception as e:
         logger.error(f"Error inserting feedback: {e}")
+        return None
+
+
+async def upsert_feedback(feedback_data: dict, mongo_db: Database = None) -> Optional[str]:
+    """
+    Upsert feedback into database.
+    Updates existing feedback if found by userId and responseId, otherwise inserts new.
+    Returns feedbackId on success, None on failure.
+    """
+    collection = _get_collection(mongo_db, "feedback")
+    try:
+        feedback_data["updatedAt"] = datetime.utcnow()
+        feedback = FeedbackSchema(**feedback_data)
+        
+        model_dump = feedback.model_dump()
+        
+        update_fields = {
+            "sentiment": model_dump["sentiment"],
+            "comment": model_dump["comment"],
+            "updatedAt": model_dump["updatedAt"]
+        }
+        
+        # Fields to insert (only if new)
+        # We exclude fields that are in update_fields to avoid redundancy, 
+        # though $setOnInsert only acts on insert.
+        insert_fields = {
+            k: v for k, v in model_dump.items() 
+            if k not in ["sentiment", "comment", "updatedAt"]
+        }
+
+        result = await collection.update_one(
+            {
+                "userId": feedback.userId,
+                "responseId": feedback.responseId
+            },
+            {
+                "$set": update_fields,
+                "$setOnInsert": insert_fields
+            },
+            upsert=True
+        )
+        
+        if result.upserted_id:
+            logger.info(f"Feedback inserted: {feedback.feedbackId}")
+        else:
+            logger.info(f"Feedback updated for response: {feedback.responseId}")
+            
+        return feedback.feedbackId
+    except Exception as e:
+        logger.error(f"Error upserting feedback: {e}")
         return None
 
 

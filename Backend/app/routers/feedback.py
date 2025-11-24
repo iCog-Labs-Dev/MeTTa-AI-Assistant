@@ -6,7 +6,7 @@ from bson import ObjectId
 from loguru import logger
 
 from app.model.feedback import FeedbackSentiment
-from app.db.feedback_db import insert_feedback, get_feedback_by_response, get_feedback_stats
+from app.db.feedback_db import upsert_feedback, get_feedback_by_response, get_feedback_stats
 from app.dependencies import get_mongo_db, get_current_user, require_role
 from app.db.users import UserRole
 
@@ -52,7 +52,7 @@ async def submit_feedback(
             "comment": request.comment,
         }
         
-        result = await insert_feedback(feedback_data, mongo_db)
+        result = await upsert_feedback(feedback_data, mongo_db)
         if not result:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
