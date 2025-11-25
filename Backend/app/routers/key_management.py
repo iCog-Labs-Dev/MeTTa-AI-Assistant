@@ -83,5 +83,9 @@ async def delete_api_key(
         status_code=status.HTTP_200_OK
     )
 
-    resp.delete_cookie(provider_name)
+    resp.delete_cookie(
+        key=provider_name,
+        secure=True,
+        samesite="none"
+    )
     return resp
