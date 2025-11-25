@@ -23,7 +23,7 @@ async def validate_api_key(provider_name: str, api_key: str):
             model_provider = "google_genai"
             kwargs = {"google_api_key": api_key}
         elif provider == "openai":
-            model = "gpt-3.5-turbo"
+            model = "gpt-4.1-mini"
             model_provider = "openai"
             kwargs = {"api_key": api_key}
         else:
