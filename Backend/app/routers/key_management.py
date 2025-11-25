@@ -34,7 +34,7 @@ async def store_api_key(
             value=encrypted_api_key,
             httponly=True,   # prevents JS access
             secure=True,     # only sent over HTTPS
-            samesite="Strict", # CSRF protection
+            samesite="none", # CSRF protection
             expires=(datetime.now(timezone.utc) + timedelta(days=7))
         )
 

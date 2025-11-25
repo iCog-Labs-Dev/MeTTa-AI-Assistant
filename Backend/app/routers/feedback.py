@@ -6,7 +6,7 @@ from bson import ObjectId
 from loguru import logger
 
 from app.model.feedback import FeedbackSentiment
-from app.db import db
+from app.db.feedback_db import upsert_feedback, get_feedback_by_response, get_feedback_stats
 from app.dependencies import get_mongo_db, get_current_user, require_role
 from app.db.users import UserRole
 
@@ -52,7 +52,7 @@ async def submit_feedback(
             "comment": request.comment,
         }
         
-        result = await db.insert_feedback(feedback_data, mongo_db)
+        result = await upsert_feedback(feedback_data, mongo_db)
         if not result:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -83,7 +83,7 @@ async def get_feedback_for_response(
     Get all feedback for a specific response (Admin only)
     """
     try:
-        feedbacks = await db.get_feedback_by_response(response_id, mongo_db)
+        feedbacks = await get_feedback_by_response(response_id, mongo_db)
         return {
             "responseId": response_id,
             "feedbacks": feedbacks,
@@ -104,7 +104,7 @@ async def get_stats(
 ):
     """Get feedback statistics"""
     try:
-        stats = await db.get_feedback_stats(mongo_db)
+        stats = await get_feedback_stats(mongo_db)
         return {
             "status": "success",
             "statistics": stats

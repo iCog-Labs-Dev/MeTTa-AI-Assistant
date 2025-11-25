@@ -2,7 +2,7 @@ import os
 import hashlib
 from typing import Dict
 
-def _build_chunk_doc(chunk_text: str, rel_path: set) -> Dict[str, object]:
+def _build_chunk_doc(chunk_text: str, rel_path: set, repo_url: str) -> Dict[str, object]:
     """Build a Chunk Create-style document for insertion."""
     # Derive identifiers
     parts = rel_path[0].split("/") if rel_path else ["unknown-repo"]
@@ -24,8 +24,8 @@ def _build_chunk_doc(chunk_text: str, rel_path: set) -> Dict[str, object]:
         "chunkId": chunk_id,
         "source": "code",
         "chunk": chunk_text,
-        "project": repo_name,   # same as repo for now
-        "repo": repo_name,
+        "project": repo_name,
+        "repo": repo_url,
         "section": sections if sections else None,
         "file": file_names,
         "version": "1",      # or a commit hash if available
