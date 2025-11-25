@@ -66,10 +66,10 @@ function AdminDashboard() {
           icon={Database} 
         />
         <StatCard 
-          label="Pending Tasks" 
-          value={annotationStats?.pending ?? 0} 
-          icon={Clock} 
-          accent="bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
+          label="Total Annotations" 
+          value={annotationStats?.completed ?? 0} 
+          icon={CheckCircle} 
+          accent="bg-green-100 dark:bg-green-900/20 text-green-600 dark:text-green-400"
         />
       </div>
 
