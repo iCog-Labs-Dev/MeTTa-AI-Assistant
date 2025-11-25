@@ -9,7 +9,7 @@ import { getProviderById } from '../../lib/providers'
 import { useKMS } from '../../hooks/useKMS'
 
 function ModelSelector() {
-  const { models, activeId, setActive, addModel: addModelToStore } = useModelStore()
+  const { models, activeId, setActive, addModel: addModelToStore, removeModel, clearCustomModels } = useModelStore()
   const activeModel = models.find(m => m.id === activeId)
   const [open, setOpen] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
@@ -116,15 +116,22 @@ function ModelSelector() {
                   key={m.id}
                   onClick={async () => { 
                     if (!m.isCustom) {
+                      // When switching to default, delete all custom models
+                      const customModels = models.filter(model => model.isCustom)
+                      
+                      // Delete API keys from backend
                       const providersToDelete = ['gemini', 'openai']
                       for (const provider of providersToDelete) {
                         try {
                           await deleteAPIKey(provider)
                         } catch (err) {
-                          // Ignore errors - key might not exist
                           console.debug(`No ${provider} key to delete`)
                         }
                       }
+                      
+                      // Remove all custom models from UI in one go
+                      console.log('[ModelSelector] Clearing all custom models')
+                      clearCustomModels()
                     }
                     setActive(m.id); 
                     setOpen(false) 
