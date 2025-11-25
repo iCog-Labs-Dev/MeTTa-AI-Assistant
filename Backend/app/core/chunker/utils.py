@@ -24,7 +24,7 @@ def _build_chunk_doc(chunk_text: str, rel_path: set, repo_url: str) -> Dict[str,
         "chunkId": chunk_id,
         "source": "code",
         "chunk": chunk_text,
-        "project": repo_name,   # same as repo for now
+        "project": repo_name,
         "repo": repo_url,
         "section": sections if sections else None,
         "file": file_names,
