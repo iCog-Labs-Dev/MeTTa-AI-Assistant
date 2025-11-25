@@ -18,19 +18,10 @@ export interface SuggestionCard {
   subtitle: string;
 }
 
-export interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  timestamp: number
-  feedback?: 'up' | 'down' | null
-  isLoading?: boolean
-}
-
 export interface Session {
   id: string
   title: string
-  messages: Message[]
+  messages: import('./chat').Message[]
   createdAt: number
   updatedAt: number
   sessionId?: string
