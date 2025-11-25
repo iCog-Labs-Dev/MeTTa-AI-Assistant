@@ -62,7 +62,7 @@ function RepositoryIngestion() {
     <div className="space-y-8">
       <Toaster 
         richColors 
-        position="bottom-right" 
+        position="bottom-center" 
         toastOptions={{
           style: { padding: '8px 12px', fontSize: '12px', minHeight: '32px' },
         }}
