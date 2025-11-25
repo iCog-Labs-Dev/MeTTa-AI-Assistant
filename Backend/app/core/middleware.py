@@ -87,12 +87,53 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
             
             return current_count
         """
-    def _is_using_user_api_key(self, request: Request) -> bool:
+    
+    async def _is_using_user_api_key(self, request: Request, user_id: str) -> bool:
+        """Check if user is using their own API key (and it's valid).
         
+        Validates that:
+        1. Cookie exists and is non-empty
+        2. Cookie can be successfully decrypted
+        
+        Args:
+            request: The incoming request
+            user_id: The user ID from the JWT token
+            
+        Returns:
+            bool: True if user has a valid API key cookie, False otherwise
+        """
         gemini_cookie = request.cookies.get("gemini")
         openai_cookie = request.cookies.get("openai")
         
-        return bool(gemini_cookie or openai_cookie)
+        # Get KMS and DB from app.state
+        kms = request.app.state.kms
+        mongo_db = request.app.state.mongo_db
+        
+        # Check gemini cookie
+        if gemini_cookie and gemini_cookie.strip():
+            try:
+                decrypted = await kms.decrypt_api_key(gemini_cookie, user_id, "gemini", mongo_db)
+                if decrypted and decrypted.strip():
+                    logger.debug(f"Valid gemini API key for user {user_id}")
+                    return True
+            except Exception as e:
+                logger.warning(f"Invalid gemini cookie for user {user_id}: {e}")
+        
+        # Check openai cookie
+        if openai_cookie and openai_cookie.strip():
+            try:
+                decrypted = await kms.decrypt_api_key(openai_cookie, user_id, "openai", mongo_db)
+                if decrypted and decrypted.strip():
+                    logger.debug(f"Valid openai API key for user {user_id}")
+                    return True
+            except Exception as e:
+                logger.warning(f"Invalid openai cookie for user {user_id}: {e}")
+        
+        # Log if user had cookies but none were valid
+        if gemini_cookie or openai_cookie:
+            logger.info(f"User {user_id} has API key cookies but none are valid")
+        
+        return False
 
     async def dispatch(self, request: Request, call_next):
         if not request.url.path.startswith("/api/chat"):
@@ -105,7 +146,7 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         user_id = user["id"]
         user_role = user.get("role")
 
-        if self._is_using_user_api_key(request):
+        if await self._is_using_user_api_key(request, user_id):
             
             logger.debug(f"Rate limiting skipped for user {user_id} - using own API key")
             
