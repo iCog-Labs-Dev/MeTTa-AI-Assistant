@@ -77,7 +77,7 @@ async def chat(
             key=provider.lower(), 
             value=encrypted_key, 
             httponly=True, 
-            samesite="Strict",
+            samesite="none",
             secure=True,
             expires=(datetime.now(timezone.utc) + timedelta(days=7))
             )
