@@ -15,7 +15,7 @@ function ModelSelector() {
   const [showAdd, setShowAdd] = useState(false)
   const [newModel, setNewModel] = useState({ provider: '', apiKey: '' })
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const { storeAPIKey, isLoading: isKmsLoading, error: kmsError } = useKMS()
+  const { storeAPIKey, deleteAPIKey, isLoading: isKmsLoading, error: kmsError } = useKMS()
   const [localError, setLocalError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [closeTimer, setCloseTimer] = useState<number | null>(null)
@@ -114,7 +114,21 @@ function ModelSelector() {
               {models.map(m => (
                 <button 
                   key={m.id}
-                  onClick={() => { setActive(m.id); setOpen(false) }} 
+                  onClick={async () => { 
+                    if (!m.isCustom) {
+                      const providersToDelete = ['gemini', 'openai']
+                      for (const provider of providersToDelete) {
+                        try {
+                          await deleteAPIKey(provider)
+                        } catch (err) {
+                          // Ignore errors - key might not exist
+                          console.debug(`No ${provider} key to delete`)
+                        }
+                      }
+                    }
+                    setActive(m.id); 
+                    setOpen(false) 
+                  }} 
                   className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors ${
                     m.id === activeId ? 'bg-gray-100 dark:bg-gray-900 font-medium' : ''
                   }`}
