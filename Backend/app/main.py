@@ -14,9 +14,9 @@ from app.rag.embedding.metadata_index import (
     create_collection_if_not_exists,
 )
 from qdrant_client import AsyncQdrantClient
-from qdrant_client.http.models import VectorParams, Distance
 from app.db.users import seed_admin
 from app.core.utils.llm_utils import LLMClientFactory
+from app.core.utils.helpers import get_required_env
 from app.routers import (
     chunks,
     auth,
@@ -25,7 +25,7 @@ from app.routers import (
     chat,
     key_management,
     chat_sessions,
-    feedback,
+    feedback
 )
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
@@ -37,19 +37,8 @@ load_dotenv()
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Application has started")
-    mongo_uri = os.getenv("MONGO_URI")
-    mongo_db_name = os.getenv("MONGO_DB")
-    if not mongo_uri:
-        logger.error(
-            "MONGO_URI is not set. Please set the MONGO_URI environment variable."
-        )
-        raise RuntimeError("MONGO_URI environment variable is required")
-
-    if not mongo_db_name:
-        logger.error(
-            "MONGO_DB is not set. Please set the MONGO_DB environment variable."
-        )
-        raise RuntimeError("MONGO_DB environment variable is required")
+    mongo_uri = get_required_env("MONGO_URI")
+    mongo_db_name = get_required_env("MONGO_DB")
 
     app.state.mongo_client = AsyncMongoClient(mongo_uri)
     app.state.mongo_db = app.state.mongo_client[mongo_db_name]
@@ -75,15 +64,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.exception(f"Failed to ensure chunk indexes: {e}")
 
     # === Qdrant Setup ===
-    qdrant_host = os.getenv("QDRANT_HOST")
-    qdrant_port = int(os.getenv("QDRANT_PORT", 6333))
-    collection_name = os.getenv("COLLECTION_NAME")
-
-    if not qdrant_host or not collection_name:
-        raise RuntimeError("QDRANT_HOST and COLLECTION_NAME must be set in .env")
+    qdrant_host = get_required_env("QDRANT_HOST")
+    qdrant_port = int(get_required_env("QDRANT_PORT", 6333))
+    qdrant_api_key = os.getenv("QDRANT_API_KEY")
+    collection_name = get_required_env("COLLECTION_NAME")
 
     if isinstance(qdrant_host, str) and qdrant_host.startswith(("http://", "https://")):
-        app.state.qdrant_client = AsyncQdrantClient(url=qdrant_host)
+        app.state.qdrant_client = AsyncQdrantClient(url=qdrant_host, api_key=qdrant_api_key)
     else:
         app.state.qdrant_client = AsyncQdrantClient(host=qdrant_host, port=qdrant_port)
 
@@ -112,10 +99,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     # ===== Key management service setup =====
-    KEK = os.getenv("KEY_ENCRYPTION_KEY")
-    if not KEK:
-        raise ValueError("KEY_ENCRYPTION_KEY environment variable is required")
-
+    KEK = get_required_env("KEY_ENCRYPTION_KEY")
+    
     try:
         app.state.kms = KMS(KEK)
     except ValueError as e:
@@ -123,7 +108,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         raise
 
     logger.info("Key Management Service initialized")
-    yield  # -----> Application runs here
+    yield
 
     # === Shutdown cleanup ===
     try:
@@ -144,13 +129,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     UserWindowRateLimiter,
-    redis_url=os.getenv("REDIS_URL"),
-    max_requests=int(os.getenv("MAX_REQUESTS")),
-    window_seconds=int(os.getenv("WINDOW_SECONDS")),
+    redis_url=get_required_env("REDIS_URL"),
+    max_requests=int(get_required_env("MAX_REQUESTS")),
+    window_seconds=int(get_required_env("WINDOW_SECONDS")),
 )
 app.add_middleware(AuthMiddleware)
 
-frontend_url = os.getenv("FRONTEND_URL")
+frontend_url = get_required_env("FRONTEND_URL")
 origins = [
     "http://localhost:5173",
 ]

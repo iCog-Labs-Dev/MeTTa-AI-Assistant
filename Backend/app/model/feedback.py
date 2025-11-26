@@ -20,6 +20,7 @@ class FeedbackSchema(BaseModel):
     sentiment: FeedbackSentiment
     comment: Optional[str] = Field(None, max_length=500)
     createdAt: datetime = Field(default_factory=datetime.utcnow)
+    updatedAt: Optional[datetime] = None
 
     class Config:
         json_schema_extra = {
