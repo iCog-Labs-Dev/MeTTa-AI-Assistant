@@ -28,6 +28,7 @@ function Auth() {
     setIsLoading(true)
 
     try {
+      /*
       if (mode === 'signup') {
         // Validate password confirmation
         if (password !== passwordConfirmation) {
@@ -45,11 +46,14 @@ function Auth() {
         setUser(email, response.user_id)
         navigate('/chat')
       } else {
+      */
         // Call login API
         await login(email, password)
         setUser(email)
         navigate('/chat')
+      /*
       }
+      */
     } catch (err: any) {
       console.error('Auth error:', err)
       setError(
@@ -97,7 +101,7 @@ function Auth() {
           >
             Sign In
           </button>
-          <button
+          {/* <button
             className={`flex-1 py-3 text-sm font-medium transition-all duration-300 ${
               mode === 'signup'
                 ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100'
@@ -109,7 +113,7 @@ function Auth() {
             }}
           >
             Sign Up
-          </button>
+          </button> */}
         </div>
 
         {mode === 'login' ? (

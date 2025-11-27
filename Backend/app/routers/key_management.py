@@ -5,6 +5,7 @@ from pymongo.database import Database
 from app.dependencies import get_mongo_db, get_kms, get_current_user
 from app.model.key import APIKeyIn
 from app.services.key_management_service import KMS
+from app.core.utils.helpers import validate_api_key
 
 router = APIRouter(
     prefix="/api/kms",
@@ -21,6 +22,13 @@ async def store_api_key(
     mongo_db: Database = Depends(get_mongo_db),
 ):
     """Encrypt and store a new API key, and set it as an HTTP-only cookie."""
+    
+    # Validate API Key
+    try:
+        await validate_api_key(payload.provider_name, payload.api_key)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid API Key: {str(e)}")
+
     try:
         generated, encrypted_api_key = await kms.encrypt_and_store(
             user["id"], payload.provider_name, payload.api_key, mongo_db
@@ -75,5 +83,9 @@ async def delete_api_key(
         status_code=status.HTTP_200_OK
     )
 
-    resp.delete_cookie(provider_name)
+    resp.delete_cookie(
+        key=provider_name,
+        secure=True,
+        samesite="none"
+    )
     return resp

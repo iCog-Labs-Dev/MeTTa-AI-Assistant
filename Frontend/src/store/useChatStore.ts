@@ -20,7 +20,7 @@ interface ChatState {
   isLoadingSessions: boolean;
   isLoadingMessages: boolean;
   error: string | null;
-  
+
   // Actions
   loadSessions: () => Promise<void>;
   loadMoreSessions: () => Promise<void>;
@@ -28,6 +28,7 @@ interface ChatState {
   deleteSession: (sessionId: string) => Promise<void>;
   createSession: () => Promise<void>;
   sendMessage: (query: string) => Promise<void>;
+  updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => void;
 }
 
 const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
@@ -390,7 +391,13 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         role: 'assistant',
         content: response.response || 'No response received',
         timestamp: Date.now(),
+        responseId: response.responseId, // Store responseId for feedback
       };
+      console.log('[useChatStore] Received response from backend:', {
+        responseId: response.responseId,
+        sessionId: response.session_id,
+        content: response.response?.substring(0, 50) + '...'
+      });
 
       const realSessionId = response.session_id;
 
@@ -451,6 +458,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             role: 'assistant',
             content: response.response || 'No response received',
             timestamp: Date.now(),
+            responseId: response.responseId, // Store responseId for feedback
           };
 
           const realSessionId = response.session_id;
@@ -493,7 +501,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           return;
         }
       }
-      
+
       const errorMessage: Message = {
         id: thinkingMessage.id,
         role: 'assistant',
@@ -504,6 +512,14 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
       }));
     }
+  },
+
+  updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => {
+    set((state) => ({
+      messages: state.messages.map((msg) =>
+        msg.id === messageId ? { ...msg, feedback } : msg
+      ),
+    }));
   },
 });
 
