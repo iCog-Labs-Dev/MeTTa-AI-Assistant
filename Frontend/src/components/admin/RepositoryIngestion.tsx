@@ -50,7 +50,7 @@ function RepositoryIngestion() {
       case "Completed":
         return <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
       case "Processing":
-        return <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400 animate-spin" />
+        return <Loader2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400 animate-spin" />
       case "Failed":
         return <X className="w-5 h-5 text-red-600 dark:text-red-400" />
       default:

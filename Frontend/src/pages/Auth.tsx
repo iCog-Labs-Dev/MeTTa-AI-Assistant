@@ -42,9 +42,11 @@ function Auth() {
         console.log('Signup successful:', response.user_id)
         
         const loginResponse = await login(email, password)
+        const decoded: DecodedToken = jwtDecode(loginResponse.access_token)
+        
         setUser(email, response.user_id)
         
-        if (loginResponse.user?.role === 'admin') {
+        if ((decoded.role || '').toLowerCase() === 'admin') {
           navigate('/admin')
         } else {
           navigate('/chat')
@@ -55,7 +57,7 @@ function Auth() {
         
         setUser(email, decoded.sub)
 
-        if (decoded.role === 'admin') {
+        if ((decoded.role || '').toLowerCase() === 'admin') {
           navigate('/admin')
         } else {
           navigate('/chat')

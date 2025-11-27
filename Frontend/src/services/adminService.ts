@@ -1,5 +1,5 @@
 import axiosInstance from '../lib/axios'
-import { CodeChunk, Repository, AdminStats, AnnotationStats, User, IngestResponse, ChunkUpdateData } from '../types/admin'
+import { CodeChunk, Repository, AdminStats, AnnotationStats, User, IngestResponse, ChunkUpdateData, ChunkFilters } from '../types/admin'
 
 export const ingestRepository = async (repoUrl: string, chunkSize: number): Promise<IngestResponse> => {
   const response = await axiosInstance.post<IngestResponse>('/api/chunks/ingest', null, {
@@ -16,7 +16,7 @@ export const getRepositories = async () => {
   return response.data
 }
 
-export const getChunks = async (params: any) => {
+export const getChunks = async (params: ChunkFilters) => {
   const response = await axiosInstance.get<CodeChunk[]>('/api/chunks/', { params })
   return response.data
 }
@@ -70,8 +70,6 @@ export const createUser = async (userData: { email: string; password?: string; r
 export const deleteUser = async (userId: string) => {
   await axiosInstance.delete(`/api/admin/users/${userId}`)
 }
-
-// --- Batch Operations ---
 
 export const startBatchAnnotation = async (limit?: number) => {
   const params = limit ? { limit } : {}

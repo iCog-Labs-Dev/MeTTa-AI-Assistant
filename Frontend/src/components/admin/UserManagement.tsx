@@ -6,29 +6,37 @@ import { Input } from "../ui/input"
 import { Label } from "../ui/label"
 import Modal from "../ui/modal"
 import { toast } from "sonner"
+import ConfirmationDialog from "../ui/confirmation-dialog"
 
 function UserManagement() {
   const { users, isLoadingUsers, loadUsers, deleteUser, addUser } = useAdminStore()
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
+  const [userToDelete, setUserToDelete] = useState<string | null>(null)
   
   const [newUser, setNewUser] = useState({
     email: "",
     password: "",
-    role: "user"
+    role: "User"
   })
 
   useEffect(() => {
     loadUsers()
   }, [loadUsers])
 
-  const handleDelete = async (userId: string) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
-      try {
-        await deleteUser(userId)
-        toast.success("User deleted successfully")
-      } catch (error) {
-        toast.error("Failed to delete user")
-      }
+  const handleDeleteClick = (userId: string) => {
+    setUserToDelete(userId)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return
+    
+    try {
+      await deleteUser(userToDelete)
+      toast.success("User deleted successfully")
+    } catch (error) {
+      toast.error("Failed to delete user")
+    } finally {
+      setUserToDelete(null)
     }
   }
 
@@ -38,7 +46,7 @@ function UserManagement() {
       await addUser(newUser)
       toast.success("User created successfully")
       setIsAddUserOpen(false)
-      setNewUser({ email: "", password: "", role: "user" })
+      setNewUser({ email: "", password: "", role: "User" })
     } catch (error) {
       console.error(error)
       toast.error("Failed to create user")
@@ -115,7 +123,7 @@ function UserManagement() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => handleDelete(user.id)}
+                        onClick={() => handleDeleteClick(user.id)}
                         className="p-1 rounded hover:bg-red-100 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -167,8 +175,8 @@ function UserManagement() {
               value={newUser.role}
               onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
             >
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
+              <option value="User">User</option>
+              <option value="Admin">Admin</option>
             </select>
           </div>
 
@@ -180,6 +188,16 @@ function UserManagement() {
           </Button>
         </form>
       </Modal>
+
+      <ConfirmationDialog
+        isOpen={!!userToDelete}
+        onClose={() => setUserToDelete(null)}
+        onConfirm={handleConfirmDelete}
+        title="Delete User"
+        description="Are you sure you want to delete this user? This action cannot be undone."
+        confirmText="Delete User"
+        variant="danger"
+      />
     </div>
   )
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react"
-import { Users, Database, CheckCircle, Activity, Clock, ArrowUpRight } from "lucide-react"
+import { Users, Database, CheckCircle, Activity, ArrowUpRight } from "lucide-react"
 import { useAdminStore } from "../../store/useAdminStore"
 import StatCard from "./StatCard"
 import AnnotationProgressChart from "./AnnotationProgressChart"
@@ -40,7 +40,7 @@ function AdminDashboard() {
     )
   }
 
-  const totalUsers = stats?.totalUsers ?? (stats as any)?.total_users ?? 0
+  const totalUsers = stats?.totalUsers ?? stats?.total_users ?? 0
 
   return (
     <div className="space-y-6">
@@ -97,7 +97,7 @@ function AdminDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                          {chunk.filename || (chunk as any).file_name || `Chunk ${chunk.chunkId.substring(0, 8)}`}
+                          {chunk.filename || chunk.file_name || `Chunk ${chunk.chunkId.substring(0, 8)}`}
                         </p>
                         <p className="text-xs text-zinc-500 truncate">
                           ID: {chunk.chunkId}

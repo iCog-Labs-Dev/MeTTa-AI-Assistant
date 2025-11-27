@@ -111,6 +111,7 @@ function ChunkManagement() {
     } catch (error) {
       console.error('Failed to annotate chunk:', error)
       toast.error('Failed to annotate chunk')
+      setAnnotatingChunk(null)
     } finally {
       setIsProcessing(false)
     }
@@ -320,13 +321,13 @@ function ChunkManagement() {
                   </div>
 
                   {/* Display Annotation/Description */}
-                  {((chunk as any).description || chunk.annotation) && (
+                  {(chunk.description || chunk.annotation) && (
                     <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded text-sm">
                       <div className="font-semibold text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-2">
                         <FileText className="w-3 h-3" /> AI Annotation
                       </div>
                       <p className="text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
-                        {(chunk as any).description || chunk.annotation}
+                        {chunk.description || chunk.annotation}
                       </p>
                     </div>
                   )}

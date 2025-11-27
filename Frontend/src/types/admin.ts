@@ -4,6 +4,11 @@ export interface AdminStats {
   annotatedChunks: number
   failedAnnotations: number
   quotaExceeded: number
+  total_users?: number
+  total_chunks?: number
+  annotated_chunks?: number
+  failed_annotations?: number
+  quota_exceeded?: number
 }
 
 export interface AnnotationProgress {
@@ -43,6 +48,7 @@ export interface CodeChunk {
   page_title?: string | null
   category?: string | null
   filename?: string | null
+  file_name?: string | null
   page_numbers?: string | null
   description?: string | null
   pending_since?: string | null
@@ -79,4 +85,13 @@ export interface BatchAnnotationRequest {
 
 export interface FailedAnnotationRetryRequest {
   includeQuotaExceeded: boolean
+}
+
+export interface ChunkFilters {
+  project?: string
+  repository?: string
+  section?: string
+  search?: string
+  page?: number
+  limit?: number
 }
