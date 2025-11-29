@@ -136,7 +136,7 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         return False
 
     async def dispatch(self, request: Request, call_next):
-        if not request.url.path.startswith("/api/chat"):
+        if not request.url.path == "/api/chat/":
             return await call_next(request)
         
         user = getattr(request.state, "user", None)
@@ -170,9 +170,9 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         if req_count > self.max_requests:
             ttl_remaining = await self.redis.ttl(redis_key)
             logger.warning(f"Rate limit exceeded for user {user_id}. Try again in {ttl_remaining} seconds.")
-            raise HTTPException(
+            return JSONResponse(
                 status_code=429,
-                detail=f"Rate limit exceeded. Try again in {ttl_remaining} seconds.",
+                content={"detail": f"Rate limit exceeded. Try again in {ttl_remaining} seconds."},
             )
             
         response = await call_next(request)
