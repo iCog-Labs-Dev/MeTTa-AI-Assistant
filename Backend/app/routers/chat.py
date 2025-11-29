@@ -16,7 +16,7 @@ from app.rag.retriever.retriever import EmbeddingRetriever
 from app.core.clients.llm_clients import LLMProvider
 from app.rag.generator.rag_generator import RAGGenerator
 from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
-from Experiment.rag_logging import log_rag_interaction
+from app.rag.rag_logging import log_rag_interaction
 
 from loguru import logger
 
