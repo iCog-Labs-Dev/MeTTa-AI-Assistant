@@ -14,6 +14,7 @@ from qdrant_client import AsyncQdrantClient
 from bson import ObjectId
 from datetime import datetime, timezone
 
+
 # Set test environment variables before importing app
 os.environ["JWT_SECRET"] = "test-secret-key-for-testing-only"
 os.environ["MONGO_URI"] = "mongodb://localhost:27017"
@@ -24,6 +25,8 @@ os.environ["COLLECTION_NAME"] = "test_collection"
 os.environ["KEY_ENCRYPTION_KEY"] = "Gs8d0pOL_hhYuwRB_NKiVUh3-2j0PLQkm_i4iZGiEAk="
 os.environ["ADMIN_EMAIL"] = "admin@test.com"
 os.environ["ADMIN_PASSWORD"] = "admin123"
+os.environ["FRONTEND_URL"] = "http://localhost:5173"
+
 
 from app.main import app
 from app.services.key_management_service import KMS
