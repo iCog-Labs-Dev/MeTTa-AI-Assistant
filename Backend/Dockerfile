@@ -11,7 +11,9 @@ WORKDIR /app
 # Upgrade pip first, then install dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt --resume-retries 3
+    && pip install torch --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r requirements.txt
+
 
 COPY . .
 

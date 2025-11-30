@@ -6,7 +6,7 @@ from bson import ObjectId
 from loguru import logger
 
 from app.model.feedback import FeedbackSentiment
-from app.db import db
+from app.db import feedback_db as db
 from app.dependencies import get_mongo_db, get_current_user, require_role
 from app.db.users import UserRole
 
