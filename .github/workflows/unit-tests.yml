@@ -40,6 +40,7 @@ jobs:
           MAX_REQUESTS: "100"
           WINDOW_SECONDS: "60"
           REDIS_URL: redis://localhost:6379
+          FRONTEND_URL: http://localhost:5173
         run: |
           pytest tests/unit \
             -v \
