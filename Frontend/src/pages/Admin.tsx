@@ -6,15 +6,44 @@ import AnnotationManagement from "../components/admin/AnnotationManagement"
 import UserManagement from "../components/admin/UserManagement"
 import ChunkManagement from "../components/admin/ChunkManagement"
 import RepositoryIngestion from "../components/admin/RepositoryIngestion"
-import { isAuthenticated } from "../lib/auth"
+import { isAuthenticated, getAccessToken } from "../lib/auth"
+import { jwtDecode } from "jwt-decode"
+import { toast, Toaster } from "sonner"
 
 function Admin() {
-  const [isAuthed, setIsAuthed] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isAllowed, setIsAllowed] = useState(false)
 
   useEffect(() => {
     const authed = isAuthenticated()
-    setIsAuthed(authed)
+
+    if (!authed) {
+      setIsAllowed(false)
+      setIsLoading(false)
+      return
+    }
+
+    const token = getAccessToken()
+    if (!token) {
+      setIsAllowed(false)
+      setIsLoading(false)
+      return
+    }
+
+    try {
+      const decoded: any = jwtDecode(token)
+      const role = decoded.role?.toLowerCase()
+
+      if (role === "admin") {
+        setIsAllowed(true)
+      } else {
+        toast.error("You need admin access")
+        setIsAllowed(false)
+      }
+    } catch {
+      setIsAllowed(false)
+    }
+
     setIsLoading(false)
   }, [])
 
@@ -22,12 +51,16 @@ function Admin() {
     return <div className="flex items-center justify-center h-screen">Loading...</div>
   }
 
-  if (!isAuthed) {
-    return <Navigate to="/login" replace />
+  if (!isAllowed) {
+    return <Navigate to="/chat" replace />
   }
 
   return (
     <AdminLayout>
+      <Toaster richColors position="bottom-center" toastOptions={{
+          style: { padding: '10px', fontSize: '13px', minHeight: '40px' },
+        }}
+      />
       <Routes>
         <Route path="/" element={<AdminDashboard />} />
         <Route path="/annotations" element={<AnnotationManagement />} />
