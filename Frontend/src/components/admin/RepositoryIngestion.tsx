@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react"
-import { Check, Clock, X, Loader2 } from "lucide-react"
+import { Check, X, Loader2 } from "lucide-react"
 import { useAdminStore } from "../../store/useAdminStore"
 import { Button } from "../ui/button"
 import { ingestRepository } from "../../services/adminService" 
-import { toast, Toaster } from "sonner"
+import { toast } from "sonner"
 
 function RepositoryIngestion() {
   const { repositories, isLoadingRepositories, loadRepositories } = useAdminStore()
@@ -60,14 +60,6 @@ function RepositoryIngestion() {
 
   return (
     <div className="space-y-8">
-      <Toaster 
-        richColors 
-        position="bottom-center" 
-        toastOptions={{
-          style: { padding: '8px 12px', fontSize: '12px', minHeight: '32px' },
-        }}
-      />
-
       <div>
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Repository Ingestion</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mt-1">Ingest and process code repositories</p>

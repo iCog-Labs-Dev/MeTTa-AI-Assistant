@@ -3,7 +3,7 @@ import { Play, RotateCw, Database, CheckCircle, Clock, AlertCircle, AlertTriangl
 import { useAdminStore } from "../../store/useAdminStore"
 import { Button } from "../ui/button"
 import StatCard from "./StatCard"
-import { toast, Toaster } from "sonner"
+import { toast } from "sonner"
 
 function AnnotationManagement() {
   const { 
@@ -49,13 +49,6 @@ function AnnotationManagement() {
 
   return (
     <div className="space-y-8">
-      <Toaster 
-        richColors 
-        position="bottom-center" 
-        toastOptions={{
-          style: { padding: '10px', fontSize: '13px', minHeight: '40px' },
-        }}
-      />
       <div>
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Annotation Management</h1>
         <p className="text-zinc-600 dark:text-zinc-400 mt-1">Monitor and manage chunk annotations</p>
@@ -85,7 +78,7 @@ function AnnotationManagement() {
           />
           <StatCard
             label="Quota Exceeded"
-            value={stats?.quotaExceeded || 0}
+            value={stats?.quota_exceeded || 0}
             icon={AlertTriangle}
             accent="bg-orange-100 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400"
           />

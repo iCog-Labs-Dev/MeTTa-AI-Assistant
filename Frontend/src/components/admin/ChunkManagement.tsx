@@ -3,7 +3,7 @@ import { Search, Edit2, Trash2, Zap, Filter, FileText, ChevronLeft, ChevronRight
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
-import { toast, Toaster } from 'sonner'
+import { toast } from 'sonner'
 import { useAdminStore } from '../../store/useAdminStore'
 import { updateChunk, deleteChunk, triggerEmbedding, annotateChunk } from '../../services/adminService'
 import { CodeChunk } from '../../types/admin'
@@ -128,13 +128,6 @@ function ChunkManagement() {
 
   return (
     <div className="space-y-6">
-      <Toaster 
-        richColors 
-        position="bottom-center" 
-        toastOptions={{
-          style: { padding: '8px 12px', fontSize: '12px', minHeight: '32px' },
-        }}
-      />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Chunk Management</h2>
