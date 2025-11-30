@@ -18,6 +18,8 @@ from app.rag.generator.rag_generator import RAGGenerator
 from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
 from app.core.security import decrypt_cookie_value
 from app.services.auth import get_secret_key            
+from app.rag.rag_logging import log_rag_interaction
+
 from loguru import logger
 
 
@@ -155,6 +157,24 @@ async def chat(
                 },
                 mongo_db=mongo_db,
             )
+            try:
+                sources = result.get("sources", []) or []
+                contexts = [str(s.get("text", "")) for s in sources]
+                log_rag_interaction(
+                    {
+                        "question": query,
+                        "answer": result.get("response", ""),
+                        "contexts": contexts,
+                        "metadata": {
+                            "session_id": session_id,
+                            "provider": provider,
+                            "model": model,
+                            "mode": mode,
+                        },
+                    }
+                )
+            except Exception:
+                logger.warning("Failed to log RAG interaction", exc_info=True)
             if created_new_session:
                 result["session_id"] = session_id
             
