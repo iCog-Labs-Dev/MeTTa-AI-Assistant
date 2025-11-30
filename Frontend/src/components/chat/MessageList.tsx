@@ -5,7 +5,7 @@ import ChatMessageItem from './MessageBubble'
 interface ChatMessageListProps {
   messages: Message[]
   onSuggestionClick: (text: string) => void
-  onFeedback?: (messageId: string, feedback: 'up' | 'down') => void
+  onFeedback?: (messageId: string, feedback: 'positive' | 'neutral' | 'negative') => void
 }
 
 const suggestionCards: SuggestionCard[] = [

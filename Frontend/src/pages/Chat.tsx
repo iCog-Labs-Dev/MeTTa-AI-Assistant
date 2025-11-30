@@ -7,21 +7,46 @@ import Sidebar from '../components/Sidebar';
 import SettingsModal from '../components/modals/SettingsModal';
 import { useChatStore } from '../store/useChatStore';
 import { isAuthenticated } from '../lib/auth';
+import { submitFeedback } from '../services/chatService';
 
 function Chat() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { messages, isLoadingMessages, sendMessage } = useChatStore();
+  const { messages, isLoadingMessages, sendMessage, selectedSessionId, updateMessageFeedback } = useChatStore();
 
   function handleSuggestionClick(text: string) {
     sendMessage(text);
   }
 
-  function handleFeedback(messageId: string, feedback: 'up' | 'down') {
-    // Handle feedback logic here
-    console.log('Feedback:', messageId, feedback);
+  async function handleFeedback(messageId: string, feedback: 'positive' | 'neutral' | 'negative') {
+    const message = messages.find(m => m.id === messageId);
+    if (!message || !message.responseId || !selectedSessionId) {
+      console.error('Cannot submit feedback: missing responseId or sessionId');
+      return;
+    }
+
+    const previousFeedback = message.feedback;
+
+    try {
+      console.log('[Chat] handleFeedback called:', { messageId, feedback, responseId: message.responseId, sessionId: selectedSessionId });
+
+      // Update local state immediately for better UX
+      updateMessageFeedback(messageId, feedback);
+
+      // Submit feedback to backend
+      await submitFeedback({
+        responseId: message.responseId,
+        sessionId: selectedSessionId,
+        sentiment: feedback,
+      });
+      console.log('[Chat] Feedback submitted successfully');
+    } catch (error) {
+      console.error('[Chat] Failed to submit feedback:', error);
+      // Revert optimistic update on error
+      updateMessageFeedback(messageId, previousFeedback || null);
+    }
   }
 
   // Open sidebar on desktop by default, close on mobile
