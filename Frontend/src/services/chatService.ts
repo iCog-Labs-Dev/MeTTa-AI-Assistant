@@ -11,6 +11,7 @@ export interface ChatRequest {
   model?: string;
   mode?: 'search' | 'generate';
   session_id?: string;
+  key_id?: string;
 }
 
 export interface ChatResponse {

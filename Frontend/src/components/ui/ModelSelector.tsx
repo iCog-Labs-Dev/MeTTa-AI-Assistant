@@ -13,7 +13,7 @@ function ModelSelector() {
   const activeModel = models.find(m => m.id === activeId)
   const [open, setOpen] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
-  const [newModel, setNewModel] = useState({ provider: '', apiKey: '' })
+  const [newModel, setNewModel] = useState({ provider: '', apiKey: '', password: '', keyName: '' })
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { storeAPIKey, deleteAPIKey, isLoading: isKmsLoading, error: kmsError } = useKMS()
   const [localError, setLocalError] = useState<string | null>(null)
@@ -38,21 +38,30 @@ function ModelSelector() {
     setLocalError(null)
     setSuccessMessage(null)
 
-    if (!newModel.provider.trim() || !newModel.apiKey.trim()) {
-      setLocalError('Provider and API key are required')
+    if (!newModel.provider.trim() || !newModel.apiKey.trim() || !newModel.password.trim()) {
+      setLocalError('Provider, API key, and password are required')
       return
     }
 
     try {
-      // First store the API key via KMS so backend can use it via cookies
-      const result = await storeAPIKey(newModel.apiKey, newModel.provider)
+      // Store the API key via KMS with password encryption
+      const result = await storeAPIKey(
+        newModel.apiKey, 
+        newModel.provider, 
+        newModel.password,
+        newModel.keyName.trim() || undefined
+      )
 
       if (!result.success) {
         setLocalError(result.error || 'Failed to store API key')
         return
       }
 
-      const message = result.message || `API key for ${newModel.provider} stored successfully!`
+      // Check for warning
+      let message = result.message || `API key for ${newModel.provider} stored successfully!`
+      if (result.warning) {
+        message = result.warning 
+      }
       setSuccessMessage(message)
 
       // Generate a unique ID using the provider name and timestamp
@@ -60,7 +69,7 @@ function ModelSelector() {
 
       // Get the provider info to use the correct name
       const providerInfo = getProviderById(newModel.provider)
-      const displayName = providerInfo?.displayName || newModel.provider
+      const displayName = newModel.keyName.trim() || providerInfo?.displayName || newModel.provider
 
       addModelToStore({ 
         id, 
@@ -77,9 +86,9 @@ function ModelSelector() {
       const timer = window.setTimeout(() => {
         setShowAdd(false)
         setSuccessMessage(null)
-        setNewModel({ provider: '', apiKey: '' })
+        setNewModel({ provider: '', apiKey: '', password: '', keyName: '' })
         setCloseTimer(null)
-      }, 1500)
+      }, result.warning ? 4000 : 1500)
       setCloseTimer(timer)
     } catch (err) {
       setLocalError(err instanceof Error ? err.message : 'Failed to add model')
@@ -94,7 +103,7 @@ function ModelSelector() {
     setShowAdd(false)
     setLocalError(null)
     setSuccessMessage(null)
-    setNewModel({ provider: '', apiKey: '' })
+    setNewModel({ provider: '', apiKey: '', password: '', keyName: '' })
   }
 
   return (
@@ -114,25 +123,7 @@ function ModelSelector() {
               {models.map(m => (
                 <button 
                   key={m.id}
-                  onClick={async () => { 
-                    if (!m.isCustom) {
-                      // When switching to default, delete all custom models
-                      const customModels = models.filter(model => model.isCustom)
-                      
-                      // Delete API keys from backend
-                      const providersToDelete = ['gemini', 'openai']
-                      for (const provider of providersToDelete) {
-                        try {
-                          await deleteAPIKey(provider)
-                        } catch (err) {
-                          console.debug(`No ${provider} key to delete`)
-                        }
-                      }
-                      
-                      // Remove all custom models from UI in one go
-                      console.log('[ModelSelector] Clearing all custom models')
-                      clearCustomModels()
-                    }
+                  onClick={() => { 
                     setActive(m.id); 
                     setOpen(false) 
                   }} 
@@ -183,15 +174,42 @@ function ModelSelector() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="key-name">Key Name (Optional)</Label>
+                  <Input
+                    id="key-name"
+                    type="text"
+                    placeholder="e.g., Work Gemini, Personal OpenAI"
+                    value={newModel.keyName}
+                    onChange={e => setNewModel({...newModel, keyName: e.target.value})}
+                  />
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Give your key a custom name to identify it easily
+                  </p>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="api-key">API Key</Label>
                   <Input
                     id="api-key"
                     type="password"
-                    placeholder="Enter your key"
+                    placeholder="Enter your API key"
                     value={newModel.apiKey}
                     onChange={e => setNewModel({...newModel, apiKey: e.target.value})}
                     required
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Your Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Enter your login password"
+                    value={newModel.password}
+                    onChange={e => setNewModel({...newModel, password: e.target.value})}
+                    required
+                  />
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    Your password is used to encrypt the API key. The API key is stored in our database in encrypted form.
+                  </p>
                 </div>
                 {(localError || kmsError) && (
                   <div className="p-2 text-xs text-red-600 bg-red-50 dark:bg-red-900/20 rounded-md">

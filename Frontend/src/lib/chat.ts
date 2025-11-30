@@ -5,13 +5,15 @@ import type { ChatRequest, ChatResponse } from '../services/chatService';
 export const sendChatMessage = async (
   query: string,
   provider?: 'openai' | 'gemini',
-  sessionId?: string
+  sessionId?: string,
+  keyId?: string
 ) => {
   const data: ChatRequest = {
     query,
     provider,
     session_id: sessionId,
+    key_id: keyId,
   };
-  
+
   return chatService.sendMessage(data) as Promise<ChatResponse>;
 };

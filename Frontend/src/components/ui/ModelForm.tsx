@@ -9,7 +9,7 @@ import { useRef, useState, useEffect } from 'react'
 interface ModelFormProps {
   formData: ModelFormData
   onFormChange: (data: ModelFormData) => void
-  onSubmit: (e: React.FormEvent) => void
+  onSubmit: (e: React.FormEvent, keyId?: string) => void
   onCancel: () => void
   isEditing: boolean
 }
@@ -21,11 +21,16 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
   const [success, setSuccess] = useState<string | null>(null)
   const [providerMismatch, setProviderMismatch] = useState<ProviderMismatchInfo | null>(null)
   const [detectedProvider, setDetectedProvider] = useState<string | null>(null)
+  const [password, setPassword] = useState('')
+  const [keyName, setKeyName] = useState('')
   const successTimer = useRef<number | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.provider || !formData.apiKey) return
+    if (!formData.provider || !formData.apiKey || !password) {
+      setError('Please fill in all fields including your password')
+      return
+    }
     
     setIsSubmitting(true)
     setError(null)
@@ -34,19 +39,32 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
     setDetectedProvider(null)
     
     try {
-      const result: StoreAPIKeyResult = await storeAPIKey(formData.apiKey, formData.provider)
+      // Pass keyName to storeAPIKey
+      const result: StoreAPIKeyResult = await storeAPIKey(
+        formData.apiKey, 
+        formData.provider, 
+        password,
+        keyName.trim() || undefined
+      )
 
       if (result.success) {
-        const message = result.message || `API key for ${formData.provider} stored successfully!`
+        // Check for warning
+        let message = result.message || `API key for ${formData.provider} stored successfully!`
+        if (result.warning) {
+          message = result.warning
+        }
         setSuccess(message)
+        setPassword('')
+        setKeyName('') 
         if (successTimer.current) {
           window.clearTimeout(successTimer.current)
         }
+        const delay = result.warning ? 4000 : 1400
         successTimer.current = window.setTimeout(() => {
           if (onSubmit) {
-            onSubmit(e)
+            onSubmit(e, result.key_id)
           }
-        }, 1400)
+        }, delay)
       } else {
         setError(result.error || 'Failed to store API key')
         setProviderMismatch(result.providerMismatch ?? null)
@@ -78,6 +96,8 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
     setSuccess(null)
     setProviderMismatch(null)
     setDetectedProvider(null)
+    setPassword('')
+    setKeyName('')  // Clear key name on cancel
     onCancel()
   }
 
@@ -93,6 +113,19 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
         />
       </div>
       <div className="space-y-2">
+        <Label htmlFor="key-name">Key Name (Optional)</Label>
+        <Input
+          id="key-name"
+          type="text"
+          placeholder="e.g., Work Gemini, Personal OpenAI"
+          value={keyName}
+          onChange={e => setKeyName(e.target.value)}
+        />
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Give your key a custom name to identify it easily
+        </p>
+      </div>
+      <div className="space-y-2">
         <Label htmlFor="api-key">API Key</Label>
         <Input
           id="api-key"
@@ -102,6 +135,20 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
           onChange={e => onFormChange({ ...formData, apiKey: e.target.value })}
           required
         />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Your Password</Label>
+        <Input
+          id="password"
+          type="password"
+          placeholder="Enter your login password"
+          value={password}
+          onChange={e => setPassword(e.target.value)}
+          required
+        />
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Your password is used to encrypt the API key. The API key is stored in our database in encrypted form.
+        </p>
       </div>
       
       {error && (

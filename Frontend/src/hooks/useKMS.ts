@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { useCallback, useEffect, useState } from 'react';
-import { kmsService } from '../services/kmsService';
+import { kmsService, KeyInfo } from '../services/kmsService';
 
 export interface ProviderMismatchInfo {
   declared: string;
@@ -8,7 +8,7 @@ export interface ProviderMismatchInfo {
   detail?: string;
 }
 
-type StoreAPIKeySuccessResult = { success: true; message?: string };
+type StoreAPIKeySuccessResult = { success: true; message?: string; warning?: string; key_id?: string };
 type StoreAPIKeyFailureResult = { success: false; error: string; providerMismatch?: ProviderMismatchInfo };
 export type StoreAPIKeyResult = StoreAPIKeySuccessResult | StoreAPIKeyFailureResult;
 
@@ -31,7 +31,7 @@ const parseProviderMismatch = (detail?: string): ProviderMismatchInfo | null => 
 };
 
 export const useKMS = () => {
-  const [providers, setProviders] = useState<string[]>([]);
+  const [providers, setProviders] = useState<KeyInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,7 +50,12 @@ export const useKMS = () => {
     }
   }, []);
 
-  const storeAPIKey = async (apiKey: string, providerName: string): Promise<StoreAPIKeyResult> => {
+  const storeAPIKey = async (
+    apiKey: string,
+    providerName: string,
+    password: string,
+    keyName?: string
+  ): Promise<StoreAPIKeyResult> => {
     setIsLoading(true);
     setError(null);
     try {
@@ -58,10 +63,17 @@ export const useKMS = () => {
       const data = await kmsService.storeAPIKey({
         api_key: apiKey,
         provider_name: providerName,
+        password,
+        key_name: keyName,
       });
       await fetchProviders();
-      console.log('[useKMS] storeAPIKey: success, response message=', data?.message);
-      return { success: true, message: data?.message as string | undefined };
+      console.log('[useKMS] storeAPIKey: success, response=', data);
+      return {
+        success: true,
+        message: data?.message as string | undefined,
+        warning: data?.warning as string | undefined,
+        key_id: data?.key_id
+      };
     } catch (err) {
 
       const axiosError = err as AxiosError;
@@ -81,14 +93,14 @@ export const useKMS = () => {
     }
   };
 
-  const deleteAPIKey = async (providerName: string) => {
+  const deleteAPIKey = async (keyId: string) => {
     setIsLoading(true);
     setError(null);
     try {
-      console.log('[useKMS] deleteAPIKey: starting', providerName);
-      await kmsService.deleteAPIKey(providerName);
+      console.log('[useKMS] deleteAPIKey: starting', keyId);
+      await kmsService.deleteAPIKey(keyId);
       await fetchProviders();
-      console.log('[useKMS] deleteAPIKey: success', providerName);
+      console.log('[useKMS] deleteAPIKey: success', keyId);
       return { success: true };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to delete API key';

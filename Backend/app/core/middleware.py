@@ -6,6 +6,8 @@ from jose.exceptions import ExpiredSignatureError
 import os
 from loguru import logger
 from redis.asyncio import Redis
+from app.core.security import decrypt_cookie_value
+from app.services.auth import get_secret_key
 
 ALGORITHM = "HS256"
 
@@ -89,11 +91,11 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         """
     
     async def _is_using_user_api_key(self, request: Request, user_id: str) -> bool:
-        """Check if user is using their own API key (and it's valid).
+        """
+        Check if user has valid API key cookies.
         
-        Validates that:
-        1. Cookie exists and is non-empty
-        2. Cookie can be successfully decrypted
+        With cookie-per-key-ID implementation, cookies are named {provider}_{key_id}.
+        We check for any cookie matching this pattern and validate it.
         
         Args:
             request: The incoming request
@@ -102,38 +104,23 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         Returns:
             bool: True if user has a valid API key cookie, False otherwise
         """
-        gemini_cookie = request.cookies.get("gemini")
-        openai_cookie = request.cookies.get("openai")
         
-        # Get KMS and DB from app.state
-        kms = request.app.state.kms
-        mongo_db = request.app.state.mongo_db
+        # Check for new cookie format: {provider}_{key_id}
+        has_valid_cookie = False
         
-        # Check gemini cookie
-        if gemini_cookie and gemini_cookie.strip():
-            try:
-                decrypted = await kms.decrypt_api_key(gemini_cookie, user_id, "gemini", mongo_db)
-                if decrypted and decrypted.strip():
-                    logger.debug(f"Valid gemini API key for user {user_id}")
-                    return True
-            except Exception as e:
-                logger.warning(f"Invalid gemini cookie for user {user_id}: {e}")
+        for cookie_name, cookie_value in request.cookies.items():
+            if cookie_name.startswith(('gemini_', 'openai_')):
+                if isinstance(cookie_value, str) and cookie_value.strip():
+                    try:
+                        decrypted_key = decrypt_cookie_value(cookie_value, user_id, get_secret_key())
+                        if decrypted_key and decrypted_key.strip():
+                            logger.debug(f"Valid API key cookie {cookie_name} for user {user_id}")
+                            has_valid_cookie = True
+                            break
+                    except Exception:
+                        continue
         
-        # Check openai cookie
-        if openai_cookie and openai_cookie.strip():
-            try:
-                decrypted = await kms.decrypt_api_key(openai_cookie, user_id, "openai", mongo_db)
-                if decrypted and decrypted.strip():
-                    logger.debug(f"Valid openai API key for user {user_id}")
-                    return True
-            except Exception as e:
-                logger.warning(f"Invalid openai cookie for user {user_id}: {e}")
-        
-        # Log if user had cookies but none were valid
-        if gemini_cookie or openai_cookie:
-            logger.info(f"User {user_id} has API key cookies but none are valid")
-        
-        return False
+        return has_valid_cookie
 
     async def dispatch(self, request: Request, call_next):
         if not request.url.path.startswith("/api/chat"):
@@ -147,9 +134,7 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
         user_role = user.get("role")
 
         if await self._is_using_user_api_key(request, user_id):
-            
             logger.debug(f"Rate limiting skipped for user {user_id} - using own API key")
-            
             return await call_next(request)
 
         if user_role != "user":

@@ -10,10 +10,17 @@ def get_required_env(key: str, default: Any = None) -> str:
         raise RuntimeError(f"Environment variable {key} is required")
     return value
 
-async def validate_api_key(provider_name: str, api_key: str):
+async def validate_api_key(provider_name: str, api_key: str) -> tuple[bool, str | None]:
     """
     Validates the API key by making a minimal request to the provider.
-    Raises an exception if the key is invalid.
+    
+    Returns:
+        tuple[bool, str | None]: (is_valid, warning_message)
+        - is_valid: True if key works or has quota exceeded, False if invalid
+        - warning_message: None if valid, warning message if quota exceeded
+    
+    Raises:
+        ValueError: Only if the key is completely invalid (wrong format, doesn't exist)
     """
     provider = provider_name.lower()
     
@@ -38,9 +45,23 @@ async def validate_api_key(provider_name: str, api_key: str):
         
         await client.ainvoke("hi")
         
+        
+        return True, None
+        
     except Exception as e:
-        msg = str(e)
-        if "401" in msg or "invalid" in msg.lower() or "unauthenticated" in msg.lower():
+        msg = str(e).lower()
+        
+        # Check for quota/rate limit errors - these are valid keys, just exhausted
+        if any(keyword in msg for keyword in ["quota", "rate limit", "429", "resource exhausted"]):
+            warning = "API key quota exceeded. The key is valid but has reached its usage limit. You can still save it and use it once the quota resets."
+            logger.info(f"API key validation: quota exceeded for {provider}")
+            return True, warning
+        
+        # Check for authentication errors - these are invalid keys
+        if any(keyword in msg for keyword in ["401", "invalid", "unauthenticated", "unauthorized", "api key"]):
+            logger.error(f"API key validation failed for {provider}: {e}")
             raise ValueError("Authentication failed. Please check your API key.")
-        logger.debug("Validation failed: please enter a valid API key. %s", msg)
-        raise ValueError(f"Validation failed: please enter a valid API key.")
+        
+        # Other errors - treat as invalid
+        logger.error(f"API key validation failed for {provider}: {e}")
+        raise ValueError(f"Validation failed: {str(e)}")

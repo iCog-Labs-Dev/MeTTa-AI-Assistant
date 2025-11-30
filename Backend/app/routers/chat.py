@@ -16,7 +16,8 @@ from app.rag.retriever.retriever import EmbeddingRetriever
 from app.core.clients.llm_clients import LLMProvider
 from app.rag.generator.rag_generator import RAGGenerator
 from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
-
+from app.core.security import decrypt_cookie_value
+from app.services.auth import get_secret_key            
 from loguru import logger
 
 
@@ -34,6 +35,7 @@ class ChatRequest(BaseModel):
     mode: Literal["search", "generate"] = "generate"
     top_k: int = Field(default=5, ge=1, le=50)
     session_id: Optional[str] = None
+    key_id: Optional[str] = None
 
 @router.post("/", summary="Chat with RAG system")
 async def chat(
@@ -56,6 +58,7 @@ async def chat(
 
     mode, top_k = chat_request.mode, chat_request.top_k
     session_id = chat_request.session_id
+    key_id = chat_request.key_id
     created_new_session = False
     if not session_id:
         session_id = await create_chat_session(current_user["id"],mongo_db=mongo_db)
@@ -66,28 +69,38 @@ async def chat(
     
     if not provider:
         raise HTTPException(status_code=400, detail="Provider must be specified")
-    # Extract cookies
-    encrypted_key = request.cookies.get(provider.lower())
+    
+    encrypted_key = None
     api_key = ""
+    cookie_name = None
+    
+    if key_id:
+        cookie_name = f"{provider.lower()}_{key_id}"
+        encrypted_key = request.cookies.get(cookie_name)
+    else:
+        for name, value in request.cookies.items():
+            if name.startswith(f"{provider.lower()}_"):
+                cookie_name = name
+                encrypted_key = value
+                break
 
     if encrypted_key and encrypted_key.strip():
         try:
-            api_key = await kms.decrypt_api_key(encrypted_key, current_user["id"], provider.lower(), mongo_db)
+            api_key = decrypt_cookie_value(encrypted_key, current_user["id"], get_secret_key())
             
-            # Validate decrypted key is not empty
             if not api_key or not api_key.strip():
                 logger.warning(f"Decrypted API key is empty for user {current_user['id']}, provider {provider}")
                 api_key = ""
             else:
-                # refresh encrypted_api_key expiry date | sliding expiration refresh
-                response.set_cookie(
-                    key=provider.lower(), 
-                    value=encrypted_key, 
-                    httponly=True, 
-                    samesite="none",
-                    secure=True,
-                    expires=(datetime.now(timezone.utc) + timedelta(days=7))
-                )
+                if cookie_name:
+                    response.set_cookie(
+                        key=cookie_name, 
+                        value=encrypted_key, 
+                        httponly=True, 
+                        samesite="none",
+                        secure=True,
+                        expires=(datetime.now(timezone.utc) + timedelta(days=7))
+                    )
         except Exception as e:
             logger.warning(f"Failed to decrypt API key cookie for user {current_user['id']}, provider {provider}: {e}")
             api_key = ""

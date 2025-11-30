@@ -8,6 +8,7 @@ export interface Model {
   name: string;
   provider?: string;
   apiKey?: string;
+  keyName?: string;
   isCustom?: boolean;
   requiresApiKey?: boolean;
   icon?: string;

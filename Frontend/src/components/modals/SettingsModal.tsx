@@ -31,7 +31,36 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [formData, setFormData] = useState<ModelFormData>({ provider: '', apiKey: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const { deleteAPIKey } = useKMS()
+  const { providers, deleteAPIKey } = useKMS()
+
+  // Sync models with KMS providers
+  useEffect(() => {
+    // Create a map of current custom models for easy lookup
+    const currentCustomModels = new Map(
+      models.filter(m => m.isCustom).map(m => [m.id, m])
+    )
+    
+    const kmsIds = new Set(providers.map(p => p.id))
+    
+    // 1. Remove custom models that are not in KMS
+    currentCustomModels.forEach((model, id) => {
+      if (!kmsIds.has(id)) {
+        removeModel(id)
+      }
+    })
+    
+    // 2. Add models from KMS that are missing locally
+    providers.forEach(p => {
+      if (!currentCustomModels.has(p.id)) {
+        addModel({
+          id: p.id,
+          name: p.key_name || p.provider_name,
+          provider: p.provider_name,
+          isCustom: true
+        })
+      }
+    })
+  }, [providers, models, addModel, removeModel])
 
   useEffect(() => {
     const checkMobile = () => {
@@ -63,10 +92,10 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     { id: 'account' as SettingsTab, label: 'Account', icon: User },
   ]
 
-  function handleAddModel(e: React.FormEvent) {
+  function handleAddModel(e: React.FormEvent, keyId?: string) {
     e.preventDefault()
-    if (!validateModelForm(formData)) return
-    addModel(createModelFromForm(formData))
+    // We rely on the useEffect to sync the new model from KMS providers
+    // so we just close the modal here.
     closeModal()
   }
 
@@ -82,15 +111,16 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       return
     }
     if (model.provider) {
-      console.log('[SettingsModal] delete requested for', model.provider)
+      console.log('[SettingsModal] delete requested for', model.provider, model.id)
       try {
-        await deleteAPIKey(model.provider)
-        console.log('[SettingsModal] delete succeeded for', model.provider)
+        // Delete using the unique key ID
+        await deleteAPIKey(model.id)
+        console.log('[SettingsModal] delete succeeded for', model.id)
+        // Local removal handled by useEffect sync
       } catch (err) {
         console.error('Failed to delete key via KMS', err)
       }
     }
-    removeModel(model.id)
     setConfirmDeleteId(null)
   }
 
