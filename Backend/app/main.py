@@ -1,4 +1,4 @@
-﻿from fastapi import FastAPI, Request, Response
+﻿﻿from fastapi import FastAPI, Request, Response
 import time
 import os
 from loguru import logger
@@ -27,7 +27,6 @@ from app.routers import (
     chat_sessions,
     feedback
 )
-from app.routers.feedback import router as feedback_router
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
 from fastapi.middleware.cors import CORSMiddleware
@@ -156,7 +155,7 @@ app.include_router(auth.router)
 app.include_router(protected.router)
 app.include_router(chat.router)
 app.include_router(chunk_annotation.router)
-app.include_router(feedback_router)
+app.include_router(feedback.router)
 app.include_router(key_management.router)
 app.include_router(chat_sessions.router)
 

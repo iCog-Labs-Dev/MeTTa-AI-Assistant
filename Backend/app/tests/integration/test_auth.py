@@ -2,19 +2,19 @@ import pytest
 from fastapi.testclient import TestClient
 
 class TestAuthentication:
-    """Test authentication endpoints and flow"""
+    """Test authentication endpoints and flow """
     
     def test_health_endpoint(self, client):
-        """Test health endpoint without authentication"""
+        """Test health endpoint without authentication """
         response = client.get("/health")
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
     
     def test_signup_and_login_flow(self, client):
-        """Test complete user registration and login flow"""
+        """Test complete user registration and login flow  """
         # Sign up new user
         signup_data = {
-            "email": "integration_test@example.com",
+            "email": "integration_test@example.com ",
             "password": "securepassword123",
             "role": "user"
         }

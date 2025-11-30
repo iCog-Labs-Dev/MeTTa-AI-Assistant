@@ -1,4 +1,4 @@
-﻿FROM mcr.microsoft.com/playwright/python:v1.55.0-noble
+﻿﻿FROM mcr.microsoft.com/playwright/python:v1.55.0-noble
 
 # Prevent Python from writing .pyc files and force stdout/stderr to be unbuffered
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -11,9 +11,7 @@ WORKDIR /app
 # Upgrade pip first, then install dependencies
 COPY requirements.txt .
 RUN pip install --upgrade pip \
-    && pip install torch --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir -r requirements.txt
-
+    && pip install --no-cache-dir -r requirements.txt --resume-retries 3
 
 COPY . .
 
