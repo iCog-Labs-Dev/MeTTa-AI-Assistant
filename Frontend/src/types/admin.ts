@@ -1,14 +1,9 @@
 export interface AdminStats {
-  totalUsers: number
-  totalChunks: number
-  annotatedChunks: number
-  failedAnnotations: number
-  quotaExceeded: number
-  total_users?: number
-  total_chunks?: number
-  annotated_chunks?: number
-  failed_annotations?: number
-  quota_exceeded?: number
+  total_users: number
+  total_chunks: number
+  annotated_chunks: number
+  failed_annotations: number
+  quota_exceeded: number
 }
 
 export interface AnnotationProgress {
