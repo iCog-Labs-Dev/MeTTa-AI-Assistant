@@ -11,6 +11,7 @@ const axiosInstance: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
 
 // Request interceptor for API calls
@@ -35,15 +36,15 @@ axiosInstance.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
-    
+
     // If the error is 401 and we haven't retried yet
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      
+
       try {
         // Try to refresh the token
         await refreshAccessToken();
-        
+
         // Update the authorization header
         const token = getAccessToken();
         if (token) {
@@ -54,21 +55,21 @@ axiosInstance.interceptors.response.use(
             originalRequest.headers = { Authorization: `Bearer ${token}` };
           }
         }
-        
+
         // Retry the original request
         return axiosInstance(originalRequest);
       } catch (refreshError) {
         // If refresh fails, log the user out
         clearTokens();
         useUserStore.getState().setIsAuthenticated(false);
-        
+
         // Redirect to login page
         window.location.href = '/login';
-        
+
         return Promise.reject(refreshError);
       }
     }
-    
+
     return Promise.reject(error);
   }
 );
@@ -87,7 +88,7 @@ export const clearAxiosAuthHeader = (): void => {
 // Global error handler for axios errors
 export const handleAxiosError = (error: unknown, context: string = ''): void => {
   const prefix = context ? `${context} Error:` : 'Error:';
-  
+
   if (axios.isAxiosError(error)) {
     const axiosError = error as AxiosError<{ detail?: string }>;
     if (axiosError.response?.data?.detail) {
