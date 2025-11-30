@@ -30,6 +30,7 @@ function Auth() {
     setIsLoading(true)
 
     try {
+      /*
       if (mode === 'signup') {
         // Validate password confirmation
         if (password !== passwordConfirmation) {
@@ -52,6 +53,7 @@ function Auth() {
           navigate('/chat')
         }
       } else {
+        */
         const loginResponse = await login(email, password)
         const decoded: DecodedToken = jwtDecode(loginResponse.access_token);
         
@@ -62,7 +64,7 @@ function Auth() {
         } else {
           navigate('/chat')
         }
-      }
+      // }
     } catch (err: any) {
       console.error('Auth error:', err)
       setError(
@@ -110,7 +112,7 @@ function Auth() {
           >
             Sign In
           </button>
-          <button
+          {/* <button
             className={`flex-1 py-3 text-sm font-medium transition-all duration-300 ${
               mode === 'signup'
                 ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100'
@@ -122,7 +124,7 @@ function Auth() {
             }}
           >
             Sign Up
-          </button>
+          </button> */}
         </div>
 
         {mode === 'login' ? (
