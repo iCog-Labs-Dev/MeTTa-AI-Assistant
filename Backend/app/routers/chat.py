@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Optional, Literal
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
@@ -49,6 +50,8 @@ async def chat(
     kms = Depends(get_kms)
 ):
 
+
+    start_time = time.time()
     query, provider, model = (
         chat_request.query,
         chat_request.provider,
@@ -146,7 +149,8 @@ async def chat(
             try:
                 sources = result.get("sources", []) or []
                 contexts = [str(s.get("text", "")) for s in sources]
-                log_rag_interaction(
+                execution_time = time.time() - start_time
+                await log_rag_interaction(
                     {
                         "question": query,
                         "answer": result.get("response", ""),
@@ -154,10 +158,13 @@ async def chat(
                         "metadata": {
                             "session_id": session_id,
                             "provider": provider,
-                            "model": model,
+                            "model": model if model else "system",
                             "mode": mode,
+                            "response_id": response_id,
+                            "execution_time_seconds": execution_time
                         },
-                    }
+                    },
+                    mongo_db=mongo_db
                 )
             except Exception:
                 logger.warning("Failed to log RAG interaction", exc_info=True)
