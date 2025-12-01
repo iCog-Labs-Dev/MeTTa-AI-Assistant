@@ -34,6 +34,27 @@ async def authenticate_user(
     return None
 
 
+async def verify_password(userid: str, password: str, mongo_db: Database) -> bool:
+    """
+    Verify a user's password against their stored hashed password.
+    
+    Args:
+        userid: User ID (as string)
+        password: Password to verify
+        mongo_db: MongoDB database instance
+    
+    Returns:
+        bool: True if password is correct, False otherwise
+    """
+    from bson import ObjectId
+    
+    collection = _get_collection(mongo_db, "users")
+    user = await collection.find_one({"_id": ObjectId(userid)})
+    if user and pwd_context.verify(password, user["hashed_password"]):
+        return True
+    return False
+
+
 def create_access_token(data: dict) -> str:
     to_encode = data.copy()
     expire = ACCESS_TOKEN_EXPIRE_MINUTES * 60  # Convert to seconds

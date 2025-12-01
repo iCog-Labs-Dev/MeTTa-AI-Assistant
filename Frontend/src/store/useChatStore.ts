@@ -384,6 +384,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
         provider,
         mode: 'generate',
+        key_id: activeModel?.id,
       });
 
       const assistantMessage: Message = {
@@ -451,6 +452,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
             provider,
             mode: 'generate',
+            key_id: activeModel?.id,
           });
 
           const assistantMessage: Message = {

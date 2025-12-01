@@ -3,24 +3,28 @@ import { AVAILABLE_PROVIDERS, getProviderById } from '../lib/providers'
 
 // Form data for creating or updating a model
 export interface ModelFormData {
+  id?: string
   provider: string
   apiKey: string
+  keyName?: string
 }
 
 // Creates a new model object from form data
 export function createModelFromForm(formData: ModelFormData): Model {
-  // Generate a unique ID using the provider name and timestamp
-  const id = formData.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
-  
+  // Use provided ID or generate a unique ID using the provider name and timestamp
+  const id = formData.id || formData.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
+
   // Get the provider info to use the correct name
   const providerInfo = getProviderById(formData.provider)
-  const displayName = providerInfo?.displayName || formData.provider
-  
+  // Use keyName if provided, otherwise fallback to provider display name
+  const displayName = formData.keyName?.trim() || providerInfo?.displayName || formData.provider
+
   return {
     id,
     name: displayName,
     apiKey: formData.apiKey,
     provider: formData.provider,
+    keyName: formData.keyName?.trim(),
     isCustom: true
   }
 }
@@ -29,12 +33,13 @@ export function createModelFromForm(formData: ModelFormData): Model {
 export function updateModelFromForm(formData: ModelFormData): Partial<Model> {
   // Get the provider info to use the correct name
   const providerInfo = getProviderById(formData.provider)
-  const displayName = providerInfo?.displayName || formData.provider
-  
+  const displayName = formData.keyName?.trim() || providerInfo?.displayName || formData.provider
+
   return {
     name: displayName,
     apiKey: formData.apiKey,
-    provider: formData.provider
+    provider: formData.provider,
+    keyName: formData.keyName?.trim()
   }
 }
 
@@ -42,7 +47,8 @@ export function updateModelFromForm(formData: ModelFormData): Partial<Model> {
 export function modelToFormData(model: Model): ModelFormData {
   return {
     provider: model.provider || '',
-    apiKey: model.apiKey || ''
+    apiKey: model.apiKey || '',
+    keyName: model.keyName || ''
   }
 }
 
