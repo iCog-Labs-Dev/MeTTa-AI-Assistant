@@ -40,7 +40,7 @@ function AdminDashboard() {
     )
   }
 
-  const totalUsers = stats?.total_users ?? stats?.total_users ?? 0
+  const totalUsers = stats?.total_users ?? 0
 
   return (
     <div className="space-y-6">
