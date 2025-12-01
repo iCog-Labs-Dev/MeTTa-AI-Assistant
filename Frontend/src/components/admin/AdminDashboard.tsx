@@ -97,7 +97,7 @@ function AdminDashboard() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
-                          {chunk.filename || chunk.file_name || `Chunk ${chunk.chunkId.substring(0, 8)}`}
+                          {chunk.filename || `Chunk ${chunk.chunkId.substring(0, 8)}`}
                         </p>
                         <p className="text-xs text-zinc-500 truncate">
                           ID: {chunk.chunkId}
