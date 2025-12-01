@@ -31,7 +31,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [showAddModal, setShowAddModal] = useState(false)
   const [formData, setFormData] = useState<ModelFormData>({ provider: '', apiKey: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const { providers, deleteAPIKey } = useKMS()
+  const { providers, deleteAPIKey, refreshProviders } = useKMS()
 
   // Sync models with KMS providers
   useEffect(() => {
@@ -92,10 +92,10 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     { id: 'account' as SettingsTab, label: 'Account', icon: User },
   ]
 
-  function handleAddModel(e: React.FormEvent, keyId?: string) {
+  async function handleAddModel(e: React.FormEvent, keyId?: string) {
     e.preventDefault()
-    // We rely on the useEffect to sync the new model from KMS providers
-    // so we just close the modal here.
+    // Refresh providers to ensure we have the latest list including the new key
+    await refreshProviders()
     closeModal()
   }
 

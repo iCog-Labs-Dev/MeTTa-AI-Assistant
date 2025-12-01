@@ -5,17 +5,16 @@ import { Input } from './input'
 import { Button } from './button'
 import { Label } from './label'
 import ProviderSelect from './ProviderSelect'
-import { getProviderById } from '../../lib/providers'
 import { useKMS } from '../../hooks/useKMS'
 
 function ModelSelector() {
-  const { models, activeId, setActive, addModel: addModelToStore, removeModel, clearCustomModels } = useModelStore()
+  const { models, activeId, setActive } = useModelStore()
   const activeModel = models.find(m => m.id === activeId)
   const [open, setOpen] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [newModel, setNewModel] = useState({ provider: '', apiKey: '', password: '', keyName: '' })
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const { storeAPIKey, deleteAPIKey, isLoading: isKmsLoading, error: kmsError } = useKMS()
+  const { storeAPIKey, isLoading: isKmsLoading, error: kmsError } = useKMS()
   const [localError, setLocalError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [closeTimer, setCloseTimer] = useState<number | null>(null)
@@ -63,22 +62,6 @@ function ModelSelector() {
         message = result.warning 
       }
       setSuccessMessage(message)
-
-      // Generate a unique ID using the provider name and timestamp
-      const id = newModel.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
-
-      // Get the provider info to use the correct name
-      const providerInfo = getProviderById(newModel.provider)
-      const displayName = newModel.keyName.trim() || providerInfo?.displayName || newModel.provider
-
-      addModelToStore({ 
-        id, 
-        name: displayName, 
-        apiKey: newModel.apiKey,
-        provider: newModel.provider,
-        isCustom: true
-      })
-
       setLocalError(null)
       if (closeTimer) {
         window.clearTimeout(closeTimer)
