@@ -1,3 +1,5 @@
+import { User } from "./auth"
+
 export interface AdminStats {
   total_users: number
   total_chunks: number
@@ -19,12 +21,7 @@ export interface AnnotationStats extends AnnotationProgress {
   failedPercentage: number
 }
 
-export interface User {
-  id: string
-  email: string
-  role: "Admin" | "User"
-  createdAt: string
-}
+export type { User }
 
 export interface CodeChunk {
   chunkId: string
@@ -43,7 +40,6 @@ export interface CodeChunk {
   page_title?: string | null
   category?: string | null
   filename?: string | null
-  file_name?: string | null
   page_numbers?: string | null
   description?: string | null
   pending_since?: string | null

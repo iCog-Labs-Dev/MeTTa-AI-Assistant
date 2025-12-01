@@ -16,7 +16,8 @@ export interface LoginRequest {
 export interface User {
   id: string;
   email: string;
-  role: string;
+  role: "Admin" | "User";
+  createdAt?: string;
 }
 
 export interface LoginResponse {
