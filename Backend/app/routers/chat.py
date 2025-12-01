@@ -159,7 +159,6 @@ async def chat(
                             "session_id": session_id,
                             "provider": provider,
                             "model": model if model else "system",
-                            "mode": mode,
                             "response_id": response_id,
                             "execution_time_seconds": execution_time
                         },
