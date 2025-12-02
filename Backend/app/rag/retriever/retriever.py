@@ -4,7 +4,7 @@ from qdrant_client.models import ScoredPoint
 from app.rag.retriever.schema import Document
 import asyncio
 from typing import Dict, List, Tuple
-
+from app.core.utils.helpers import get_required_env
 
 class EmbeddingRetriever:
     def __init__(self, model, qdrant, collection_name: str):
@@ -56,7 +56,7 @@ class EmbeddingRetriever:
     async def retrieve(self, query: str, top_k: int = 5, min_score: float = 0.0) -> Dict[str, List[Document]]:
         query_embedding = await embedding_user_input(self.model, query)
         categories = ["code", "documentation", "others"]
-
+        min_score = float(get_required_env("MIN_SCORE", default=0.0))
         tasks = [
             asyncio.create_task(self._search_category(category, query_embedding, top_k, min_score))
             for category in categories
