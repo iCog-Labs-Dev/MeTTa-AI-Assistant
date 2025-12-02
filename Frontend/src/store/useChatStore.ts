@@ -1,4 +1,5 @@
 import { create, StateCreator } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { ChatSession, Message } from '../types/chat';
 import {
   getChatSessions as apiGetChatSessions,
@@ -387,7 +388,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       });
 
       const assistantMessage: Message = {
-        id: response.query + Date.now().toString(),
+        id: response.messageId || Date.now().toString(),
         role: 'assistant',
         content: response.response || 'No response received',
         timestamp: Date.now(),
@@ -399,10 +400,18 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         content: response.response?.substring(0, 50) + '...'
       });
 
-      const realSessionId = response.session_id;
+      const realSessionId = response.session_id || selectedSessionId;
 
       set((state) => ({
-        messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? assistantMessage : msg)),
+        messages: state.messages.map((msg) => {
+          // Replace thinking message with actual assistant response
+          if (msg.id === thinkingMessage.id) return assistantMessage;
+          // Update user message with backend ID
+          if (msg.id === userMessage.id && response.userMessageId) {
+            return { ...msg, id: response.userMessageId };
+          }
+          return msg;
+        }),
         // If this session still has no title, derive it from the first query
         sessions: (() => {
           // Replace temp session id with the real backend id, or insert if not present
@@ -454,17 +463,25 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           });
 
           const assistantMessage: Message = {
-            id: response.query + Date.now().toString(),
+            id: response.messageId || Date.now().toString(),
             role: 'assistant',
             content: response.response || 'No response received',
             timestamp: Date.now(),
             responseId: response.responseId, // Store responseId for feedback
           };
 
-          const realSessionId = response.session_id;
+          const realSessionId = response.session_id || selectedSessionId;
 
           set((state) => ({
-            messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? assistantMessage : msg)),
+            messages: state.messages.map((msg) => {
+              // Replace thinking message with actual assistant response
+              if (msg.id === thinkingMessage.id) return assistantMessage;
+              // Update user message with backend ID
+              if (msg.id === userMessage.id && response.userMessageId) {
+                return { ...msg, id: response.userMessageId };
+              }
+              return msg;
+            }),
             sessions: (() => {
               const existing = state.sessions.find((s) => s.sessionId === selectedSessionId || s.sessionId === realSessionId);
               if (!existing) {
@@ -523,4 +540,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   },
 });
 
-export const useChatStore = create<ChatState>(chatStoreCreator);
+export const useChatStore = create<ChatState>()(
+  persist(chatStoreCreator, {
+    name: 'chat-storage',
+    partialize: (state) => ({
+      sessions: state.sessions,
+      selectedSessionId: state.selectedSessionId,
+    }),
+  })
+);
