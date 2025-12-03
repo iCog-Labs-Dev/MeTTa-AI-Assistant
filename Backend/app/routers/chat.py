@@ -111,7 +111,7 @@ async def chat(
                 generator = RAGGenerator(
                     retriever=retriever, provider=provider_enum, model_name=model
                 )
-            await insert_chat_message(
+            user_message_id = await insert_chat_message(
                 {"sessionId": session_id, "role": "user", "content": query},
                 mongo_db=mongo_db,
             )
@@ -128,16 +128,16 @@ async def chat(
             
             if encrypted_key and api_key:
                 result = await generator.generate_response(
-                    query, top_k=top_k,api_key=api_key, include_sources=True, history=history,
+                    query, top_k=top_k,api_key=api_key, include_sources=False, history=history,
                 )
             else:
                 result = await generator.generate_response(
-                    query, top_k=top_k, api_key=None, include_sources=True, history=history
+                    query, top_k=top_k, api_key=None, include_sources=False, history=history
                 )
 
             response_id = f"resp_{ObjectId()}"
 
-            await insert_chat_message(
+            message_id = await insert_chat_message(
                 {
                     "sessionId": session_id,
                     "role": "assistant",
@@ -167,9 +167,9 @@ async def chat(
                 )
             except Exception:
                 logger.warning("Failed to log RAG interaction", exc_info=True)
-            if created_new_session:
-                result["session_id"] = session_id
-            
+            result["session_id"] = session_id
+            result["userMessageId"] = user_message_id
+            result["messageId"] = message_id
             result["responseId"] = response_id
             return result
     except Exception as e:

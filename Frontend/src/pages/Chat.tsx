@@ -14,7 +14,7 @@ function Chat() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { messages, isLoadingMessages, sendMessage, selectedSessionId, updateMessageFeedback } = useChatStore();
+  const { messages, isLoadingMessages, isSendingMessage, sendMessage, selectedSessionId, updateMessageFeedback } = useChatStore();
 
   function handleSuggestionClick(text: string) {
     sendMessage(text);
@@ -118,7 +118,7 @@ function Chat() {
             onFeedback={handleFeedback}
           />
         )}
-        <MessageInput onSend={sendMessage} />
+        <MessageInput onSend={sendMessage} isSendingMessage={isSendingMessage} />
       </div>
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>

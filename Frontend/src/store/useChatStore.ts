@@ -1,4 +1,5 @@
 import { create, StateCreator } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { ChatSession, Message } from '../types/chat';
 import {
   getChatSessions as apiGetChatSessions,
@@ -19,6 +20,7 @@ interface ChatState {
   hasMoreSessions: boolean;
   isLoadingSessions: boolean;
   isLoadingMessages: boolean;
+  isSendingMessage: boolean;
   error: string | null;
 
   // Actions
@@ -40,6 +42,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   hasMoreSessions: false,
   isLoadingSessions: false,
   isLoadingMessages: false,
+  isSendingMessage: false,
   error: null,
 
   loadSessions: async () => {
@@ -349,6 +352,13 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       return;
     }
 
+    // Prevent sending if already sending a message
+    const { isSendingMessage } = get();
+    if (isSendingMessage) {
+      return;
+    }
+
+    set({ isSendingMessage: true });
     let { selectedSessionId } = get();
 
     // Optimistically show the user message and thinking message immediately
@@ -387,7 +397,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       });
 
       const assistantMessage: Message = {
-        id: response.query + Date.now().toString(),
+        id: response.messageId || Date.now().toString(),
         role: 'assistant',
         content: response.response || 'No response received',
         timestamp: Date.now(),
@@ -399,10 +409,18 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         content: response.response?.substring(0, 50) + '...'
       });
 
-      const realSessionId = response.session_id;
+      const realSessionId = response.session_id || selectedSessionId;
 
       set((state) => ({
-        messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? assistantMessage : msg)),
+        messages: state.messages.map((msg) => {
+          // Replace thinking message with actual assistant response
+          if (msg.id === thinkingMessage.id) return assistantMessage;
+          // Update user message with backend ID
+          if (msg.id === userMessage.id && response.userMessageId) {
+            return { ...msg, id: response.userMessageId };
+          }
+          return msg;
+        }),
         // If this session still has no title, derive it from the first query
         sessions: (() => {
           // Replace temp session id with the real backend id, or insert if not present
@@ -434,6 +452,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       // Ensure selectedSessionId is updated to the real backend id
       set((state) => ({
         selectedSessionId: realSessionId,
+        isSendingMessage: false,
       }));
     } catch (err: any) {
       if (err?.response?.status === 401) {
@@ -454,17 +473,25 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           });
 
           const assistantMessage: Message = {
-            id: response.query + Date.now().toString(),
+            id: response.messageId || Date.now().toString(),
             role: 'assistant',
             content: response.response || 'No response received',
             timestamp: Date.now(),
             responseId: response.responseId, // Store responseId for feedback
           };
 
-          const realSessionId = response.session_id;
+          const realSessionId = response.session_id || selectedSessionId;
 
           set((state) => ({
-            messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? assistantMessage : msg)),
+            messages: state.messages.map((msg) => {
+              // Replace thinking message with actual assistant response
+              if (msg.id === thinkingMessage.id) return assistantMessage;
+              // Update user message with backend ID
+              if (msg.id === userMessage.id && response.userMessageId) {
+                return { ...msg, id: response.userMessageId };
+              }
+              return msg;
+            }),
             sessions: (() => {
               const existing = state.sessions.find((s) => s.sessionId === selectedSessionId || s.sessionId === realSessionId);
               if (!existing) {
@@ -493,6 +520,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
           set((state) => ({
             selectedSessionId: realSessionId,
+            isSendingMessage: false,
           }));
           return;
         } catch (refreshErr) {
@@ -510,6 +538,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       };
       set((state) => ({
         messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
+        isSendingMessage: false,
       }));
     }
   },
@@ -523,4 +552,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   },
 });
 
-export const useChatStore = create<ChatState>(chatStoreCreator);
+export const useChatStore = create<ChatState>()(
+  persist(chatStoreCreator, {
+    name: 'chat-storage',
+    partialize: (state) => ({
+      sessions: state.sessions,
+      selectedSessionId: state.selectedSessionId,
+    }),
+  })
+);
