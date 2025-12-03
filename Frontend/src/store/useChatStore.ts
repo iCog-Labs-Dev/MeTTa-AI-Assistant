@@ -20,6 +20,7 @@ interface ChatState {
   hasMoreSessions: boolean;
   isLoadingSessions: boolean;
   isLoadingMessages: boolean;
+  isSendingMessage: boolean;
   error: string | null;
 
   // Actions
@@ -41,6 +42,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   hasMoreSessions: false,
   isLoadingSessions: false,
   isLoadingMessages: false,
+  isSendingMessage: false,
   error: null,
 
   loadSessions: async () => {
@@ -350,6 +352,13 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       return;
     }
 
+    // Prevent sending if already sending a message
+    const { isSendingMessage } = get();
+    if (isSendingMessage) {
+      return;
+    }
+
+    set({ isSendingMessage: true });
     let { selectedSessionId } = get();
 
     // Optimistically show the user message and thinking message immediately
@@ -443,6 +452,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       // Ensure selectedSessionId is updated to the real backend id
       set((state) => ({
         selectedSessionId: realSessionId,
+        isSendingMessage: false,
       }));
     } catch (err: any) {
       if (err?.response?.status === 401) {
@@ -510,6 +520,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
           set((state) => ({
             selectedSessionId: realSessionId,
+            isSendingMessage: false,
           }));
           return;
         } catch (refreshErr) {
@@ -527,6 +538,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       };
       set((state) => ({
         messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
+        isSendingMessage: false,
       }));
     }
   },
