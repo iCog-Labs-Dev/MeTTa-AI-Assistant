@@ -128,11 +128,11 @@ async def chat(
             
             if encrypted_key and api_key:
                 result = await generator.generate_response(
-                    query, top_k=top_k,api_key=api_key, include_sources=True, history=history,
+                    query, top_k=top_k,api_key=api_key, include_sources=False, history=history,
                 )
             else:
                 result = await generator.generate_response(
-                    query, top_k=top_k, api_key=None, include_sources=True, history=history
+                    query, top_k=top_k, api_key=None, include_sources=False, history=history
                 )
 
             response_id = f"resp_{ObjectId()}"
