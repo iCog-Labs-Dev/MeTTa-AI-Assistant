@@ -428,7 +428,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           if (!existing) {
             return [
               {
-                sessionId: realSessionId,
+                sessionId: realSessionId ?? 'unknown-session-id', // Ensure sessionId is always a string
                 createdAt: new Date().toISOString(),
                 title: query,
               },
@@ -440,7 +440,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             if (s.sessionId === selectedSessionId || s.sessionId === realSessionId) {
               return {
                 ...s,
-                sessionId: realSessionId,
+                sessionId: realSessionId ?? 'unknown-session-id',
                 title: s.title || query,
               };
             }
@@ -497,7 +497,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
               if (!existing) {
                 return [
                   {
-                    sessionId: realSessionId,
+                    sessionId: realSessionId!,
                     createdAt: new Date().toISOString(),
                     title: query,
                   },
@@ -509,7 +509,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
                 if (s.sessionId === selectedSessionId || s.sessionId === realSessionId) {
                   return {
                     ...s,
-                    sessionId: realSessionId,
+                    sessionId: realSessionId!,
                     title: s.title || query,
                   };
                 }
