@@ -25,7 +25,8 @@ from app.routers import (
     chat,
     key_management,
     chat_sessions,
-    feedback
+    feedback,
+    admin
 )
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.key_management_service import KMS
@@ -158,6 +159,7 @@ app.include_router(chunk_annotation.router)
 app.include_router(feedback.router)
 app.include_router(key_management.router)
 app.include_router(chat_sessions.router)
+app.include_router(admin.router)
 
 
 @app.middleware("http")
