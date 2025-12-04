@@ -15,7 +15,10 @@ async def embedding_pipeline(collection_name, mongo_db, model, qdrant, batch_siz
     for chunk in chunks:
         if "chunk" not in chunk or "chunkId" not in chunk:
             continue
-        texts.append(chunk["chunk"])
+        text_to_embed = chunk["chunk"]
+        if chunk.get("description"):
+            text_to_embed = f"{chunk['description']}\n{chunk['chunk']}"
+        texts.append(text_to_embed)
         ids.append(str(uuid.uuid5(uuid.NAMESPACE_OID, chunk["chunkId"])))
         valid_chunks.append(chunk)
     if not valid_chunks:

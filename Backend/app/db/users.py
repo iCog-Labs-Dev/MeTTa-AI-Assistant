@@ -18,10 +18,10 @@ class UserBase(BaseModel):
     email: EmailStr
     role: UserRole  # Use Enum for role validation
 
-class UserCreate(UserBase):
+class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role: Optional[UserRole]
+    role: Optional[UserRole] = UserRole.USER
 
 class UserInDB(UserBase):
     id: Optional[ObjectId] = None
