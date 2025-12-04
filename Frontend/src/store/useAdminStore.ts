@@ -7,7 +7,6 @@ import {
   getChunks,
   getRepositories,
   deleteUser as apiDeleteUser,
-  createUser as apiCreateUser,
   startBatchAnnotation as apiStartBatchAnnotation,
   retryFailedAnnotations as apiRetryFailedAnnotations
 } from "../services/adminService"
@@ -33,16 +32,15 @@ interface AdminState {
   loadStats: () => Promise<void>
   loadAnnotationStats: () => Promise<void>
   loadUsers: () => Promise<void>
-  loadChunks: (filters?: { 
-    project?: string; 
-    repository?: string; 
-    section?: string; 
+  loadChunks: (filters?: {
+    project?: string;
+    repository?: string;
+    section?: string;
     search?: string;
     page?: number;
     limit?: number;
   }) => Promise<void>
   loadRepositories: () => Promise<void>
-  addUser: (userData: { email: string; password?: string; role: string }) => Promise<void>
   deleteUser: (userId: string) => Promise<void>
   startBatchAnnotation: (limit?: number) => Promise<void>
   retryFailedAnnotations: (includeQuotaExceeded: boolean) => Promise<void>
@@ -112,7 +110,7 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
       )
 
       const responseData = await getChunks(cleanParams)
-      
+
       let data: CodeChunk[] = []
       let total = 0
 
@@ -123,7 +121,7 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
         data = (responseData as any).items || []
         total = (responseData as any).total || data.length
       }
-      
+
       set({ chunks: data, totalChunks: total, isLoadingChunks: false })
     } catch (err: any) {
       console.error("Failed to load chunks:", err)
@@ -139,16 +137,6 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
     } catch (err: any) {
       console.error("Failed to load repositories:", err)
       set({ error: "Failed to load repositories", isLoadingRepositories: false })
-    }
-  },
-
-  addUser: async (userData) => {
-    try {
-      const newUser = await apiCreateUser(userData)
-      set((state) => ({ users: [...state.users, newUser] }))
-    } catch (err: any) {
-      set({ error: "Failed to create user" })
-      throw err
     }
   },
 

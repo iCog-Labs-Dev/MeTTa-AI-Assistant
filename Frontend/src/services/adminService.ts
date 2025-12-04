@@ -12,7 +12,7 @@ export const ingestRepository = async (repoUrl: string, chunkSize: number): Prom
 }
 
 export const getRepositories = async () => {
-  const response = await axiosInstance.get<Repository[]>('/api/admin/repositories') 
+  const response = await axiosInstance.get<Repository[]>('/api/admin/repositories')
   return response.data
 }
 
@@ -59,11 +59,6 @@ export const getAnnotationStats = async () => {
 
 export const getUsers = async () => {
   const response = await axiosInstance.get<User[]>('/api/admin/users')
-  return response.data
-}
-
-export const createUser = async (userData: { email: string; password?: string; role: string }) => {
-  const response = await axiosInstance.post('/api/admin/users', userData)
   return response.data
 }
 
