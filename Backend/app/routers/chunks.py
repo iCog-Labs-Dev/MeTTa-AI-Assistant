@@ -13,7 +13,6 @@ from app.dependencies import (
 )
 from app.rag.embedding.pipeline import embedding_pipeline
 from app.rag.retriever.retriever import EmbeddingRetriever
-from app.core.utils.helpers import get_required_env
 from app.db.users import UserRole
 
 router = APIRouter(
