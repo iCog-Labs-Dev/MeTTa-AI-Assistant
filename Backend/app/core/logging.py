@@ -147,12 +147,11 @@ def setup_logging(log_level: str = "DEBUG") -> logging.Logger:
     root_logger.addHandler(json_error_handler)
 
     # Minimal library noise filtering
-    for noisy_logger in ("uvicorn", "uvicorn.error", "fastapi", "asyncio"):
+    for noisy_logger in ("uvicorn", "uvicorn.error", "fastapi", "asyncio"): 
         nl = logging.getLogger(noisy_logger)
-        nl.handlers = []         
-        nl.propagate = True      
-        nl.setLevel(logging.WARNING)  
-
+        nl.propagate = True        
+        nl.setLevel(max(level, logging.DEBUG)) 
+        
     root_logger.info(f"Logging initialized at level {log_level}")
     root_logger.info(f"Logs directory: {os.path.abspath(log_dir)}")
 

@@ -157,6 +157,7 @@ async def get_messages_for_session(
     session_id: str,
     mongo_db: Database = None,
     limit: Optional[int] = None,
+    skip: int = 0,
 ) -> List[dict]:
     """
     Return chat messages for a session ordered oldest → newest.
@@ -170,3 +171,50 @@ async def get_messages_for_session(
         cursor = cursor.limit(limit)
 
     return [ChatMessageSchema(**doc).model_dump() async for doc in cursor]
+
+async def get_message_by_id(
+    session_id: str,
+    message_id: str,
+    mongo_db: Database = None
+) -> Optional[dict]:
+    """
+    Get a specific message by its ID for cursor-based pagination.
+    """
+    collection = _get_collection(mongo_db, "chat_messages")
+    message = await collection.find_one(
+        {"sessionId": session_id, "messageId": message_id},
+        {"_id": 0}
+    )
+    return message
+
+async def ensure_chat_message_indexes(mongo_db: Database):
+    """
+    Create optimized indexes for cursor-based pagination.
+    """
+    # Index for cursor-based pagination (session + createdAt)
+    await mongo_db["chat_messages"].create_index([
+        ("sessionId", 1),
+        ("createdAt", -1)
+    ], name="cursor_pagination_desc")
+    
+    # Index for chronological order
+    await mongo_db["chat_messages"].create_index([
+        ("sessionId", 1),
+        ("createdAt", 1)
+    ], name="cursor_pagination_asc")
+    
+    # Index for message lookup by ID
+    await mongo_db["chat_messages"].create_index([
+        ("sessionId", 1),
+        ("messageId", 1)
+    ], name="message_lookup")
+    
+    # Existing indexes
+    await mongo_db["chat_sessions"].create_index([
+        ("sessionId", 1)
+    ], unique=True, name="session_id_unique")
+    
+    await mongo_db["chat_sessions"].create_index([
+        ("userId", 1),
+        ("createdAt", -1)
+    ], name="user_sessions_newest")
