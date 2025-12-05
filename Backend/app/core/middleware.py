@@ -92,35 +92,29 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
     
     async def _is_using_user_api_key(self, request: Request, user_id: str) -> bool:
         """
-        Check if user has valid API key cookies.
+        Check if user is using a valid API key for this request.
         
-        With cookie-per-key-ID implementation, cookies are named {provider}_{key_id}.
-        We check for any cookie matching this pattern and validate it.
-        
-        Args:
-            request: The incoming request
-            user_id: The user ID from the JWT token
-            
-        Returns:
-            bool: True if user has a valid API key cookie, False otherwise
+        Checks for X-Key-Id header and validates the corresponding cookie.
+        If header is missing, assumes system key usage.
         """
-        
-        # Check for new cookie format: {provider}_{key_id}
-        has_valid_cookie = False
-        
-        for cookie_name, cookie_value in request.cookies.items():
-            if cookie_name.startswith(('gemini_', 'openai_')):
-                if isinstance(cookie_value, str) and cookie_value.strip():
-                    try:
-                        decrypted_key = decrypt_cookie_value(cookie_value, user_id, get_secret_key())
-                        if decrypted_key and decrypted_key.strip():
-                            logger.debug(f"Valid API key cookie {cookie_name} for user {user_id}")
-                            has_valid_cookie = True
-                            break
-                    except Exception:
-                        continue
-        
-        return has_valid_cookie
+        key_id = request.headers.get("X-Key-Id")
+        if not key_id:
+            return False
+            
+        for provider in ['gemini', 'openai']:
+            cookie_name = f"{provider}_{key_id}"
+            cookie_value = request.cookies.get(cookie_name)
+            
+            if cookie_value and isinstance(cookie_value, str) and cookie_value.strip():
+                try:
+                    decrypted_key = decrypt_cookie_value(cookie_value, user_id, get_secret_key())
+                    if decrypted_key and decrypted_key.strip():
+                        logger.debug(f"Valid API key cookie {cookie_name} for user {user_id}")
+                        return True
+                except Exception:
+                    continue
+                    
+        return False
 
     async def dispatch(self, request: Request, call_next):
         if not request.url.path == "/api/chat/":

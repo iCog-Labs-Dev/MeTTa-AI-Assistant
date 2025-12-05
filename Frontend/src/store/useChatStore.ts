@@ -379,12 +379,15 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           ? 'openai'
           : 'gemini';
 
+      const { selectedVariant } = useModelStore.getState();
+
       const response = await apiSendMessage({
         query,
         session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
         provider,
         mode: 'generate',
-        key_id: activeModel?.id,
+        key_id: activeModel?.id === 'default' ? undefined : activeModel?.id,
+        model: selectedVariant || undefined,
       });
 
       const assistantMessage: Message = {
@@ -447,12 +450,15 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
               ? 'openai'
               : 'gemini';
 
+          const { selectedVariant } = useModelStore.getState();
+
           const response = await apiSendMessage({
             query,
             session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
             provider,
             mode: 'generate',
-            key_id: activeModel?.id,
+            key_id: activeModel?.id === 'default' ? undefined : activeModel?.id,
+            model: selectedVariant || undefined,
           });
 
           const assistantMessage: Message = {

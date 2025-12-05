@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import ModelSelector from '../ui/ModelSelector'
+import ModelVariantSelector from '../ui/ModelVariantSelector'
 import { User, Settings, LogOut, Menu } from 'lucide-react'
 import { useUserStore } from '../../store/useUserStore'
+import { useModelStore } from '../../store/useModelStore'
 
 interface ChatHeaderProps {
   onToggleSidebar?: () => void
@@ -12,9 +14,11 @@ interface ChatHeaderProps {
 function ChatHeader({ onToggleSidebar, onOpenSettings }: ChatHeaderProps) {
   const navigate = useNavigate()
   const { username, email, logout } = useUserStore()
+  const { models, activeId } = useModelStore()
   const [showProfile, setShowProfile] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
   
+  const activeModel = models.find(m => m.id === activeId)
   const displayName = username || 'User'
   const avatarInitial = email ? email.charAt(0).toUpperCase() : 'U'
   
@@ -49,6 +53,7 @@ function ChatHeader({ onToggleSidebar, onOpenSettings }: ChatHeaderProps) {
           </button>
         )}
         <ModelSelector />
+        <ModelVariantSelector keyId={activeModel?.id} provider={activeModel?.provider} />
       </div>
       <div className="flex items-center gap-2.5 relative" ref={profileRef}>
         <button 

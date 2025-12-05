@@ -79,12 +79,6 @@ async def chat(
     if key_id:
         cookie_name = f"{provider.lower()}_{key_id}"
         encrypted_key = request.cookies.get(cookie_name)
-    else:
-        for name, value in request.cookies.items():
-            if name.startswith(f"{provider.lower()}_"):
-                cookie_name = name
-                encrypted_key = value
-                break
 
     if encrypted_key and encrypted_key.strip():
         try:

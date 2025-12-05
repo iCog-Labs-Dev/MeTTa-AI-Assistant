@@ -7,16 +7,17 @@ type StoredModel = Omit<Model, 'apiKey'>
 interface ModelState {
   models: StoredModel[]
   activeId: string
+  selectedVariant: string | null
   addModel: (model: Model) => void
   updateModel: (id: string, updates: Partial<Model>) => void
   setActive: (id: string) => void
+  setSelectedVariant: (variant: string | null) => void
   removeModel: (id: string) => void
   clearCustomModels: () => void
 }
 
-// Default models available in the application
 const DEFAULT_MODELS: StoredModel[] = [
-  { 
+  {
     id: 'default',
     name: 'default',
     provider: 'default',
@@ -28,47 +29,46 @@ const DEFAULT_MODELS: StoredModel[] = [
 export const useModelStore = create<ModelState>()(
   persist(
     (set) => ({
-      // Initial state with default models
       models: [...DEFAULT_MODELS],
       activeId: DEFAULT_MODELS[0].id,
-      
-      // Add a new model to the store, but never persist apiKey
+      selectedVariant: null,
+
       addModel: (model) =>
         set((state) => {
           const { apiKey, ...safeModel } = model as Model
           return {
             models: [...state.models, { ...safeModel, isCustom: true }],
             activeId: model.id,
+            selectedVariant: null,
           }
         }),
-      
+
       // Update an existing model
       updateModel: (id, updates) =>
         set((state) => ({
           models: state.models.map((m) => (m.id === id ? { ...m, ...updates } : m)),
         })),
-      
-      // Set the active model by ID
-      setActive: (id) => set({ activeId: id }),
-      
-      // Remove a model by ID
+
+      setActive: (id) => set({ activeId: id, selectedVariant: null }),
+
+      setSelectedVariant: (variant) => set({ selectedVariant: variant }),
+
       removeModel: (id) =>
         set((state) => ({
           models: state.models.filter((m) => m.id !== id),
-          // If removing the active model, fall back to the first available model
           activeId: state.activeId === id ? state.models[0]?.id || '' : state.activeId,
+          selectedVariant: state.activeId === id ? null : state.selectedVariant,
         })),
 
-      // Remove all custom models
       clearCustomModels: () =>
         set((state) => {
           const builtInModels = state.models.filter((m) => !m.isCustom)
           const isCustomActive = state.models.find(m => m.id === state.activeId)?.isCustom
-          
+
           return {
             models: builtInModels,
-            // If active model was custom, switch to default
-            activeId: isCustomActive ? builtInModels[0]?.id || '' : state.activeId
+            activeId: isCustomActive ? builtInModels[0]?.id || '' : state.activeId,
+            selectedVariant: isCustomActive ? null : state.selectedVariant,
           }
         }),
     }),

@@ -60,7 +60,11 @@ export const deleteChatSession = async (sessionId: string): Promise<void> => {
 // Send a chat message
 export const sendMessage = async (data: ChatRequest): Promise<ChatResponse> => {
   try {
-    const response = await axiosInstance.post<ChatResponse>(`${CHAT_BASE_URL}/`, data);
+    const response = await axiosInstance.post<ChatResponse>(`${CHAT_BASE_URL}/`, data, {
+      headers: {
+        ...(data.key_id ? { 'X-Key-Id': data.key_id } : {})
+      }
+    });
     return response.data;
   } catch (error) {
     handleAxiosError(error, 'Chat');

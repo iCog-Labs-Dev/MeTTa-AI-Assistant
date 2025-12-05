@@ -1,13 +1,14 @@
 import json
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, HTTPException, status, Depends, Response
+from fastapi import APIRouter, HTTPException, status, Depends, Response, Request
 from pymongo.database import Database
 from app.dependencies import get_mongo_db, get_kms, get_current_user
 from app.model.key import APIKeyIn
 from app.services.key_management_service import KMS
 from app.core.utils.helpers import validate_api_key
 from app.services.auth import get_secret_key
-from app.core.security import encrypt_cookie_value
+from app.core.security import encrypt_cookie_value, decrypt_cookie_value
+from app.services.list_models import list_available_models
 
 router = APIRouter(
     prefix="/api/kms",
@@ -122,6 +123,43 @@ async def get_providers(
     if not services:
         raise HTTPException(status_code=404, detail="No services found")
     return {"services": services}
+
+@router.get("/models/{key_id}")
+async def get_available_models(
+    key_id: str,
+    request: Request,
+    user = Depends(get_current_user),
+    kms: KMS = Depends(get_kms),
+    mongo_db: Database = Depends(get_mongo_db),
+):
+    """
+    Get available models for a specific API key.
+    Uses caching (5 minutes TTL) to avoid excessive API calls.
+    """
+
+    providers = await kms.get_api_provider(user["id"], mongo_db)
+    key_info = next((p for p in providers if p["id"] == key_id), None)
+    
+    if not key_info:
+        raise HTTPException(status_code=404, detail="Key not found")
+    
+    provider_name = key_info["provider_name"]
+    
+
+    cookie_name = f"{provider_name.lower()}_{key_id}"
+    encrypted_cookie = request.cookies.get(cookie_name)
+    
+    if not encrypted_cookie:
+        raise HTTPException(status_code=401, detail="API key cookie not found. Please re-login.")
+    
+    try:
+        api_key = decrypt_cookie_value(encrypted_cookie, user["id"], get_secret_key())
+        
+        result = await list_available_models(provider_name, api_key, key_id)
+        
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch models: {e}")
 
 @router.delete("/delete/{key_id}")
 async def delete_api_key(

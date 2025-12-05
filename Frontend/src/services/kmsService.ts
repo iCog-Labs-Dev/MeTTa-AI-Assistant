@@ -72,4 +72,16 @@ export const kmsService = {
       throw error;
     }
   },
+
+  getAvailableModels: async (keyId: string) => {
+    try {
+      const response = await axiosInstance.get<{ models: Array<{ id: string; name: string }>; default_model: string }>(
+        `${KMS_BASE_URL}/models/${keyId}`
+      );
+      return response.data;
+    } catch (error) {
+      handleAxiosError(error, 'KMS getAvailableModels');
+      throw error;
+    }
+  },
 };
