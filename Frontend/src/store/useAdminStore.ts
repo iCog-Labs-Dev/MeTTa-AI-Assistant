@@ -1,5 +1,5 @@
 import { create, type StateCreator } from "zustand"
-import type { AdminStats, AnnotationStats, User, CodeChunk, Repository } from "../types/admin"
+import type { AdminStats, AnnotationStats, User, CodeChunk, Repository, ChunkFilters } from "../types/admin"
 import {
   getAdminStats,
   getAnnotationStats,
@@ -32,14 +32,7 @@ interface AdminState {
   loadStats: () => Promise<void>
   loadAnnotationStats: () => Promise<void>
   loadUsers: () => Promise<void>
-  loadChunks: (filters?: {
-    project?: string;
-    repository?: string;
-    section?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-  }) => Promise<void>
+  loadChunks: (filters?: ChunkFilters) => Promise<void>
   loadRepositories: () => Promise<void>
   deleteUser: (userId: string) => Promise<void>
   startBatchAnnotation: (limit?: number) => Promise<void>
@@ -93,13 +86,14 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
     }
   },
 
-  loadChunks: async (filters = {}) => {
+  loadChunks: async (filters: ChunkFilters = {}) => {
     set({ isLoadingChunks: true, error: null })
     try {
       const params = {
         project: filters.project,
         repo: filters.repository,
         section: filters.section,
+        source: filters.source,
         search: filters.search,
         page: filters.page || 1,
         limit: filters.limit || 10
