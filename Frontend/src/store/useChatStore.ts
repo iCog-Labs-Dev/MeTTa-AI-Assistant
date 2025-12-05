@@ -85,8 +85,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
               const messages = await apiGetSessionMessages(s.sessionId);
               const firstUserMessage = messages.find((m) => m.role === 'user');
               if (firstUserMessage) {
-                set((state) => ({
-                  sessions: state.sessions.map((session) =>
+                set((state: ChatState) => ({
+                  sessions: state.sessions.map((session: ChatSession) =>
                     session.sessionId === s.sessionId && !session.title
                       ? { ...session, title: firstUserMessage.content }
                       : session
@@ -122,8 +122,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
                   const messages = await apiGetSessionMessages(s.sessionId);
                   const firstUserMessage = messages.find((m) => m.role === 'user');
                   if (firstUserMessage) {
-                    set((state) => ({
-                      sessions: state.sessions.map((session) =>
+                    set((state: ChatState) => ({
+                      sessions: state.sessions.map((session: ChatSession) =>
                         session.sessionId === s.sessionId && !session.title
                           ? { ...session, title: firstUserMessage.content }
                           : session
@@ -166,8 +166,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       const response = await apiGetChatSessions(nextPage, 20);
       const newSessions = response.sessions;
 
-      set((state) => ({
-        sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some(s => s.sessionId === ns.sessionId))],
+      set((state: ChatState) => ({
+        sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some((s: ChatSession) => s.sessionId === ns.sessionId))],
         sessionsPage: nextPage,
         hasMoreSessions: response.has_next,
       }));
@@ -181,8 +181,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
               const messages = await apiGetSessionMessages(s.sessionId);
               const firstUserMessage = messages.find((m) => m.role === 'user');
               if (firstUserMessage) {
-                set((state) => ({
-                  sessions: state.sessions.map((session) =>
+                set((state: ChatState) => ({
+                  sessions: state.sessions.map((session: ChatSession) =>
                     session.sessionId === s.sessionId && !session.title
                       ? { ...session, title: firstUserMessage.content }
                       : session
@@ -202,8 +202,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           const response = await apiGetChatSessions(nextPage, 20);
           const newSessions = response.sessions;
 
-          set((state) => ({
-            sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some(s => s.sessionId === ns.sessionId))],
+          set((state: ChatState) => ({
+            sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some((s: ChatSession) => s.sessionId === ns.sessionId))],
             sessionsPage: nextPage,
             hasMoreSessions: response.has_next,
           }));
@@ -216,8 +216,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
                   const messages = await apiGetSessionMessages(s.sessionId);
                   const firstUserMessage = messages.find((m) => m.role === 'user');
                   if (firstUserMessage) {
-                    set((state) => ({
-                      sessions: state.sessions.map((session) =>
+                    set((state: ChatState) => ({
+                      sessions: state.sessions.map((session: ChatSession) =>
                         session.sessionId === s.sessionId && !session.title
                           ? { ...session, title: firstUserMessage.content }
                           : session
@@ -247,31 +247,31 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     }
 
     set({ 
-    selectedSessionId: sessionId, 
-    isLoadingMessages: true, 
-    error: null,
-    messages: [],
-    paginationState: {  
-      hasOlderMessages: false,
-      oldestCursor: null,
-      isLoadingOlder: false,
-    }
-  });
+      selectedSessionId: sessionId, 
+      isLoadingMessages: true, 
+      error: null,
+      messages: [],
+      paginationState: {  
+        hasOlderMessages: false,
+        oldestCursor: null,
+        isLoadingOlder: false,
+      }
+    });
+    
     try {
-      // const apiMessages = await apiGetSessionMessages(sessionId);
       const { messages: apiMessages, pagination } = await apiGetSessionMessagesPaginated(sessionId, 50);
 
       // Ensure every message has a stable id and timestamp for React keys and ordering
-      const messages = apiMessages.map((m, index) => ({
+      const messages = apiMessages.map((m: Message, index: number) => ({
         ...m,
         id: m.id || `${sessionId}-${index}`,
         timestamp: m.timestamp ?? Date.now(),
       }));
 
       // Derive a title from the first user message if the session has no title yet
-      const firstUserMessage = messages.find((m) => m.role === 'user');
+      const firstUserMessage = messages.find((m: Message) => m.role === 'user');
 
-      set((state) => ({
+      set((state: ChatState) => ({
         messages,
         isLoadingMessages: false,
         paginationState: {
@@ -279,7 +279,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           oldestCursor: pagination.cursors.oldest,
           isLoadingOlder: false,
         },
-        sessions: state.sessions.map((s) =>
+        sessions: state.sessions.map((s: ChatSession) =>
           s.sessionId === sessionId && !s.title && firstUserMessage
             ? { ...s, title: firstUserMessage.content }
             : s
@@ -289,9 +289,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
-          // const apiMessages = await apiGetSessionMessages(sessionId);
           const { messages: apiMessages } = await apiGetSessionMessagesPaginated(sessionId, 50);
-          const messages = apiMessages.map((m, index) => ({
+          const messages = apiMessages.map((m: Message, index: number) => ({
             ...m,
             id: m.id || `${sessionId}-${index}`,
             timestamp: m.timestamp ?? Date.now(),
@@ -330,7 +329,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     }
 
     // Set loading state
-    set((state) => ({
+    set((state: ChatState) => ({
       paginationState: {
         ...state.paginationState,
         isLoadingOlder: true,
@@ -346,16 +345,16 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       );
 
       // Process older messages
-      const processedOlderMessages = olderMessages.map((m, index) => ({
+      const processedOlderMessages = olderMessages.map((m: Message, index: number) => ({
         ...m,
-        id: m.id || m.messageId || `${selectedSessionId}-older-${index}`,
+        id: m.id || `${selectedSessionId}-older-${index}`,
         timestamp: m.timestamp ?? Date.now(),
       }));
 
       // Combine messages (older messages come first in chronological order)
       const allMessages = [...processedOlderMessages, ...messages];
 
-      set((state) => ({
+      set((state: ChatState) => ({
         messages: allMessages,
         paginationState: {
           ...state.paginationState,
@@ -366,7 +365,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       }));
     } catch (err: any) {
       console.error('Failed to load older messages:', err);
-      set((state) => ({
+      set((state: ChatState) => ({
         paginationState: {
           ...state.paginationState,
           isLoadingOlder: false,
@@ -383,8 +382,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
     try {
       await apiDeleteChatSession(sessionId);
-      set((state) => {
-        const remaining = state.sessions.filter((s) => s.sessionId !== sessionId);
+      set((state: ChatState) => {
+        const remaining = state.sessions.filter((s: ChatSession) => s.sessionId !== sessionId);
         const deletingActive = state.selectedSessionId === sessionId;
 
         return {
@@ -399,8 +398,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         try {
           await refreshAccessToken();
           await apiDeleteChatSession(sessionId);
-          set((state) => {
-            const remaining = state.sessions.filter((s) => s.sessionId !== sessionId);
+          set((state: ChatState) => {
+            const remaining = state.sessions.filter((s: ChatSession) => s.sessionId !== sessionId);
             const deletingActive = state.selectedSessionId === sessionId;
 
             return {
@@ -457,7 +456,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       content: query,
       timestamp: Date.now(),
     };
-    set((state) => ({ messages: [...state.messages, userMessage] }));
+    set((state: ChatState) => ({ messages: [...state.messages, userMessage] }));
 
     const thinkingMessage: Message = {
       id: (Date.now() + 1).toString(),
@@ -466,7 +465,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       timestamp: Date.now() + 1,
       isLoading: true,
     };
-    set((state) => ({ messages: [...state.messages, thinkingMessage] }));
+    set((state: ChatState) => ({ messages: [...state.messages, thinkingMessage] }));
 
     const isTempSession = selectedSessionId?.startsWith('temp-');
 
@@ -500,12 +499,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
       const realSessionId = response.session_id;
 
-      set((state) => ({
-        messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? assistantMessage : msg)),
+      set((state: ChatState) => ({
+        messages: state.messages.map((msg: Message) => (msg.id === thinkingMessage.id ? assistantMessage : msg)),
         // If this session still has no title, derive it from the first query
         sessions: (() => {
           // Replace temp session id with the real backend id, or insert if not present
-          const existing = state.sessions.find((s) => s.sessionId === selectedSessionId || s.sessionId === realSessionId);
+          const existing = state.sessions.find((s: ChatSession) => s.sessionId === selectedSessionId || s.sessionId === realSessionId);
           if (!existing) {
             return [
               {
@@ -517,7 +516,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             ];
           }
 
-          return state.sessions.map((s) => {
+          return state.sessions.map((s: ChatSession) => {
             if (s.sessionId === selectedSessionId || s.sessionId === realSessionId) {
               return {
                 ...s,
@@ -531,7 +530,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       }));
 
       // Ensure selectedSessionId is updated to the real backend id
-      set((state) => ({
+      set((state: ChatState) => ({
         selectedSessionId: realSessionId,
       }));
     } catch (err: any) {
@@ -562,10 +561,10 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
           const realSessionId = response.session_id;
 
-          set((state) => ({
-            messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? assistantMessage : msg)),
+          set((state: ChatState) => ({
+            messages: state.messages.map((msg: Message) => (msg.id === thinkingMessage.id ? assistantMessage : msg)),
             sessions: (() => {
-              const existing = state.sessions.find((s) => s.sessionId === selectedSessionId || s.sessionId === realSessionId);
+              const existing = state.sessions.find((s: ChatSession) => s.sessionId === selectedSessionId || s.sessionId === realSessionId);
               if (!existing) {
                 return [
                   {
@@ -577,7 +576,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
                 ];
               }
 
-              return state.sessions.map((s) => {
+              return state.sessions.map((s: ChatSession) => {
                 if (s.sessionId === selectedSessionId || s.sessionId === realSessionId) {
                   return {
                     ...s,
@@ -590,7 +589,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             })(),
           }));
 
-          set((state) => ({
+          set((state: ChatState) => ({
             selectedSessionId: realSessionId,
           }));
           return;
@@ -607,15 +606,15 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         content: err?.response?.data?.detail || 'Sorry, I encountered an error. Please try again.',
         timestamp: Date.now(),
       };
-      set((state) => ({
-        messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
+      set((state: ChatState) => ({
+        messages: state.messages.map((msg: Message) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
       }));
     }
   },
 
   updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => {
-    set((state) => ({
-      messages: state.messages.map((msg) =>
+    set((state: ChatState) => ({
+      messages: state.messages.map((msg: Message) =>
         msg.id === messageId ? { ...msg, feedback } : msg
       ),
     }));

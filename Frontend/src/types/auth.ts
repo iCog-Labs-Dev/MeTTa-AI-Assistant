@@ -1,5 +1,3 @@
-// Authentication related types
-
 export interface SignupRequest {
   email: string;
   password: string;
@@ -15,10 +13,18 @@ export interface LoginRequest {
   password: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  role: "Admin" | "User";
+  createdAt?: string;
+}
+
 export interface LoginResponse {
   access_token: string;
   refresh_token: string;
   token_type: string;
+  user: User;
 }
 
 export interface RefreshRequest {
@@ -33,4 +39,10 @@ export interface RefreshResponse {
 
 export interface AuthError {
   detail: string;
+}
+
+export interface DecodedToken {
+  sub: string;
+  role: string;
+  exp: number;
 }

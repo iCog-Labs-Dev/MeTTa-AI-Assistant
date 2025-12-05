@@ -18,8 +18,10 @@ export interface ChatResponse {
   response: string;
   model: string;
   provider: string;
-  session_id: string; // Assuming backend returns session_id
-  responseId?: string; // Backend response ID for feedback
+  session_id: string; 
+  responseId?: string; 
+  messageId?: string; 
+  userMessageId?: string; 
 }
 
 // Fetch paginated chat sessions
