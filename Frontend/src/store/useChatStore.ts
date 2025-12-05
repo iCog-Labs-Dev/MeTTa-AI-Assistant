@@ -3,6 +3,7 @@ import { ChatSession, Message } from '../types/chat';
 import {
   getChatSessions as apiGetChatSessions,
   getSessionMessages as apiGetSessionMessages,
+  getSessionMessagesPaginated as apiGetSessionMessagesPaginated, 
   deleteChatSession as apiDeleteChatSession,
   sendMessage as apiSendMessage,
 } from '../services/chatService';
@@ -21,6 +22,12 @@ interface ChatState {
   isLoadingMessages: boolean;
   error: string | null;
 
+  paginationState: {
+    hasOlderMessages: boolean;
+    oldestCursor: string | null;
+    isLoadingOlder: boolean;
+  };
+
   // Actions
   loadSessions: () => Promise<void>;
   loadMoreSessions: () => Promise<void>;
@@ -29,6 +36,7 @@ interface ChatState {
   createSession: () => Promise<void>;
   sendMessage: (query: string) => Promise<void>;
   updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => void;
+  loadOlderMessages: () => Promise<void>;
 }
 
 const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
@@ -41,6 +49,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   isLoadingSessions: false,
   isLoadingMessages: false,
   error: null,
+
+  paginationState: {
+    hasOlderMessages: false,
+    oldestCursor: null,
+    isLoadingOlder: false,
+  },
 
   loadSessions: async () => {
     if (!isAuthenticated()) {
@@ -232,9 +246,20 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       return;
     }
 
-    set({ selectedSessionId: sessionId, isLoadingMessages: true, error: null });
+    set({ 
+    selectedSessionId: sessionId, 
+    isLoadingMessages: true, 
+    error: null,
+    messages: [],
+    paginationState: {  
+      hasOlderMessages: false,
+      oldestCursor: null,
+      isLoadingOlder: false,
+    }
+  });
     try {
-      const apiMessages = await apiGetSessionMessages(sessionId);
+      // const apiMessages = await apiGetSessionMessages(sessionId);
+      const { messages: apiMessages, pagination } = await apiGetSessionMessagesPaginated(sessionId, 50);
 
       // Ensure every message has a stable id and timestamp for React keys and ordering
       const messages = apiMessages.map((m, index) => ({
@@ -249,6 +274,11 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       set((state) => ({
         messages,
         isLoadingMessages: false,
+        paginationState: {
+          hasOlderMessages: pagination.hasOlder,
+          oldestCursor: pagination.cursors.oldest,
+          isLoadingOlder: false,
+        },
         sessions: state.sessions.map((s) =>
           s.sessionId === sessionId && !s.title && firstUserMessage
             ? { ...s, title: firstUserMessage.content }
@@ -259,7 +289,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
-          const apiMessages = await apiGetSessionMessages(sessionId);
+          // const apiMessages = await apiGetSessionMessages(sessionId);
+          const { messages: apiMessages } = await apiGetSessionMessagesPaginated(sessionId, 50);
           const messages = apiMessages.map((m, index) => ({
             ...m,
             id: m.id || `${sessionId}-${index}`,
@@ -273,6 +304,74 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       } else {
         set({ error: 'Failed to load messages', isLoadingMessages: false });
       }
+    }
+  },
+
+  loadOlderMessages: async () => {
+    const { 
+      selectedSessionId, 
+      messages, 
+      paginationState,
+      isLoadingMessages 
+    } = get();
+    
+    // Don't load if:
+    // - No session selected
+    // - Already loading older messages
+    // - Already loading messages in general
+    // - No older messages available
+    // - No cursor to use
+    if (!selectedSessionId || 
+        paginationState.isLoadingOlder || 
+        isLoadingMessages || 
+        !paginationState.hasOlderMessages || 
+        !paginationState.oldestCursor) {
+      return;
+    }
+
+    // Set loading state
+    set((state) => ({
+      paginationState: {
+        ...state.paginationState,
+        isLoadingOlder: true,
+      }
+    }));
+
+    try {
+      // Load older messages using the oldest cursor
+      const { messages: olderMessages, pagination } = await apiGetSessionMessagesPaginated(
+        selectedSessionId,
+        50,  // Load 50 more messages
+        paginationState.oldestCursor  // Load messages OLDER than this cursor
+      );
+
+      // Process older messages
+      const processedOlderMessages = olderMessages.map((m, index) => ({
+        ...m,
+        id: m.id || m.messageId || `${selectedSessionId}-older-${index}`,
+        timestamp: m.timestamp ?? Date.now(),
+      }));
+
+      // Combine messages (older messages come first in chronological order)
+      const allMessages = [...processedOlderMessages, ...messages];
+
+      set((state) => ({
+        messages: allMessages,
+        paginationState: {
+          ...state.paginationState,
+          hasOlderMessages: pagination.hasOlder,
+          oldestCursor: pagination.cursors.oldest,
+          isLoadingOlder: false,
+        },
+      }));
+    } catch (err: any) {
+      console.error('Failed to load older messages:', err);
+      set((state) => ({
+        paginationState: {
+          ...state.paginationState,
+          isLoadingOlder: false,
+        }
+      }));
     }
   },
 
