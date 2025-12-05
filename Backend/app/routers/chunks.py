@@ -13,7 +13,6 @@ from app.dependencies import (
 )
 from app.rag.embedding.pipeline import embedding_pipeline
 from app.rag.retriever.retriever import EmbeddingRetriever
-
 from app.db.users import UserRole
 
 router = APIRouter(
@@ -210,7 +209,7 @@ async def semantic_search(
 
     try:
         retriever = EmbeddingRetriever(model=model, qdrant=qdrant, collection_name=collection_name)
-        results = await retriever.retrieve(q, top_k=top_k, min_score=float(os.getenv("MIN_SCORE", "0.0")))
+        results = await retriever.retrieve(q, top_k=top_k)
         
         # Flatten or return grouped by category
         return {"query": q, "top_k": top_k, "results": results}
