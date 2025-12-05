@@ -68,11 +68,11 @@ async def get_admin_stats(
         })
         
         failed_annotations = await chunks_collection.count_documents({
-            "status": "FAILED"
+            "status": "FAILED_GEN"
         })
         
         quota_exceeded = await chunks_collection.count_documents({
-            "status": "QUOTA_EXCEEDED"
+            "status": "FAILED_QUOTA"
         })
         
         return AdminStatsResponse(
@@ -103,8 +103,8 @@ async def get_annotation_stats(
         
         total_chunks = await chunks_collection.count_documents({})
         completed = await chunks_collection.count_documents({"status": "ANNOTATED"})
-        failed = await chunks_collection.count_documents({"status": "FAILED"})
-        quota_exceeded = await chunks_collection.count_documents({"status": "QUOTA_EXCEEDED"})
+        failed = await chunks_collection.count_documents({"status": "FAILED_GEN"})
+        quota_exceeded = await chunks_collection.count_documents({"status": "FAILED_QUOTA"})
         
         # Calculate pending (everything else)
         pending = total_chunks - completed - failed - quota_exceeded
@@ -221,7 +221,7 @@ async def get_repositories(
                     },
                     "failed": {
                         "$sum": {
-                            "$cond": [{"$eq": ["$status", "FAILED"]}, 1, 0]
+                            "$cond": [{"$eq": ["$status", "FAILED_GEN"]}, 1, 0]
                         }
                     },
                     "first_seen": {"$min": "$_id"},

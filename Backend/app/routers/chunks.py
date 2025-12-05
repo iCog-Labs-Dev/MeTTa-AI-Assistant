@@ -124,6 +124,7 @@ async def list_chunks(
     project: Optional[str] = None,
     repo: Optional[str] = None,
     section: Optional[str] = None,
+    source: Optional[str] = None,
     limit: int = Query(100, ge=1, le=1000, description="Limit the number of results (1-1000)"),
     mongo_db : Database =Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
@@ -134,6 +135,7 @@ async def list_chunks(
     - **project**: Filter by project name
     - **repo**: Filter by repository name
     - **section**: Filter by section name
+    - **source**: Filter by source type (code, documentation, others)
     - **limit**: Number of results to return (1-1000)
     """
     filter_query = {}
@@ -143,6 +145,8 @@ async def list_chunks(
         filter_query["repo"] = repo
     if section:
         filter_query["section"] = section
+    if source:
+        filter_query["source"] = source
     
     try:
         return await get_chunks(
