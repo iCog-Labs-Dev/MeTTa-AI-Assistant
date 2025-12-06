@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, status, Depends
+from fastapi import APIRouter, HTTPException, status as http_status, Depends
 from typing import Optional, List
 from pydantic import BaseModel
 from pymongo.database import Database
 from bson import ObjectId
 from loguru import logger
+from datetime import datetime, timezone
 
 from app.dependencies import get_mongo_db, require_role
 from app.db.users import UserRole, get_users, delete_user
@@ -86,7 +87,7 @@ async def get_admin_stats(
     except Exception as e:
         logger.error(f"Error getting admin stats: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving admin statistics: {str(e)}"
         )
 
@@ -126,7 +127,7 @@ async def get_annotation_stats(
     except Exception as e:
         logger.error(f"Error getting annotation stats: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving annotation statistics: {str(e)}"
         )
 
@@ -156,7 +157,7 @@ async def get_admin_users(
     except Exception as e:
         logger.error(f"Error getting users: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving users: {str(e)}"
         )
 
@@ -174,7 +175,7 @@ async def delete_admin_user(
         
         if not success:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
+                status_code=http_status.HTTP_404_NOT_FOUND,
                 detail="User not found or failed to delete"
             )
         
@@ -185,7 +186,7 @@ async def delete_admin_user(
     except Exception as e:
         logger.error(f"Error deleting user: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting user: {str(e)}"
         )
 
@@ -198,82 +199,57 @@ async def get_repositories(
     Get list of all ingested repositories with statistics
     """
     try:
-        chunks_collection = _get_collection(mongo_db, "chunks")
+        collection = _get_collection(mongo_db, "chunks")
         
         pipeline = [
             {
                 "$match": {
-                    "repo": {"$exists": True, "$ne": None},
-                    "project": {"$exists": True, "$ne": None}
+                    "project": {"$exists": True, "$ne": None},
+                    "repo": {"$exists": True, "$ne": None}
                 }
             },
             {
                 "$group": {
                     "_id": {
-                        "repo": "$repo",
-                        "project": "$project"
+                        "project": "$project",
+                        "repo": "$repo"
                     },
                     "chunks": {"$sum": 1},
-                    "annotated": {
-                        "$sum": {
-                            "$cond": [{"$eq": ["$status", "ANNOTATED"]}, 1, 0]
-                        }
-                    },
-                    "failed": {
-                        "$sum": {
-                            "$cond": [{"$eq": ["$status", "FAILED_GEN"]}, 1, 0]
-                        }
-                    },
-                    "first_seen": {"$min": "$_id"},
-                    "last_seen": {"$max": "$_id"},
                     "chunk_size": {"$first": "$chunk_size"}
                 }
             },
             {
                 "$project": {
                     "_id": 0,
-                    "url": "$_id.repo",
                     "project": "$_id.project",
+                    "repo": "$_id.repo",
                     "chunks": 1,
-                    "annotated": 1,
-                    "failed": 1,
-                    "chunk_size": 1,
-                    "first_seen": 1,
-                    "last_seen": 1
+                    "chunk_size": 1
                 }
             }
         ]
+        cursor = await collection.aggregate(pipeline)
+        ingested_repos = [doc async for doc in cursor]
         
+        # Convert to RepositoryResponse format
         repositories = []
-        async for repo_data in chunks_collection.aggregate(pipeline):
-            if repo_data["failed"] > 0:
-                status = "Failed"
-            elif repo_data["annotated"] == repo_data["chunks"]:
-                status = "Completed"
-            else:
-                status = "Processing"
-            
-            created_at = repo_data.get("first_seen", ObjectId())
-            if isinstance(created_at, ObjectId):
-                created_at = created_at.generation_time.isoformat()
-            
+        for repo_data in ingested_repos:
             repository = RepositoryResponse(
-                id=f"{repo_data['project']}_{repo_data['url']}".replace("/", "_").replace(":", "_"),
-                url=repo_data["url"],
-                chunkSize=repo_data.get("chunk_size", 1000),
-                chunks=repo_data["chunks"],
-                status=status,
-                createdAt=created_at
+                id=f"{repo_data['project']}_{repo_data['repo']}".replace("/", "_").replace(":", "_"),
+                url=repo_data["repo"],
+                chunkSize=int(repo_data.get("chunk_size", 1000) or 1000),
+                chunks=int(repo_data.get("chunks", 0)),
+                status="Completed",
+                createdAt=datetime.now(timezone.utc).isoformat()
             )
             repositories.append(repository)
         
-        repositories.sort(key=lambda x: x.createdAt, reverse=True)
-        
+        logger.info(f"Found {len(repositories)} repositories")
         return repositories
         
     except Exception as e:
         logger.error(f"Error getting repositories: {e}")
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            status_code=http_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving repositories: {str(e)}"
         )
