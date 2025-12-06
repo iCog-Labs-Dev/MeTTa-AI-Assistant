@@ -22,7 +22,7 @@ class RAGGenerator:
         query: str,
         top_k: int = 5,
         api_key: Optional[str] = None,
-        include_sources: bool = True,
+        include_sources: bool = False,
         history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
         retrieved_docs = await self.retriever.retrieve(query, top_k=top_k)

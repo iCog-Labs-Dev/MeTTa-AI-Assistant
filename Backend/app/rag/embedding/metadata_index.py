@@ -1,6 +1,6 @@
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import PayloadSchemaType, VectorParams, Distance
-from loguru import logger
+from app.core.logging import logger
 
 async def create_collection_if_not_exists(qdrant_client: AsyncQdrantClient, collection_name: str):
     """Create Qdrant collection if it doesn't exist"""

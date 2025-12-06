@@ -18,8 +18,10 @@ export interface ChatResponse {
   response: string;
   model: string;
   provider: string;
-  session_id: string; // Assuming backend returns session_id
-  responseId?: string; // Backend response ID for feedback
+  session_id: string; 
+  responseId?: string; 
+  messageId?: string; 
+  userMessageId?: string; 
 }
 
 // Fetch paginated chat sessions
@@ -84,6 +86,43 @@ export const submitFeedback = async (data: FeedbackRequest): Promise<any> => {
   } catch (error) {
     console.error('[chatService] Feedback submission error:', error);
     handleAxiosError(error, 'Feedback Error');
+    throw error;
+  }
+};
+
+export interface PaginatedMessagesResponse {
+  messages: Message[];
+  pagination: {
+    limit: number;
+    total: number;
+    hasOlder: boolean;
+    hasNewer: boolean;
+    cursors: {
+      oldest: string | null;  
+      newest: string | null; 
+    };
+  };
+}
+
+export const getSessionMessagesPaginated = async (
+  sessionId: string,
+  limit: number = 50,
+  before?: string,  // Load messages older than this messageId
+  after?: string    // Load messages newer than this messageId
+): Promise<PaginatedMessagesResponse> => {
+  try {
+    const params: any = { limit };
+    if (before) params.before = before;
+    if (after) params.after = after;
+
+    const response = await axiosInstance.get<PaginatedMessagesResponse>(
+      `${SESSIONS_BASE_URL}/${sessionId}/messages/paginated`,
+      { params }
+    );
+
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Sessions Paginated');
     throw error;
   }
 };

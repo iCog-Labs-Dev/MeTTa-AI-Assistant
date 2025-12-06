@@ -62,7 +62,7 @@ class LLMClient(BaseLLMClient):
             if not self._keys:
                 raise ValueError("No Gemini API keys provided")
         elif provider == LLMProvider.OPENAI:
-            self._model_name = model_name or "gpt-3.5-turbo"
+            self._model_name = model_name or "gpt-4.1-mini"
             self._keys = api_keys or _load_openai_keys_from_env()
             if not self._keys:
                 raise ValueError("No OpenAI API keys provided")

@@ -21,7 +21,7 @@ class LLMClientFactory:
 
         if not model_name:
             model_name = (
-                "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-3.5-turbo"
+                "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-4.1-mini"
             )
 
         return LLMClient(
@@ -75,9 +75,16 @@ Context:
 
 User Question: {query}
 
-Please provide a clear, well-structured response that helps the user with their MeTTa development needs. Focus on:
-- MeTTa syntax, semantics, and best practices
-- Hyperon framework concepts and usage
-- Code examples and translations when relevant
 
-If the context doesn't contain enough information to answer the question completely, please say so and suggest what additional MeTTa or Hyperon documentation might be helpful. Be precise, educational, and focused on advancing MeTTa development."""
+Instructions:
+- Give clear, direct, concise answers. Avoid unnecessary explanations or long narratives.
+- Do NOT include meta-phrases such as “based on the context…”, “as an AI assistant…”, or any self-referential commentary.
+- Focus strictly on:
+  * MeTTa syntax, semantics, and best practices
+  * Hyperon concepts and usage
+  * Code examples, patterns, and translations when relevant
+- If the question is unrelated to MeTTa, Hyperon or AGI, politely tell the user that you can only answer MeTTa/Hyperon questions.
+- If the provided context is insufficient, say so briefly and specify what additional MeTTa or Hyperon information would be needed.
+
+Response format:
+- Provide only the answer. No prefaces, disclaimers, or framing sentences. """

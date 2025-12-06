@@ -1,4 +1,4 @@
-from loguru import logger
+from app.core.logging import logger
 from typing import Optional, List
 from pymongo.database import Database
 from app.model.key import KeyModel

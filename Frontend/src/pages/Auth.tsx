@@ -8,6 +8,8 @@ import { Eye, EyeOff, Sun, Moon, AlertCircle } from 'lucide-react'
 import { useUserStore } from '../store/useUserStore'
 import { useTheme } from '../hooks/useTheme'
 import { signup, login } from '../lib/auth'
+import { jwtDecode } from "jwt-decode";
+import type { DecodedToken } from '../types/auth';
 
 function Auth() {
   const navigate = useNavigate()
@@ -28,6 +30,7 @@ function Auth() {
     setIsLoading(true)
 
     try {
+      /*
       if (mode === 'signup') {
         // Validate password confirmation
         if (password !== passwordConfirmation) {
@@ -36,20 +39,32 @@ function Auth() {
           return
         }
 
-        // Call signup API
         const response = await signup(email, password)
         console.log('Signup successful:', response.user_id)
         
-        // After signup, automatically login
-        await login(email, password)
+        const loginResponse = await login(email, password)
+        const decoded: DecodedToken = jwtDecode(loginResponse.access_token)
+        
         setUser(email, response.user_id)
-        navigate('/chat')
+        
+        if ((decoded.role || '').toLowerCase() === 'admin') {
+          navigate('/admin')
+        } else {
+          navigate('/chat')
+        }
       } else {
-        // Call login API
-        await login(email, password)
-        setUser(email)
-        navigate('/chat')
-      }
+        */
+        const loginResponse = await login(email, password)
+        const decoded: DecodedToken = jwtDecode(loginResponse.access_token);
+        
+        setUser(email, decoded.sub)
+
+        if ((decoded.role || '').toLowerCase() === 'admin') {
+          navigate('/admin')
+        } else {
+          navigate('/chat')
+        }
+      // }
     } catch (err: any) {
       console.error('Auth error:', err)
       setError(
@@ -97,7 +112,7 @@ function Auth() {
           >
             Sign In
           </button>
-          <button
+          {/* <button
             className={`flex-1 py-3 text-sm font-medium transition-all duration-300 ${
               mode === 'signup'
                 ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100'
@@ -109,7 +124,7 @@ function Auth() {
             }}
           >
             Sign Up
-          </button>
+          </button> */}
         </div>
 
         {mode === 'login' ? (

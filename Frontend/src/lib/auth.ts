@@ -1,6 +1,7 @@
 import * as authService from '../services/authService';
 import type { SignupRequest, LoginRequest, RefreshRequest } from '../types/auth';
 import { useUserStore } from '../store/useUserStore';
+import { jwtDecode } from 'jwt-decode';
 
 // Token Management
 let accessToken: string | null = null;
@@ -51,6 +52,18 @@ export const isAuthenticated = (): boolean => {
   const storeState = useUserStore.getState();
   if (storeState.isAuthenticated !== isAuth) {
     storeState.setIsAuthenticated(isAuth);
+  }
+  
+  if (isAuth && !storeState.role && getAccessToken()) {
+    try {
+      const decoded: any = jwtDecode(getAccessToken() as string);
+      const role = decoded.role?.toLowerCase();
+      if (role) {
+        storeState.setRole(role);
+      }
+    } catch (error) {
+      console.error('Failed to decode token:', error);
+    }
   }
   
   return isAuth;

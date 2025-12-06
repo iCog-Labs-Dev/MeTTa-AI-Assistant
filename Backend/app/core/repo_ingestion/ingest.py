@@ -1,5 +1,5 @@
 import shutil
-from loguru import logger
+from app.core.logging import logger
 from pymongo.database import Database
 from app.core.repo_ingestion.clone import clone_repo, get_all_files
 from app.core.repo_ingestion.filters import process_metta_files

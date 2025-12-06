@@ -30,15 +30,18 @@ class TokenResponse(BaseModel):
 
 @router.post("/signup", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def signup(user: UserCreate, mongo_db: Database = Depends(get_mongo_db)):
-    user.role = UserRole.USER
-    try:
-        user_id = await create_user(user, mongo_db)
-    except ValueError:
-        raise HTTPException(status_code=400, detail={"message": "Email in use"})
-    except Exception:
-        raise HTTPException(status_code=500, detail="User creation failed")
+    # Temporarily disable signup
+    raise HTTPException(status_code=403, detail="Signup is temporarily disabled")
+    
+    # user.role = UserRole.USER
+    # try:
+    #     user_id = await create_user(user, mongo_db)
+    # except ValueError:
+    #     raise HTTPException(status_code=400, detail={"message": "Email in use"})
+    # except Exception:
+    #     raise HTTPException(status_code=500, detail="User creation failed")
         
-    return {"message": "User created", "user_id": str(user_id)}
+    # return {"message": "User created", "user_id": str(user_id)}
 
 @router.post("/login", response_model=TokenResponse)
 async def login(login_data: LoginRequest, mongo_db: Database = Depends(get_mongo_db)):

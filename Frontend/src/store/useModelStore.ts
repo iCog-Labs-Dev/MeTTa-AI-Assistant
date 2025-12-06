@@ -11,6 +11,7 @@ interface ModelState {
   updateModel: (id: string, updates: Partial<Model>) => void
   setActive: (id: string) => void
   removeModel: (id: string) => void
+  clearCustomModels: () => void
 }
 
 // Default models available in the application
@@ -57,6 +58,19 @@ export const useModelStore = create<ModelState>()(
           // If removing the active model, fall back to the first available model
           activeId: state.activeId === id ? state.models[0]?.id || '' : state.activeId,
         })),
+
+      // Remove all custom models
+      clearCustomModels: () =>
+        set((state) => {
+          const builtInModels = state.models.filter((m) => !m.isCustom)
+          const isCustomActive = state.models.find(m => m.id === state.activeId)?.isCustom
+          
+          return {
+            models: builtInModels,
+            // If active model was custom, switch to default
+            activeId: isCustomActive ? builtInModels[0]?.id || '' : state.activeId
+          }
+        }),
     }),
     {
       name: 'model-storage',

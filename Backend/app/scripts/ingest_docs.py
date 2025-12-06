@@ -36,6 +36,7 @@ from pymongo import AsyncMongoClient
 from pymongo.database import Database
 
 from dotenv import load_dotenv
+from app.core.logging import logger
 
 load_dotenv()
 
