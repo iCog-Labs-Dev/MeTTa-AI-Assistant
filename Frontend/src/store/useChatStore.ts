@@ -17,9 +17,11 @@ interface ChatState {
   // Sidebar/session list loading state for better UX
   sessionsStatus: 'idle' | 'loading' | 'ready' | 'empty';
   sessionsPage: number;
+  
   hasMoreSessions: boolean;
   isLoadingSessions: boolean;
   isLoadingMessages: boolean;
+  isSendingMessage: boolean;  
   error: string | null;
 
   paginationState: {
@@ -49,7 +51,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   isLoadingSessions: false,
   isLoadingMessages: false,
   error: null,
-
+  isSendingMessage: false,
   paginationState: {
     hasOlderMessages: false,
     oldestCursor: null,
@@ -139,6 +141,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         } catch (refreshErr) {
           set({
             error: 'Session expired. Please log in again.',
+            isSendingMessage: false,
             isLoadingSessions: false,
             sessionsStatus: 'empty',
           });
@@ -297,7 +300,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           }));
           set({ messages, isLoadingMessages: false });
         } catch (refreshErr) {
-          set({ error: 'Session expired. Please log in again.', isLoadingMessages: false });
+          set({ error: 'Session expired. Please log in again.', isSendingMessage: false,isLoadingMessages: false });
           window.location.href = '/login';
         }
       } else {
@@ -437,7 +440,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       set({ error: 'Please log in to send messages' });
       return;
     }
-
+    const { isSendingMessage } = get();
+    if (isSendingMessage) {
+      return;
+    }
+    
+    set({ isSendingMessage: true }); 
     let { selectedSessionId } = get();
 
     // Optimistically show the user message and thinking message immediately
@@ -523,6 +531,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       // Ensure selectedSessionId is updated to the real backend id
       set((state: ChatState) => ({
         selectedSessionId: realSessionId,
+        isSendingMessage: false,
       }));
     } catch (err: any) {
       if (err?.response?.status === 401) {
@@ -582,6 +591,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
           set((state: ChatState) => ({
             selectedSessionId: realSessionId,
+            isSendingMessage: false, 
           }));
           return;
         } catch (refreshErr) {
@@ -599,6 +609,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       };
       set((state: ChatState) => ({
         messages: state.messages.map((msg: Message) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
+        isSendingMessage: false,  
       }));
     }
   },

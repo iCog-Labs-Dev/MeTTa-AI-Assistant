@@ -18,6 +18,7 @@ function Chat() {
     messages,
     isLoadingMessages,
     sendMessage,
+    isSendingMessage,
     selectedSessionId,
     updateMessageFeedback,
     sessions,
@@ -128,7 +129,10 @@ function Chat() {
             onFeedback={handleFeedback}
           />
         )}
-        <MessageInput onSend={sendMessage} />
+        <MessageInput
+          onSend={sendMessage}
+          isSendingMessage={isSendingMessage}
+        />
       </div>
       <SettingsModal
         isOpen={settingsOpen}
