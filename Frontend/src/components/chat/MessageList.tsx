@@ -161,21 +161,6 @@ function MessageList({
               <ChatMessageItem key={m.id} message={m} onFeedback={onFeedback} />
             ))}
             {/* Scroll anchor for auto-scroll to bottom */}
-            {/* ---------test In MessageList.tsx, add a test button: */}
-            <div className="text-center py-2">
-              <button
-                onClick={() => {
-                  console.log("Testing infinite scroll...");
-                  loadOlderMessages();
-                }}
-                className="px-3 py-1 text-xs bg-blue-500 text-white rounded"
-              >
-                Test Load Older
-              </button>
-              <span className="ml-2 text-xs text-gray-500">
-                {messages.length} messages loaded
-              </span>
-            </div>
             <div ref={messagesEndRef} />
           </div>
         )}
