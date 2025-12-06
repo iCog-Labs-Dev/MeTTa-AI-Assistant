@@ -275,9 +275,9 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         messages,
         isLoadingMessages: false,
         paginationState: {
-          hasOlderMessages: pagination.hasOlder,
-          oldestCursor: pagination.cursors.oldest,
-          isLoadingOlder: false,
+        hasOlderMessages: pagination?.hasOlder || false,   
+        oldestCursor: pagination?.cursors?.oldest || null, 
+        isLoadingOlder: false,
         },
         sessions: state.sessions.map((s: ChatSession) =>
           s.sessionId === sessionId && !s.title && firstUserMessage
@@ -314,12 +314,6 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       isLoadingMessages 
     } = get();
     
-    // Don't load if:
-    // - No session selected
-    // - Already loading older messages
-    // - Already loading messages in general
-    // - No older messages available
-    // - No cursor to use
     if (!selectedSessionId || 
         paginationState.isLoadingOlder || 
         isLoadingMessages || 
@@ -337,11 +331,10 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     }));
 
     try {
-      // Load older messages using the oldest cursor
       const { messages: olderMessages, pagination } = await apiGetSessionMessagesPaginated(
         selectedSessionId,
-        50,  // Load 50 more messages
-        paginationState.oldestCursor  // Load messages OLDER than this cursor
+        50, 
+        paginationState.oldestCursor 
       );
 
       // Process older messages
@@ -358,8 +351,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         messages: allMessages,
         paginationState: {
           ...state.paginationState,
-          hasOlderMessages: pagination.hasOlder,
-          oldestCursor: pagination.cursors.oldest,
+          hasOlderMessages: pagination?.hasOlder || false,
+          oldestCursor: pagination?.cursors?.oldest || null,
           isLoadingOlder: false,
         },
       }));
@@ -432,8 +425,6 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       return;
     }
 
-    // GPT-style: open a new chat interface WITHOUT creating a sidebar session yet.
-    // The first sendMessage call will create the real backend session and insert it.
     set({
       selectedSessionId: null,
       messages: [],

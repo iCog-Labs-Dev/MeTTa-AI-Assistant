@@ -98,80 +98,31 @@ export interface PaginatedMessagesResponse {
     hasOlder: boolean;
     hasNewer: boolean;
     cursors: {
-      oldest: string | null;
-      newest: string | null;
+      oldest: string | null;  
+      newest: string | null; 
     };
   };
 }
 
-// export const getSessionMessagesPaginated = async (
-//   sessionId: string,
-//   limit: number = 50,
-//   before?: string,  // Load messages older than this messageId
-//   after?: string    // Load messages newer than this messageId
-// ): Promise<PaginatedMessagesResponse> => {
-//   try {
-//     const params: any = { limit };
-//     if (before) params.before = before;
-//     if (after) params.after = after;
-
-//     const response = await axiosInstance.get<PaginatedMessagesResponse>(
-//       `${SESSIONS_BASE_URL}/${sessionId}/messages/paginated`,
-//       { params }
-//     );
-//     return response.data;
-//   } catch (error) {
-//     handleAxiosError(error, 'Sessions Paginated');
-//     throw error;
-//   }
-// };
-
-// TEMPORARY MOCK - Add this BEFORE the real function, or comment out the real one temporarily
-// TEMPORARY MOCK - Add this at the end of chatService.ts (or replace temporarily)
-// SIMPLE WORKING MOCK - No messageId
 export const getSessionMessagesPaginated = async (
   sessionId: string,
   limit: number = 50,
-  before?: string
+  before?: string,  // Load messages older than this messageId
+  after?: string    // Load messages newer than this messageId
 ): Promise<PaginatedMessagesResponse> => {
-  console.log('🎯 [MOCK] getSessionMessagesPaginated - no messageId');
-  
-  await new Promise(resolve => setTimeout(resolve, 500));
-  
-  const messages: Message[] = [];
-  const isOlderLoad = !!before;
-  
-  for (let i = 0; i < Math.min(limit, 20); i++) { // Load 20 for testing
-    const messageNum = isOlderLoad ? i : i + 50;
-    
-    // Minimal Message object - adjust based on your actual type
-    const message: any = {
-      id: `test_msg_${messageNum}`,
-      role: i % 2 === 0 ? 'user' : 'assistant',
-      content: isOlderLoad 
-        ? `Older test message ${messageNum}`
-        : `Test message ${messageNum}`,
-    };
-    
-    // Add timestamp if your Message type has it
-    if (Math.random() > 0.5) {
-      message.timestamp = Date.now() - messageNum * 1000;
-    }
-    
-    messages.push(message as Message);
+  try {
+    const params: any = { limit };
+    if (before) params.before = before;
+    if (after) params.after = after;
+
+    const response = await axiosInstance.get<PaginatedMessagesResponse>(
+      `${SESSIONS_BASE_URL}/${sessionId}/messages/paginated`,
+      { params }
+    );
+
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Sessions Paginated');
+    throw error;
   }
-  
-  return {
-    messages,
-    pagination: {
-      limit,
-      total: 200,
-      hasOlder: true,
-      hasNewer: false,
-      cursors: {
-        oldest: messages.length > 0 ? messages[messages.length-1].id : null,
-        newest: messages.length > 0 ? messages[0].id : null,
-      }
-    }
-  };
 };

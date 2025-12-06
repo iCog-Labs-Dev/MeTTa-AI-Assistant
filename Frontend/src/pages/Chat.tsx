@@ -23,30 +23,7 @@ function Chat() {
     sessions,
     loadSessions,
     selectSession,
-    paginationState, // ADD THIS: Import paginationState for testing
   } = useChatStore();
-
-  // --- ADD THIS FOR TEST: Auto-select a test session when no sessions exist ---
-  useEffect(() => {
-    if (isAuthenticated()) {
-      loadSessions();
-    }
-  }, []);
-
-  useEffect(() => {
-    // Wait a moment for sessions to load, then auto-select a test session
-    const timer = setTimeout(() => {
-      if (sessions.length === 0 && isAuthenticated()) {
-        console.log("🔍 No sessions found, creating test session...");
-        // Create a test session ID
-        const testSessionId = "test_session_" + Date.now();
-        selectSession(testSessionId);
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [sessions]);
-  // --- END TEST CODE ---
 
   function handleSuggestionClick(text: string) {
     sendMessage(text);
@@ -65,13 +42,6 @@ function Chat() {
     const previousFeedback = message.feedback;
 
     try {
-      console.log("[Chat] handleFeedback called:", {
-        messageId,
-        feedback,
-        responseId: message.responseId,
-        sessionId: selectedSessionId,
-      });
-
       // Update local state immediately for better UX
       updateMessageFeedback(messageId, feedback);
 
@@ -81,7 +51,6 @@ function Chat() {
         sessionId: selectedSessionId,
         sentiment: feedback,
       });
-      console.log("[Chat] Feedback submitted successfully");
     } catch (error) {
       console.error("[Chat] Failed to submit feedback:", error);
       // Revert optimistic update on error
@@ -127,34 +96,6 @@ function Chat() {
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setSettingsOpen(true)}
         />
-
-        {/* --- ADD THIS FOR TEST: Debug info panel (remove later) --- */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="px-4 py-2 bg-blue-50 dark:bg-blue-900/20 border-b">
-            <div className="max-w-2xl mx-auto text-xs flex items-center justify-between">
-              <div>
-                <span className="font-medium">🔍 Debug Info:</span>
-                <span className="ml-2">Messages: {messages.length}</span>
-                <span className="ml-2">
-                  Has Older: {paginationState.hasOlderMessages ? "✅" : "❌"}
-                </span>
-                <span className="ml-2">
-                  Session: {selectedSessionId || "None"}
-                </span>
-              </div>
-              <button
-                onClick={() => {
-                  const testSessionId = "test_" + Date.now();
-                  selectSession(testSessionId);
-                }}
-                className="px-2 py-1 bg-blue-500 text-white rounded text-xs"
-              >
-                New Test Session
-              </button>
-            </div>
-          </div>
-        )}
-        {/* --- END TEST CODE --- */}
 
         {isLoadingMessages ? (
           <div

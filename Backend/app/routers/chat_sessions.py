@@ -1,7 +1,6 @@
 from typing import Dict, Any
 from pymongo.database import Database
 from fastapi import APIRouter, HTTPException, status, Depends, Query
-from datetime import datetime
 from typing import Optional
 
 from app.dependencies import get_mongo_db, get_current_user
@@ -45,10 +44,6 @@ async def list_sessions(
             detail=f"Error retrieving sessions: {str(e)}",
         )
 
-
-from datetime import datetime
-from typing import Optional
-
 @router.get("/{session_id}/messages/paginated", response_model=Dict[str, Any])
 async def get_session_messages_paginated(
     session_id: str,
@@ -59,15 +54,12 @@ async def get_session_messages_paginated(
     mongo_db: Database = Depends(get_mongo_db),
 ):
     """
-    Get paginated messages for a chat session using cursor-based pagination.
-    Professional, efficient approach used by major chat applications.
-    
+    Get paginated messages for a chat session using cursor-based pagination.    
     Usage:
     - Initial load: No parameters (gets most recent messages)
     - Load older: Provide `before` with the oldest messageId you have
     - Load newer: Provide `after` with the newest messageId you have
     """
-    # Check if session exists and user has access
     session = await get_chat_session_by_id(session_id, mongo_db=mongo_db)
     if not session:
         raise HTTPException(
@@ -83,33 +75,32 @@ async def get_session_messages_paginated(
     
     # Cursor-based pagination logic
     if before:
-        # Get the message to find its timestamp
         before_message = await collection.find_one(
             {"sessionId": session_id, "messageId": before},
             {"createdAt": 1}
         )
+        
         if before_message:
-            # Get messages OLDER than this message
             query["createdAt"] = {"$lt": before_message["createdAt"]}
-    
-    if after:
-        # Get the message to find its timestamp
+        
+        # Default sort for "before": newest of the older messages first
+        sort_direction = -1
+        
+    elif after:  
         after_message = await collection.find_one(
             {"sessionId": session_id, "messageId": after},
             {"createdAt": 1}
         )
         if after_message:
-            # Get messages NEWER than this message
             query["createdAt"] = {"$gt": after_message["createdAt"]}
             # For "after" cursor, we want chronological order (oldest first)
             sort_direction = 1
         else:
             sort_direction = -1
     else:
-        # Default: newest messages first (for initial load and "before" cursor)
+        # Default: newest messages first (for initial load)
         sort_direction = -1
     
-    # Execute query with cursor
     cursor = collection.find(
         query,
         {"_id": 0}  # Exclude MongoDB _id
@@ -120,18 +111,15 @@ async def get_session_messages_paginated(
     # Calculate pagination metadata
     total_count = await collection.count_documents({"sessionId": session_id})
     
-    # Determine if there are more messages
     if messages:
         oldest_message = min(messages, key=lambda x: x["createdAt"])
         newest_message = max(messages, key=lambda x: x["createdAt"])
         
-        # Check for older messages
         older_messages_count = await collection.count_documents({
             "sessionId": session_id,
             "createdAt": {"$lt": oldest_message["createdAt"]}
         })
         
-        # Check for newer messages
         newer_messages_count = await collection.count_documents({
             "sessionId": session_id,
             "createdAt": {"$gt": newest_message["createdAt"]}
@@ -148,12 +136,11 @@ async def get_session_messages_paginated(
             "hasOlder": older_messages_count > 0,
             "hasNewer": newer_messages_count > 0,
             "cursors": {
-                "oldest": messages[0]["messageId"] if messages else None,
-                "newest": messages[-1]["messageId"] if messages else None
+                "newest": messages[0]["messageId"] if messages else None,
+                "oldest": messages[-1]["messageId"] if messages else None
             }
         }
-    }
-    
+    }     
 @router.get("/{session_id}", response_model=ChatSessionWithMessages)
 async def get_session(
     session_id: str,
