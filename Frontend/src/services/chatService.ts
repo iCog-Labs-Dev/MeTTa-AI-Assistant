@@ -89,3 +89,40 @@ export const submitFeedback = async (data: FeedbackRequest): Promise<any> => {
     throw error;
   }
 };
+
+export interface PaginatedMessagesResponse {
+  messages: Message[];
+  pagination: {
+    limit: number;
+    total: number;
+    hasOlder: boolean;
+    hasNewer: boolean;
+    cursors: {
+      oldest: string | null;  
+      newest: string | null; 
+    };
+  };
+}
+
+export const getSessionMessagesPaginated = async (
+  sessionId: string,
+  limit: number = 50,
+  before?: string,  // Load messages older than this messageId
+  after?: string    // Load messages newer than this messageId
+): Promise<PaginatedMessagesResponse> => {
+  try {
+    const params: any = { limit };
+    if (before) params.before = before;
+    if (after) params.after = after;
+
+    const response = await axiosInstance.get<PaginatedMessagesResponse>(
+      `${SESSIONS_BASE_URL}/${sessionId}/messages/paginated`,
+      { params }
+    );
+
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Sessions Paginated');
+    throw error;
+  }
+};
