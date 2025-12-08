@@ -14,14 +14,15 @@ function Chat() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { messages, isLoadingMessages, isSendingMessage, sendMessage, selectedSessionId, updateMessageFeedback } = useChatStore();
+
+  const { messages, isLoadingMessages, sendMessage, selectedSessionId, updateMessageFeedback, isSendingMessage } = useChatStore(); // streaming flag from useChatStore
 
   function handleSuggestionClick(text: string) {
     sendMessage(text);
   }
 
   async function handleFeedback(messageId: string, feedback: 'positive' | 'neutral' | 'negative') {
-    const message = messages.find(m => m.id === messageId);
+    const message = messages.find((m) => m.id === messageId);
     if (!message || !message.responseId || !selectedSessionId) {
       console.error('Cannot submit feedback: missing responseId or sessionId');
       return;
@@ -30,7 +31,8 @@ function Chat() {
     const previousFeedback = message.feedback;
 
     try {
-      console.log('[Chat] handleFeedback called:', { messageId, feedback, responseId: message.responseId, sessionId: selectedSessionId });
+      console.log('[Chat] handleFeedback called:', { messageId, feedback, responseId: message.responseId, sessionId: selectedSessionId,
+      });
 
       // Update local state immediately for better UX
       updateMessageFeedback(messageId, feedback);
@@ -78,18 +80,19 @@ function Chat() {
 
   return (
     <div className="flex h-screen bg-white dark:bg-black overflow-hidden">
-      {/* Left panel: sidebar */}
+      {/* Left panel: Sidebar */}
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Right panel: chat window */}
+      {/* Right panel: Chat window */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <ChatHeader
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setSettingsOpen(true)}
         />
+
         {isLoadingMessages ? (
           <div className="flex-1 overflow-y-auto px-4 py-8" style={{ scrollbarWidth: 'thin' }}>
             <div className="mx-auto max-w-2xl space-y-4">
@@ -116,14 +119,16 @@ function Chat() {
             messages={messages}
             onSuggestionClick={handleSuggestionClick}
             onFeedback={handleFeedback}
+            isStreaming={isSendingMessage}
           />
         )}
-        <MessageInput onSend={sendMessage} isSendingMessage={isSendingMessage} />
+
+        <MessageInput onSend={(text) => sendMessage(text)} />
       </div>
+
       <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
 
 export default Chat
-

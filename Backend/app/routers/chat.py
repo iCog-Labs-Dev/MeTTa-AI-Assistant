@@ -4,6 +4,7 @@ from typing import Optional, Literal
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi.responses import StreamingResponse
 from bson import ObjectId
 from app.dependencies import (
     get_embedding_model_dep,
@@ -16,11 +17,11 @@ from app.dependencies import (
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.core.clients.llm_clients import LLMProvider
 from app.rag.generator.rag_generator import RAGGenerator
+from app.rag.generator.event_generator import EventGenerator
 from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
 from app.rag.rag_logging import log_rag_interaction
 
 from loguru import logger
-
 
 router = APIRouter(
     prefix="/api/chat",
@@ -49,7 +50,6 @@ async def chat(
     current_user = Depends(get_current_user),
     kms = Depends(get_kms)
 ):
-
 
     start_time = time.time()
     query, provider, model = (
@@ -125,52 +125,29 @@ async def chat(
                 {"role": m.get("role"), "content": m.get("content", "")}
                 for m in raw_history
             ]
-            
-            if encrypted_key and api_key:
-                result = await generator.generate_response(
-                    query, top_k=top_k,api_key=api_key, include_sources=False, history=history,
-                )
-            else:
-                result = await generator.generate_response(
-                    query, top_k=top_k, api_key=None, include_sources=False, history=history
-                )
 
+            # STREAMING RESPONSE
             response_id = f"resp_{ObjectId()}"
-
-            message_id = await insert_chat_message(
-                {
-                    "sessionId": session_id,
-                    "role": "assistant",
-                    "content": result.get("response", ""),
-                    "responseId": response_id,
-                },
-                mongo_db=mongo_db,
-            )
-            try:
-                sources = result.get("sources", []) or []
-                contexts = [str(s.get("text", "")) for s in sources]
-                execution_time = time.time() - start_time
-                await log_rag_interaction(
-                    {
-                        "question": query,
-                        "answer": result.get("response", ""),
-                        "contexts": contexts,
-                        "metadata": {
-                            "session_id": session_id,
-                            "provider": provider,
-                            "model": model if model else "system",
-                            "response_id": response_id,
-                            "execution_time_seconds": execution_time
-                        },
-                    },
-                    mongo_db=mongo_db
+            async def event_generator():
+                event_gen = EventGenerator(
+                    generator,
+                    query,
+                    session_id,
+                    top_k,
+                    provider,
+                    model,
+                    api_key,
+                    history,
+                    mongo_db,
+                    start_time,
+                    user_message_id,
+                    created_new_session,
+                    response_id,
                 )
-            except Exception:
-                logger.warning("Failed to log RAG interaction", exc_info=True)
-            result["session_id"] = session_id
-            result["userMessageId"] = user_message_id
-            result["messageId"] = message_id
-            result["responseId"] = response_id
-            return result
+                async for evt in event_gen.event_generator():
+                    yield evt
+
+            return StreamingResponse(event_generator(), media_type="text/event-stream")
+            
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
