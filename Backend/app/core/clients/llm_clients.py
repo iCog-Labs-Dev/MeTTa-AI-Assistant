@@ -5,14 +5,11 @@ import asyncio
 from typing import List, Optional, AsyncIterator
 from enum import Enum
 from abc import ABC, abstractmethod
-
 from langchain.chat_models import init_chat_model
 from langchain_openai import ChatOpenAI
 from langchain_google_genai import ChatGoogleGenerativeAI
-
 from app.core.utils.retry import async_retry, RetryConfig
 from loguru import logger
-
 
 class LLMQuotaExceededError(Exception):
     """Raised when the LLM service returns a quota/rate limit error."""
@@ -35,7 +32,6 @@ def _is_rate_limit(err: Exception) -> bool:
         or "insufficient_quota" in msg
     )
 
-
 class BaseLLMClient(ABC):
 
     @abstractmethod
@@ -53,6 +49,7 @@ class BaseLLMClient(ABC):
     @abstractmethod
     def get_model_name(self) -> str:
         pass
+
 
 
 class LLMClient(BaseLLMClient):
@@ -74,7 +71,6 @@ class LLMClient(BaseLLMClient):
             if not self._keys:
                 raise ValueError("No Gemini API keys provided")
         elif provider == LLMProvider.OPENAI:
-            # Keep repo default
             self._model_name = model_name or "gpt-4.1-mini"
             self._keys = api_keys or _load_openai_keys_from_env()
             if not self._keys:
@@ -122,13 +118,7 @@ class LLMClient(BaseLLMClient):
         return await self._call_generate(prompt, api_key, **kwargs)
 
     async def generate_text(
-        self,
-        prompt: str,
-        api_key: Optional[str] = None,
-        *,
-        temperature: float = 0.7,
-        max_tokens: int = 1000,
-        **kwargs,
+        self, prompt: str, api_key: Optional[str] = None, *, temperature: float = 0.7, max_tokens: int = 1000, **kwargs     
     ) -> str:
         try:
             resp = await self._generate_with_retry(

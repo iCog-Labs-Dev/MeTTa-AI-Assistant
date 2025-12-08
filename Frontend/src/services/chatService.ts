@@ -1,10 +1,5 @@
 import axiosInstance, { handleAxiosError } from '../lib/axios';
-import type {
-  ChatSession,
-  SessionsResponse,
-  Message,
-  ChatSessionWithMessages,
-} from '../types/chat';
+import type { ChatSession, SessionsResponse, Message, ChatSessionWithMessages } from '../types/chat';
 
 const SESSIONS_BASE_URL = '/api/chat/sessions';
 const CHAT_BASE_URL = '/api/chat';
@@ -23,20 +18,17 @@ export interface ChatResponse {
   response: string;
   model: string;
   provider: string;
-  session_id: string;
-  responseId?: string;
-  messageId?: string;
-  userMessageId?: string;
+  session_id: string; 
+  responseId?: string; 
+  messageId?: string; 
+  userMessageId?: string; 
 }
 
 // Fetch paginated chat sessions
-export const getChatSessions = async (
-  page: number = 1,
-  limit: number = 100,
-): Promise<SessionsResponse> => {
+export const getChatSessions = async ( page: number = 1, limit: number = 100): Promise<SessionsResponse> => {
   try {
     const response = await axiosInstance.get<SessionsResponse>(`${SESSIONS_BASE_URL}/`, {
-      params: { page, limit },
+params: { page, limit },
     });
     return response.data;
   } catch (error) {
@@ -46,13 +38,9 @@ export const getChatSessions = async (
 };
 
 // Get a single session with all its messages
-export const getSessionMessages = async (
-  sessionId: string,
-): Promise<Message[]> => {
+export const getSessionMessages = async (sessionId: string): Promise<Message[]> => {
   try {
-    const response = await axiosInstance.get<ChatSessionWithMessages>(
-      `${SESSIONS_BASE_URL}/${sessionId}`,
-    );
+    const response = await axiosInstance.get<ChatSessionWithMessages>(`${SESSIONS_BASE_URL}/${sessionId}`);
     return response.data.messages || [];
   } catch (error) {
     handleAxiosError(error, 'Sessions');

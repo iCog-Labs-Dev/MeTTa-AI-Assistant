@@ -15,23 +15,13 @@ function Chat() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const {
-    messages,
-    isLoadingMessages,
-    sendMessage,
-    selectedSessionId,
-    updateMessageFeedback,
-    isSendingMessage, // streaming flag from store
-  } = useChatStore();
+  const { messages, isLoadingMessages, sendMessage, selectedSessionId, updateMessageFeedback, isSendingMessage } = useChatStore(); // streaming flag from useChatStore
 
   function handleSuggestionClick(text: string) {
     sendMessage(text);
   }
 
-  async function handleFeedback(
-    messageId: string,
-    feedback: 'positive' | 'neutral' | 'negative',
-  ) {
+  async function handleFeedback(messageId: string, feedback: 'positive' | 'neutral' | 'negative') {
     const message = messages.find((m) => m.id === messageId);
     if (!message || !message.responseId || !selectedSessionId) {
       console.error('Cannot submit feedback: missing responseId or sessionId');
@@ -41,14 +31,10 @@ function Chat() {
     const previousFeedback = message.feedback;
 
     try {
-      console.log('[Chat] handleFeedback called:', {
-        messageId,
-        feedback,
-        responseId: message.responseId,
-        sessionId: selectedSessionId,
+      console.log('[Chat] handleFeedback called:', { messageId, feedback, responseId: message.responseId, sessionId: selectedSessionId,
       });
 
-      // Optimistic update
+      // Update local state immediately for better UX
       updateMessageFeedback(messageId, feedback);
 
       // Submit feedback to backend
@@ -57,7 +43,6 @@ function Chat() {
         sessionId: selectedSessionId,
         sentiment: feedback,
       });
-
       console.log('[Chat] Feedback submitted successfully');
     } catch (error) {
       console.error('[Chat] Failed to submit feedback:', error);
@@ -69,7 +54,11 @@ function Chat() {
   // Open sidebar on desktop by default, close on mobile
   useEffect(() => {
     const handleResize = () => {
-      setSidebarOpen(window.innerWidth >= 1024);
+      if (window.innerWidth >= 1024) {
+        setSidebarOpen(true);
+      } else {
+        setSidebarOpen(false);
+      }
     };
 
     handleResize();
@@ -105,11 +94,9 @@ function Chat() {
         />
 
         {isLoadingMessages ? (
-          <div
-            className="flex-1 overflow-y-auto px-4 py-8"
-            style={{ scrollbarWidth: 'thin' }}
-          >
+          <div className="flex-1 overflow-y-auto px-4 py-8" style={{ scrollbarWidth: 'thin' }}>
             <div className="mx-auto max-w-2xl space-y-4">
+              {/* Skeleton bubbles mimicking chat messages, starting near the top and biased to the right */}
               <div className="flex justify-end mt-1">
                 <div className="max-w-md rounded-2xl rounded-br-sm bg-zinc-100 dark:bg-zinc-900 h-5 w-64 animate-pulse" />
               </div>
@@ -136,17 +123,12 @@ function Chat() {
           />
         )}
 
-        <MessageInput
-          onSend={(text) => sendMessage(text)}
-        />
+        <MessageInput onSend={(text) => sendMessage(text)} />
       </div>
 
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
 
-export default Chat;
+export default Chat
