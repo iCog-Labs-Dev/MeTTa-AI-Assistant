@@ -90,7 +90,14 @@ async def get_chunks(
     """
     collection = _get_collection(mongo_db, "chunks")
     filter_query = filter_query or {}
-    cursor = collection.find(filter_query, {"_id": 0}).skip(skip).limit(limit)
+    cursor = collection.find(filter_query, {"_id": 0})
+    
+    # Only apply skip 
+    if skip > 0:
+        cursor = cursor.skip(skip)
+    
+    cursor = cursor.limit(limit)
+    
     return [doc async for doc in cursor]
 
 async def update_embedding_status(
