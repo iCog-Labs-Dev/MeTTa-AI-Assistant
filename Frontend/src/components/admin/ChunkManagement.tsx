@@ -14,20 +14,18 @@ import Badge from '../ui/badge'
 import ConfirmationDialog from '../ui/confirmation-dialog'
 
 function ChunkManagement() {
-  const { chunks, isLoadingChunks, loadChunks } = useAdminStore()
+  const { chunks, totalChunks, totalPages, currentPage, isLoadingChunks, loadChunks } = useAdminStore()
   const safeChunks = Array.isArray(chunks) ? chunks : []
-  
+
   const [filters, setFilters] = useState({
     project: '',
-    repo: '',
+    repository: '',
     section: '',
     search: '',
   })
-  
+
   const [fetchLimit, setFetchLimit] = useState(100)
-  const [page, setPage] = useState(1)
-  const [itemsPerPage] = useState(10)
-  
+
   const [editingChunk, setEditingChunk] = useState<CodeChunk | null>(null)
   const [editContent, setEditContent] = useState("")
   const [deletingChunk, setDeletingChunk] = useState<CodeChunk | null>(null)
@@ -36,29 +34,13 @@ function ChunkManagement() {
 
   useEffect(() => {
     const debounceTimer = setTimeout(() => {
-      loadChunks({ limit: fetchLimit } as any)
+      loadChunks({ limit: fetchLimit, ...filters } as any)
     }, 500)
 
     return () => clearTimeout(debounceTimer)
-  }, [fetchLimit, loadChunks])
+  }, [fetchLimit, filters, loadChunks])
 
-  const filteredChunks = useMemo(() => {
-    return safeChunks.filter(chunk => {
-      const matchProject = !filters.project || (chunk.project || '').toLowerCase().includes(filters.project.toLowerCase())
-      const matchRepo = !filters.repo || (chunk.repo || '').toLowerCase().includes(filters.repo.toLowerCase())
-      const matchSection = !filters.section || (chunk.section || []).some(s => s.toLowerCase().includes(filters.section.toLowerCase()))
-      const matchSearch = !filters.search || (chunk.chunk || '').toLowerCase().includes(filters.search.toLowerCase())
-      
-      return matchProject && matchRepo && matchSection && matchSearch
-    })
-  }, [safeChunks, filters])
-
-  const totalPages = Math.ceil(filteredChunks.length / itemsPerPage)
-  const paginatedChunks = filteredChunks.slice((page - 1) * itemsPerPage, page * itemsPerPage)
-
-  useEffect(() => {
-    setPage(1)
-  }, [filters, fetchLimit])
+  // No client-side filtering needed - handled by server
 
   const handleUpdateChunk = async () => {
     if (!editingChunk) return
@@ -66,7 +48,7 @@ function ChunkManagement() {
       await updateChunk(editingChunk.chunkId, { chunk: editContent })
       toast.success('Chunk updated successfully')
       setEditingChunk(null)
-      loadChunks({ limit: fetchLimit } as any) 
+      loadChunks({ limit: fetchLimit, ...filters } as any)
     } catch (error) {
       console.error('Failed to update chunk:', error)
       toast.error('Failed to update chunk')
@@ -79,7 +61,7 @@ function ChunkManagement() {
       await deleteChunk(deletingChunk.chunkId)
       toast.success('Chunk deleted')
       setDeletingChunk(null)
-      loadChunks({ limit: fetchLimit } as any)
+      loadChunks({ limit: fetchLimit, ...filters } as any)
     } catch (error) {
       console.error('Failed to delete chunk:', error)
       toast.error('Failed to delete chunk')
@@ -92,7 +74,7 @@ function ChunkManagement() {
       const data = await triggerEmbedding()
       toast.dismiss(toastId)
       toast.success(data.message)
-      loadChunks({ limit: fetchLimit } as any)
+      loadChunks({ limit: fetchLimit, ...filters } as any)
     } catch (error) {
       toast.dismiss(toastId)
       console.error('Failed to trigger embedding:', error)
@@ -107,7 +89,7 @@ function ChunkManagement() {
       await annotateChunk(annotatingChunk.chunkId)
       toast.success('Annotation triggered successfully')
       setAnnotatingChunk(null)
-      loadChunks({ limit: fetchLimit } as any)
+      loadChunks({ limit: fetchLimit, ...filters } as any)
     } catch (error) {
       console.error('Failed to annotate chunk:', error)
       toast.error('Failed to annotate chunk')
@@ -173,8 +155,8 @@ function ChunkManagement() {
               <Input
                 id="filter-repo"
                 placeholder="Filter by repo..."
-                value={filters.repo}
-                onChange={(e) => setFilters({ ...filters, repo: e.target.value })}
+                value={filters.repository}
+                onChange={(e) => setFilters({ ...filters, repository: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -206,24 +188,24 @@ function ChunkManagement() {
       <Card className="dark:bg-zinc-950 dark:border-zinc-800">
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Chunks ({filteredChunks.length})</CardTitle>
+            <CardTitle>Chunks ({totalChunks})</CardTitle>
             <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={page === 1 || isLoadingChunks}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadChunks({ limit: fetchLimit, page: Math.max(1, currentPage - 1), ...filters } as any)}
+                disabled={currentPage === 1 || isLoadingChunks}
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               <span className="text-sm font-medium">
-                Page {page} of {totalPages || 1}
+                Page {currentPage} of {totalPages}
               </span>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                disabled={page >= totalPages || isLoadingChunks}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => loadChunks({ limit: fetchLimit, page: currentPage + 1, ...filters } as any)}
+                disabled={currentPage >= totalPages || isLoadingChunks}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -235,13 +217,13 @@ function ChunkManagement() {
             <div className="flex items-center justify-center py-12">
               <div className="text-zinc-600 dark:text-zinc-400">Loading chunks...</div>
             </div>
-          ) : filteredChunks.length === 0 ? (
+          ) : safeChunks.length === 0 ? (
             <div className="text-center py-12 text-zinc-600 dark:text-zinc-400">
               No chunks found matching your filters
             </div>
           ) : (
             <div className="space-y-4">
-              {paginatedChunks.map((chunk) => (
+              {safeChunks.map((chunk) => (
                 <div
                   key={chunk.chunkId}
                   className="border border-zinc-200 dark:border-zinc-800 rounded-lg p-4 space-y-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50 transition-colors"
@@ -306,7 +288,7 @@ function ChunkManagement() {
                       </Button>
                     </div>
                   </div>
-                  
+
                   <div className="bg-zinc-50 dark:bg-zinc-900 rounded p-3 overflow-x-auto border border-zinc-100 dark:border-zinc-800">
                     <pre className="text-sm text-zinc-800 dark:text-zinc-300 whitespace-pre-wrap break-words font-mono">
                       {chunk.chunk}
@@ -324,7 +306,7 @@ function ChunkManagement() {
                       </p>
                     </div>
                   )}
-                  
+
                   <div className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center justify-between">
                     <span>ID: {chunk.chunkId}</span>
                     {chunk.last_annotated_at && (
@@ -338,8 +320,8 @@ function ChunkManagement() {
         </CardContent>
       </Card>
 
-      <Modal 
-        isOpen={!!editingChunk} 
+      <Modal
+        isOpen={!!editingChunk}
         onClose={() => setEditingChunk(null)}
         title="Edit Chunk Content"
       >
