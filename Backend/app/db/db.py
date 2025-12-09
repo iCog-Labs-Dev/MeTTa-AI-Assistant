@@ -82,15 +82,15 @@ async def get_chunk_by_id(chunk_id: str, mongo_db: Database =None) -> dict | Non
 
 # Function to retrieve all chunks from the MongoDB collection.
 async def get_chunks(
-    filter_query: dict = None, limit: int = 10, mongo_db: Database = None
+    filter_query: dict = None, limit: int = 10, skip: int = 0, mongo_db: Database = None
 ) -> List[dict]:
     """
-    Retrieve multiple chunks matching the filter.
+    Retrieve multiple chunks matching the filter with optional pagination.
     Returns a list of dictionaries.
     """
     collection = _get_collection(mongo_db, "chunks")
     filter_query = filter_query or {}
-    cursor = collection.find(filter_query, {"_id": 0}).limit(limit)
+    cursor = collection.find(filter_query, {"_id": 0}).skip(skip).limit(limit)
     return [doc async for doc in cursor]
 
 async def update_embedding_status(
