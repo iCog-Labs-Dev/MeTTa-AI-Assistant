@@ -4,7 +4,7 @@ import {
   getAdminStats,
   getAnnotationStats,
   getUsers,
-  getChunks,
+  getPaginatedChunks,
   getRepositories,
   deleteUser as apiDeleteUser,
   startBatchAnnotation as apiStartBatchAnnotation,
@@ -21,6 +21,8 @@ interface AdminState {
 
   chunks: CodeChunk[]
   totalChunks: number
+  totalPages: number
+  currentPage: number
   isLoadingChunks: boolean
 
   repositories: Repository[]
@@ -48,6 +50,8 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
   isLoadingUsers: false,
   chunks: [],
   totalChunks: 0,
+  totalPages: 1,
+  currentPage: 1,
   isLoadingChunks: false,
   repositories: [],
   isLoadingRepositories: false,
@@ -91,35 +95,47 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
     try {
       const params = {
         project: filters.project,
-        repo: filters.repository,
+        repository: filters.repository,
         section: filters.section,
         source: filters.source,
         search: filters.search,
         page: filters.page || 1,
-        limit: filters.limit || 10
+        limit: filters.limit || 100
       }
 
       const cleanParams = Object.fromEntries(
         Object.entries(params).filter(([_, v]) => v != null && v !== '')
       )
 
-      const responseData = await getChunks(cleanParams)
+      const responseData = await getPaginatedChunks(cleanParams)
 
       let data: CodeChunk[] = []
-      let total = 0
-
-      if (Array.isArray(responseData)) {
-        data = responseData
-        total = responseData.length
+      if (responseData && typeof responseData === 'object' && 'chunks' in responseData) {
+        data = responseData.chunks || []
+        set({
+          chunks: data,
+          totalChunks: responseData.total || 0,
+          totalPages: responseData.totalPages || 1,
+          currentPage: responseData.page || 1,
+          isLoadingChunks: false
+        })
       } else {
-        data = (responseData as any).items || []
-        total = (responseData as any).total || data.length
+        // Fallback for non-paginated response
+        data = Array.isArray(responseData) ? responseData : []
+        set({
+          chunks: data,
+          totalChunks: data.length,
+          totalPages: 1,
+          currentPage: 1,
+          isLoadingChunks: false
+        })
       }
-
-      set({ chunks: data, totalChunks: total, isLoadingChunks: false })
-    } catch (err: any) {
-      console.error("Failed to load chunks:", err)
-      set({ error: "Failed to load chunks", isLoadingChunks: false })
+    } catch (error) {
+      console.error('Failed to load chunks:', error)
+      set({
+        error: 'Failed to load chunks',
+        isLoadingChunks: false
+      })
     }
   },
 

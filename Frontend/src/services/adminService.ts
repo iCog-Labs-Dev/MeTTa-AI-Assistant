@@ -16,10 +16,11 @@ export const getRepositories = async () => {
   return response.data
 }
 
-export const getChunks = async (params: ChunkFilters) => {
+export const getPaginatedChunks = async (params: ChunkFilters) => {
   // Convert frontend param names to backend param names
   const backendParams: any = {
-    limit: params.limit || 100
+    limit: params.limit || 100,
+    page: params.page || 1
   }
 
   if (params.project) {
@@ -37,11 +38,8 @@ export const getChunks = async (params: ChunkFilters) => {
   if (params.search) {
     backendParams.search = params.search
   }
-  if (params.page) {
-    backendParams.page = params.page
-  }
 
-  const response = await axiosInstance.get<CodeChunk[]>('/api/chunks/', { params: backendParams })
+  const response = await axiosInstance.get('/api/chunks/paginated', { params: backendParams })
   return response.data
 }
 
