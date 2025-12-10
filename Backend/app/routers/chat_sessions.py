@@ -80,8 +80,21 @@ async def get_session_messages_paginated(
             {"createdAt": 1}
         )
         
-        if before_message:
-            query["createdAt"] = {"$lt": before_message["createdAt"]}
+        if not before_message:
+            total_count = await collection.count_documents({"sessionId": session_id})
+            return {
+                "messages": [],
+                "pagination": {
+                    "limit": limit,
+                    "total": total_count,
+                    "hasOlder": False,
+                    "hasNewer": False,
+                    "cursorInvalid": True,
+                    "cursors": {"newest": None, "oldest": None},
+                },
+            }
+
+        query["createdAt"] = {"$lt": before_message["createdAt"]}
         
         # Default sort for "before": newest of the older messages first
         sort_direction = -1
@@ -91,12 +104,23 @@ async def get_session_messages_paginated(
             {"sessionId": session_id, "messageId": after},
             {"createdAt": 1}
         )
-        if after_message:
-            query["createdAt"] = {"$gt": after_message["createdAt"]}
-            # For "after" cursor, we want chronological order (oldest first)
-            sort_direction = 1
-        else:
-            sort_direction = -1
+        if not after_message:
+            total_count = await collection.count_documents({"sessionId": session_id})
+            return {
+                "messages": [],
+                "pagination": {
+                    "limit": limit,
+                    "total": total_count,
+                    "hasOlder": False,
+                    "hasNewer": False,
+                    "cursorInvalid": True,
+                    "cursors": {"newest": None, "oldest": None},
+                },
+            }
+
+        query["createdAt"] = {"$gt": after_message["createdAt"]}
+        # For "after" cursor, we want chronological order (oldest first)
+        sort_direction = 1
     else:
         # Default: newest messages first (for initial load)
         sort_direction = -1
@@ -107,27 +131,43 @@ async def get_session_messages_paginated(
     ).sort("createdAt", sort_direction).limit(limit)
     
     messages = await cursor.to_list(length=limit)
+
+    # Keep payload chronological (oldest first) so frontend rendering is consistent
+    if sort_direction == -1:
+        messages.reverse()
     
-    # Calculate pagination metadata
-    total_count = await collection.count_documents({"sessionId": session_id})
-    
+    # Calculate pagination metadata with minimal collection scans
     if messages:
         oldest_message = min(messages, key=lambda x: x["createdAt"])
         newest_message = max(messages, key=lambda x: x["createdAt"])
-        
-        older_messages_count = await collection.count_documents({
-            "sessionId": session_id,
-            "createdAt": {"$lt": oldest_message["createdAt"]}
-        })
-        
-        newer_messages_count = await collection.count_documents({
-            "sessionId": session_id,
-            "createdAt": {"$gt": newest_message["createdAt"]}
-        })
+
+        pipeline = [
+            {"$match": {"sessionId": session_id}},
+            {
+                "$facet": {
+                    "total": [{"$count": "count"}],
+                    "older": [
+                        {"$match": {"createdAt": {"$lt": oldest_message["createdAt"]}}},
+                        {"$count": "count"},
+                    ],
+                    "newer": [
+                        {"$match": {"createdAt": {"$gt": newest_message["createdAt"]}}},
+                        {"$count": "count"},
+                    ],
+                }
+            },
+        ]
+
+        agg_result = await collection.aggregate(pipeline).to_list(length=1)
+        agg = agg_result[0] if agg_result else {}
+
+        total_count = agg.get("total", [{}])[0].get("count", 0) if agg.get("total") else 0
+        older_messages_count = agg.get("older", [{}])[0].get("count", 0) if agg.get("older") else 0
+        newer_messages_count = agg.get("newer", [{}])[0].get("count", 0) if agg.get("newer") else 0
     else:
+        total_count = await collection.count_documents({"sessionId": session_id})
         older_messages_count = 0
-        newer_messages_count = 0
-    
+        newer_messages_count = 0 
     return {
         "messages": messages,
         "pagination": {
