@@ -1,14 +1,15 @@
 import { create, StateCreator } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { ChatSession, Message } from '../types/chat';
 import {
   getChatSessions as apiGetChatSessions,
   getSessionMessages as apiGetSessionMessages,
+  getSessionMessagesPaginated as apiGetSessionMessagesPaginated,
   deleteChatSession as apiDeleteChatSession,
   sendMessage as apiSendMessage,
 } from '../services/chatService';
 import { refreshAccessToken, isAuthenticated } from '../lib/auth';
 import { useModelStore } from './useModelStore';
+import { persist } from 'zustand/middleware';
 
 interface ChatState {
   sessions: ChatSession[];
@@ -17,11 +18,19 @@ interface ChatState {
   // Sidebar/session list loading state for better UX
   sessionsStatus: 'idle' | 'loading' | 'ready' | 'empty';
   sessionsPage: number;
+  
   hasMoreSessions: boolean;
   isLoadingSessions: boolean;
   isLoadingMessages: boolean;
-  isSendingMessage: boolean;
+  isSendingMessage: boolean;  
   error: string | null;
+
+  paginationState: {
+    hasOlderMessages: boolean;
+    oldestCursor: string | null;
+    isLoadingOlder: boolean;
+    limit: number;
+  };
 
   // Actions
   loadSessions: () => Promise<void>;
@@ -31,6 +40,7 @@ interface ChatState {
   createSession: () => Promise<void>;
   sendMessage: (query: string) => Promise<void>;
   updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => void;
+  loadOlderMessages: () => Promise<void>;
 }
 
 const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
@@ -42,8 +52,14 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   hasMoreSessions: false,
   isLoadingSessions: false,
   isLoadingMessages: false,
-  isSendingMessage: false,
   error: null,
+  isSendingMessage: false,
+  paginationState: {
+    hasOlderMessages: false,
+    oldestCursor: null,
+    isLoadingOlder: false,
+    limit: 50,
+  },
 
   loadSessions: async () => {
     if (!isAuthenticated()) {
@@ -128,6 +144,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         } catch (refreshErr) {
           set({
             error: 'Session expired. Please log in again.',
+            isSendingMessage: false,
             isLoadingSessions: false,
             sessionsStatus: 'empty',
           });
@@ -156,7 +173,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       const newSessions = response.sessions;
 
       set((state) => ({
-        sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some(s => s.sessionId === ns.sessionId))],
+        sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some((s) => s.sessionId === ns.sessionId))],
         sessionsPage: nextPage,
         hasMoreSessions: response.has_next,
       }));
@@ -192,7 +209,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           const newSessions = response.sessions;
 
           set((state) => ({
-            sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some(s => s.sessionId === ns.sessionId))],
+            sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some((s) => s.sessionId === ns.sessionId))],
             sessionsPage: nextPage,
             hasMoreSessions: response.has_next,
           }));
@@ -235,9 +252,21 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       return;
     }
 
-    set({ selectedSessionId: sessionId, isLoadingMessages: true, error: null });
+    set({ 
+      selectedSessionId: sessionId, 
+      isLoadingMessages: true, 
+      error: null,
+      messages: [],
+      paginationState: {  
+        hasOlderMessages: false,
+        oldestCursor: null,
+        isLoadingOlder: false,
+        limit: 50,
+      }
+    });
+    
     try {
-      const apiMessages = await apiGetSessionMessages(sessionId);
+      const { messages: apiMessages, pagination } = await apiGetSessionMessagesPaginated(sessionId, 50);
 
       // Ensure every message has a stable id and timestamp for React keys and ordering
       const messages = apiMessages.map((m, index) => ({
@@ -252,6 +281,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       set((state) => ({
         messages,
         isLoadingMessages: false,
+        paginationState: {
+          hasOlderMessages: pagination?.hasOlder || false,   
+          oldestCursor: pagination?.cursors?.oldest || null, 
+          isLoadingOlder: false,
+          limit: pagination?.limit || state.paginationState.limit,
+        },
         sessions: state.sessions.map((s) =>
           s.sessionId === sessionId && !s.title && firstUserMessage
             ? { ...s, title: firstUserMessage.content }
@@ -262,7 +297,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
-          const apiMessages = await apiGetSessionMessages(sessionId);
+          const { messages: apiMessages } = await apiGetSessionMessagesPaginated(sessionId, 50);
           const messages = apiMessages.map((m, index) => ({
             ...m,
             id: m.id || `${sessionId}-${index}`,
@@ -270,12 +305,78 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           }));
           set({ messages, isLoadingMessages: false });
         } catch (refreshErr) {
-          set({ error: 'Session expired. Please log in again.', isLoadingMessages: false });
+          set({ error: 'Session expired. Please log in again.', isSendingMessage: false, isLoadingMessages: false });
           window.location.href = '/login';
         }
       } else {
         set({ error: 'Failed to load messages', isLoadingMessages: false });
       }
+    }
+  },
+
+  loadOlderMessages: async () => {
+    const { 
+      selectedSessionId, 
+      messages, 
+      paginationState,
+      isLoadingMessages 
+    } = get();
+    
+    if (!selectedSessionId || 
+        paginationState.isLoadingOlder || 
+        isLoadingMessages || 
+        !paginationState.hasOlderMessages || 
+        !paginationState.oldestCursor) {
+      return;
+    }
+
+    // Set loading state
+    set((state) => ({
+      paginationState: {
+        ...state.paginationState,
+        isLoadingOlder: true,
+      }
+    }));
+
+    try {
+      const { messages: olderMessages, pagination } = await apiGetSessionMessagesPaginated(
+        selectedSessionId,
+        50, 
+        paginationState.oldestCursor 
+      );
+
+      // Process older messages
+      const processedOlderMessages = olderMessages.map((m, index) => ({
+        ...m,
+        id: m.id || `${selectedSessionId}-older-${index}`,
+        timestamp: m.timestamp ?? Date.now(),
+      }));
+
+      // Combine messages (older messages come first in chronological order)
+      const existingIds = new Set(messages.map((m) => m.id));
+      const allMessages = [
+        ...processedOlderMessages.filter((m) => !existingIds.has(m.id)),
+        ...messages,
+      ];
+
+      set((state) => ({
+        messages: allMessages,
+        paginationState: {
+          ...state.paginationState,
+          hasOlderMessages: pagination?.hasOlder || false,
+          oldestCursor: pagination?.cursors?.oldest || null,
+          isLoadingOlder: false,
+          limit: pagination?.limit || state.paginationState.limit,
+        },
+      }));
+    } catch (err: any) {
+      console.error('Failed to load older messages:', err);
+      set((state) => ({
+        paginationState: {
+          ...state.paginationState,
+          isLoadingOlder: false,
+        }
+      }));
     }
   },
 
@@ -337,8 +438,6 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       return;
     }
 
-    // GPT-style: open a new chat interface WITHOUT creating a sidebar session yet.
-    // The first sendMessage call will create the real backend session and insert it.
     set({
       selectedSessionId: null,
       messages: [],
@@ -351,14 +450,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       set({ error: 'Please log in to send messages' });
       return;
     }
-
-    // Prevent sending if already sending a message
     const { isSendingMessage } = get();
     if (isSendingMessage) {
       return;
     }
-
-    set({ isSendingMessage: true });
+    
+    set({ isSendingMessage: true }); 
     let { selectedSessionId } = get();
 
     // Optimistically show the user message and thinking message immediately
@@ -409,7 +506,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         content: response.response?.substring(0, 50) + '...'
       });
 
-      const realSessionId = response.session_id || selectedSessionId;
+      const realSessionId = response.session_id || selectedSessionId || Date.now().toString();
 
       set((state) => ({
         messages: state.messages.map((msg) => {
@@ -419,8 +516,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           if (msg.id === userMessage.id && response.userMessageId) {
             return { ...msg, id: response.userMessageId };
           }
-          return msg;
-        }),
+          return msg;}),
         // If this session still has no title, derive it from the first query
         sessions: (() => {
           // Replace temp session id with the real backend id, or insert if not present
@@ -480,13 +576,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             responseId: response.responseId, // Store responseId for feedback
           };
 
-          const realSessionId = response.session_id || selectedSessionId;
+          const realSessionId = response.session_id || selectedSessionId || Date.now().toString();
+
 
           set((state) => ({
             messages: state.messages.map((msg) => {
-              // Replace thinking message with actual assistant response
               if (msg.id === thinkingMessage.id) return assistantMessage;
-              // Update user message with backend ID
               if (msg.id === userMessage.id && response.userMessageId) {
                 return { ...msg, id: response.userMessageId };
               }
@@ -520,7 +615,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
           set((state) => ({
             selectedSessionId: realSessionId,
-            isSendingMessage: false,
+            isSendingMessage: false, 
           }));
           return;
         } catch (refreshErr) {
@@ -536,13 +631,13 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         content: err?.response?.data?.detail || 'Sorry, I encountered an error. Please try again.',
         timestamp: Date.now(),
       };
-      set((state) => ({
-        messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
-        isSendingMessage: false,
-      }));
-    }
-  },
 
+    set((state) => ({
+            messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
+            isSendingMessage: false,
+          }));
+        }
+      },
   updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => {
     set((state) => ({
       messages: state.messages.map((msg) =>
