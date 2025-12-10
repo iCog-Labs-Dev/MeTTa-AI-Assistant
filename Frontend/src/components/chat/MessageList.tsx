@@ -32,7 +32,7 @@ function MessageList({
 
   // Get store functions for loading more messages
   const { loadOlderMessages, paginationState } = useChatStore();
-  const { hasOlderMessages, isLoadingOlder } = paginationState;
+  const { hasOlderMessages, isLoadingOlder, limit } = paginationState;
 
   // Auto-scroll to bottom when new messages are added
   useEffect(() => {
@@ -44,7 +44,8 @@ function MessageList({
         100;
 
       // Auto-scroll only if near bottom or it's initial load
-      if (isNearBottom || messages.length <= 50) {
+      const initialBatchSize = limit ?? 50;
+      if (isNearBottom || messages.length <= initialBatchSize) {
         // Small delay to ensure DOM is updated
         setTimeout(() => {
           messagesEndRef.current?.scrollIntoView({
