@@ -1,9 +1,12 @@
 from typing import Dict, List, Optional, Any
+import json
+import re
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.rag.retriever.schema import Document
 from app.core.clients.llm_clients import LLMClient, LLMProvider
 from app.core.utils.llm_utils import LLMClientFactory, LLMResponseFormatter
-
+from app.core.utils.rewriter_utils import RewriterUtils
+from loguru import logger
 class RAGGenerator:
     def __init__(
         self,
@@ -25,10 +28,27 @@ class RAGGenerator:
         include_sources: bool = False,
         history: Optional[List[Dict[str, str]]] = None,
     ) -> Dict[str, Any]:
-        retrieved_docs = await self.retriever.retrieve(query, top_k=top_k)
-        context = self._assemble_context(retrieved_docs)
-        prompt = LLMResponseFormatter.build_rag_prompt(query, context, history)
-        response = await self.llm_client.generate_text(prompt, api_key)
+        prompt = RewriterUtils.rewrite_query(query, history)
+        rewritten_query_str = await self.llm_client.generate_text(prompt, api_key)
+
+        cleaned_query_str = re.sub(r"```(?:json)?\n?(.*?)\n?```", r"\1", rewritten_query_str, flags=re.DOTALL).strip()
+
+        try:
+            rewritten_query = json.loads(cleaned_query_str)
+            logger.info(f"Rewritten query: {rewritten_query}")
+        except json.JSONDecodeError:
+            logger.warning(f"Failed to parse rewritten query JSON: {cleaned_query_str}")
+            rewritten_query = {"retriever_needed": True, "query": query}
+
+        if rewritten_query.get("retriever_needed"):
+            retrieval_query = rewritten_query.get("query", query)
+            retrieved_docs = await self.retriever.retrieve(retrieval_query, top_k=top_k)
+            context = self._assemble_context(retrieved_docs)
+            prompt = LLMResponseFormatter.build_rag_prompt(query, context, history)
+            response = await self.llm_client.generate_text(prompt, api_key)
+        else:
+            response = rewritten_query.get("query", query)
+
         sources = self._format_sources(retrieved_docs) if include_sources else None
         return LLMResponseFormatter.format_rag_response(
             query=query, response=response, client=self.llm_client, sources=sources
