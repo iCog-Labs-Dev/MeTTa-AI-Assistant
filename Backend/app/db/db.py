@@ -23,7 +23,7 @@ async def insert_chunk(chunk_data: dict, mongo_db: Database = None) -> str | Non
     try: 
         chunk = ChunkSchema(**chunk_data)
     except Exception as e:
-        logger.error("Validation error:", e)
+        logger.error("Validation error: %s", e)
         return None
     
     if await collection.find_one({"chunkId": chunk.chunkId}):
@@ -52,7 +52,7 @@ async def insert_chunks(
             else:
                 logger.warning(f"Skipping duplicate chunkId: {chunk.chunkId}")
         except Exception as e:
-            logger.error("Validation error:", e)
+            logger.error("Validation error: %s", e)
 
         if not valid_chunks:
             return []
@@ -62,7 +62,7 @@ async def insert_chunks(
         result = await collection.insert_many(valid_chunks, ordered=False)
         inserted_ids = result.inserted_ids
     except BulkWriteError as e:
-        logger.warning("Some duplicates were skipped.", e.details)
+        logger.warning("Some duplicates were skipped: %s", e.details)
         inserted_ids = e.details.get("writeErrors", [])
         # Extract inserted ids if available
         inserted_ids = [item["op"]["chunkId"] for item in inserted_ids if "op" in item and "chunkId" in item["op"]]
