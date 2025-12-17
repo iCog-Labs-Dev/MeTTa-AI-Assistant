@@ -11,7 +11,7 @@ STALE_PENDING_THRESHOLD = 60 * 60
 class ChunkRepository:
     """
     Manages asynchronous CRUD operations for Chunk documents in MongoDB.
-    Uses 'chunkId' as the unique key and 'annotation' as the description field name in the DB.
+    Uses 'chunkId' as the unique key and 'description' as the description field name in the DB.
     """
 
     def __init__(self, db: Database, collection_name: str = "chunks"):
@@ -20,7 +20,7 @@ class ChunkRepository:
     async def _ensure_indexes(self):
         await self.collection.create_index("chunkId", unique=True)
         await self.collection.create_index("status")
-        await self.collection.create_index([("status", 1), ("annotation", 1)])
+        await self.collection.create_index([("status", 1), ("description", 1)])
         await self.collection.create_index([("source", 1), ("status", 1)])
         logger.info("MongoDB indexes ensured for chunks collection.")
 
@@ -44,7 +44,7 @@ class ChunkRepository:
         Updates chunk annotation, status, last_annotated_at, and pending_since.
         """
         updates = {
-            "annotation": description,
+            "description": description,
             "status": status.value,
             "last_annotated_at": time.time(),
         }
@@ -75,8 +75,8 @@ class ChunkRepository:
         """
         now = time.time()
         base_conditions = [
-            {"annotation": {"$exists": False}},
-            {"annotation": None},
+            {"description": {"$exists": False}},
+            {"description": None},
             {"status": AnnotationStatus.RAW.value},
             {"status": AnnotationStatus.UNANNOTATED.value},
             {

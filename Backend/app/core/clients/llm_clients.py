@@ -62,7 +62,7 @@ class LLMClient(BaseLLMClient):
             if not self._keys:
                 raise ValueError("No Gemini API keys provided")
         elif provider == LLMProvider.OPENAI:
-            self._model_name = model_name or "gpt-3.5-turbo"
+            self._model_name = model_name or "gpt-4.1-mini"
             self._keys = api_keys or _load_openai_keys_from_env()
             if not self._keys:
                 raise ValueError("No OpenAI API keys provided")
@@ -115,7 +115,8 @@ class LLMClient(BaseLLMClient):
             resp = await self._generate_with_retry(
                 prompt, api_key=api_key, temperature=temperature, max_tokens=max_tokens, **kwargs
             )
-            return getattr(resp, "content", None) or "[No content generated]"
+            content = getattr(resp, "content", None)
+            return content if content is not None else "[No content generated]"
         except Exception as e:
             if _is_rate_limit(e):
                 raise LLMQuotaExceededError(f"Rate limit/quota exceeded: {e}") from e

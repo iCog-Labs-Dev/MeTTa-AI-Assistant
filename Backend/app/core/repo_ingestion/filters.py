@@ -17,7 +17,6 @@ def process_metta_files(
     file_paths: List[str],
     output_dir: str,
     repo_root: Optional[str] = None,
-    json_path: str = "../metta_index.json"
 ) -> Dict[str, str]:
     """
     file_paths: list of all files in the repo
@@ -47,9 +46,9 @@ def process_metta_files(
 
     os.system(f"rd /s /q {repo_root}")
 
-    json_full_path: str = os.path.join(output_dir, json_path)
-    with open(json_full_path, "w") as f:
-        json.dump(index, f, indent=2)
+    # json_full_path: str = os.path.join(output_dir, json_path)
+    # with open(json_full_path, "w") as f:
+    #     json.dump(index, f, indent=2)
 
-    logger.info(f"Index saved at {json_full_path}")
+    # logger.info(f"Index saved at {json_full_path}")
     return index

@@ -1,8 +1,10 @@
 import os
+import time
 from typing import Optional, Literal
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from bson import ObjectId
 from app.dependencies import (
     get_embedding_model_dep,
     get_qdrant_client_dep,
@@ -15,6 +17,7 @@ from app.rag.retriever.retriever import EmbeddingRetriever
 from app.core.clients.llm_clients import LLMProvider
 from app.rag.generator.rag_generator import RAGGenerator
 from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
+from app.rag.rag_logging import log_rag_interaction
 
 from app.core.logging import logger
 
@@ -46,6 +49,8 @@ async def chat(
     kms = Depends(get_kms)
 ):
 
+
+    start_time = time.time()
     query, provider, model = (
         chat_request.query,
         chat_request.provider,
@@ -68,17 +73,27 @@ async def chat(
     encrypted_key = request.cookies.get(provider.lower())
     api_key = ""
 
-    if encrypted_key:
-        api_key = await kms.decrypt_api_key(encrypted_key, current_user["id"], provider.lower(), mongo_db)
-        # refresh encrypted_api_key expiry date | sliding expiration refresh
-        response.set_cookie(
-            key=provider.lower(), 
-            value=encrypted_key, 
-            httponly=True, 
-            samesite="Strict",
-            secure=True,
-            expires=(datetime.now(timezone.utc) + timedelta(days=7))
-            )
+    if encrypted_key and encrypted_key.strip():
+        try:
+            api_key = await kms.decrypt_api_key(encrypted_key, current_user["id"], provider.lower(), mongo_db)
+            
+            # Validate decrypted key is not empty
+            if not api_key or not api_key.strip():
+                logger.warning(f"Decrypted API key is empty for user {current_user['id']}, provider {provider}")
+                api_key = ""
+            else:
+                # refresh encrypted_api_key expiry date | sliding expiration refresh
+                response.set_cookie(
+                    key=provider.lower(), 
+                    value=encrypted_key, 
+                    httponly=True, 
+                    samesite="none",
+                    secure=True,
+                    expires=(datetime.now(timezone.utc) + timedelta(days=7))
+                )
+        except Exception as e:
+            logger.warning(f"Failed to decrypt API key cookie for user {current_user['id']}, provider {provider}: {e}")
+            api_key = ""
     
     try:
         retriever = EmbeddingRetriever(
@@ -95,7 +110,7 @@ async def chat(
                 generator = RAGGenerator(
                     retriever=retriever, provider=provider_enum, model_name=model
                 )
-            await insert_chat_message(
+            user_message_id = await insert_chat_message(
                 {"sessionId": session_id, "role": "user", "content": query},
                 mongo_db=mongo_db,
             )
@@ -110,25 +125,51 @@ async def chat(
                 for m in raw_history
             ]
             
-            if encrypted_key:
+            if encrypted_key and api_key:
                 result = await generator.generate_response(
-                    query, top_k=top_k,api_key=api_key, include_sources=True, history=history,
+                    query, top_k=top_k,api_key=api_key, include_sources=False, history=history,
                 )
             else:
                 result = await generator.generate_response(
-                    query, top_k=top_k, api_key=None, include_sources=True, history=history
+                    query, top_k=top_k, api_key=None, include_sources=False, history=history
                 )
 
-            await insert_chat_message(
+            response_id = f"resp_{ObjectId()}"
+
+            message_id = await insert_chat_message(
                 {
                     "sessionId": session_id,
                     "role": "assistant",
                     "content": result.get("response", ""),
+                    "responseId": response_id,
                 },
                 mongo_db=mongo_db,
             )
-            if created_new_session:
-                result["session_id"] = session_id
+            try:
+                sources = result.get("sources", []) or []
+                contexts = [str(s.get("text", "")) for s in sources]
+                execution_time = time.time() - start_time
+                await log_rag_interaction(
+                    {
+                        "question": query,
+                        "answer": result.get("response", ""),
+                        "contexts": contexts,
+                        "metadata": {
+                            "session_id": session_id,
+                            "provider": provider,
+                            "model": model if model else "system",
+                            "response_id": response_id,
+                            "execution_time_seconds": execution_time
+                        },
+                    },
+                    mongo_db=mongo_db
+                )
+            except Exception:
+                logger.warning("Failed to log RAG interaction", exc_info=True)
+            result["session_id"] = session_id
+            result["userMessageId"] = user_message_id
+            result["messageId"] = message_id
+            result["responseId"] = response_id
             return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
