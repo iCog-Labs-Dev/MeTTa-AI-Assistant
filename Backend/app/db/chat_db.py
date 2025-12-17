@@ -1,17 +1,13 @@
 from typing import Optional, List
 from bson import ObjectId
 from pymongo.database import Database
-from app.core.logging import logger
 from pymongo.errors import PyMongoError
 import math
 from datetime import datetime, timezone
-
+from app.core.logging import logger
 from app.model.chat_message import ChatMessageSchema
 from app.model.chat_session import ChatSessionSchema, ChatSessionWithMessages
 from app.db.db import _get_collection
-
-
-
 
 # ----------------------------------
 # CHAT MESSAGES CRUD
@@ -112,7 +108,7 @@ async def get_chat_sessions(
     try:
         total = await collection.count_documents(filter_query)
     except PyMongoError as e:
-        logger.error(f"Failed to count chat sessions: {e}")
+        logger.error("Failed to count chat sessions: %s", e)
         return {"sessions": [], "error": "database_error"}
 
     total_pages = math.ceil(total / limit)
@@ -143,7 +139,7 @@ async def get_chat_sessions(
                 s["createdAt"] = s["createdAt"].isoformat()
 
     except PyMongoError as e:
-        logger.error(f"Failed to fetch chat sessions: {e}")
+        logger.error("Failed to fetch chat sessions: %s", e)
         return {"sessions": [], "error": "database_error"}
 
     return {
