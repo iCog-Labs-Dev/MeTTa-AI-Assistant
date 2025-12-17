@@ -14,7 +14,7 @@ async def insert_dek(key_data: dict, mongo_db: Database = None) -> bool:
     try:
         key = KeyModel(**key_data)
     except Exception as e:
-        logger.error("Validation error: {}", e)
+        logger.error("Validation error: %s", e)
         return False
 
     filter = {"provider_name": key.provider_name, "userid": key.userid}
@@ -22,7 +22,7 @@ async def insert_dek(key_data: dict, mongo_db: Database = None) -> bool:
     try:
         await collection.update_one(filter, update, upsert=True)
     except Exception as e:
-        logger.error("Upsert error: {}", e)
+        logger.error("Upsert error: %s", e)
         return False
 
     return True
