@@ -5,7 +5,7 @@ LLM-based prompt rewriter implementation using Google's Gemini API.
 import os
 import asyncio
 from typing import Optional
-from loguru import logger
+from app.core.logging import logger
 import google.generativeai as genai
 from dotenv import load_dotenv
 from app.core.prompt_rewriter.rewriter import PromptRewriter

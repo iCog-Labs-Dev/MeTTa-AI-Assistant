@@ -1,5 +1,5 @@
 import os
-from loguru import logger
+from app.core.logging import logger
 from typing import Any
 from langchain.chat_models import init_chat_model
 
