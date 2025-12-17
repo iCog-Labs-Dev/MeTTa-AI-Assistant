@@ -17,12 +17,10 @@ function Chat() {
   const {
     messages,
     isLoadingMessages,
+    isSendingMessage,
     sendMessage,
     selectedSessionId,
     updateMessageFeedback,
-    sessions,
-    loadSessions,
-    selectSession,
   } = useChatStore();
 
   function handleSuggestionClick(text: string) {
@@ -42,6 +40,13 @@ function Chat() {
     const previousFeedback = message.feedback;
 
     try {
+      console.log("[Chat] handleFeedback called:", {
+        messageId,
+        feedback,
+        responseId: message.responseId,
+        sessionId: selectedSessionId,
+      });
+
       // Update local state immediately for better UX
       updateMessageFeedback(messageId, feedback);
 
@@ -51,6 +56,7 @@ function Chat() {
         sessionId: selectedSessionId,
         sentiment: feedback,
       });
+      console.log("[Chat] Feedback submitted successfully");
     } catch (error) {
       console.error("[Chat] Failed to submit feedback:", error);
       // Revert optimistic update on error
@@ -96,7 +102,6 @@ function Chat() {
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setSettingsOpen(true)}
         />
-
         {isLoadingMessages ? (
           <div
             className="flex-1 overflow-y-auto px-4 py-8"
@@ -128,7 +133,10 @@ function Chat() {
             onFeedback={handleFeedback}
           />
         )}
-        <MessageInput onSend={sendMessage} />
+        <MessageInput
+          onSend={sendMessage}
+          isSendingMessage={isSendingMessage}
+        />
       </div>
       <SettingsModal
         isOpen={settingsOpen}
