@@ -8,6 +8,8 @@ from app.core.logging import logger
 from redis.asyncio import Redis
 
 ALGORITHM = "HS256"
+
+
 class AuthMiddleware(BaseHTTPMiddleware):
     def __init__(self, app):
         self.secret_key = os.getenv("JWT_SECRET")

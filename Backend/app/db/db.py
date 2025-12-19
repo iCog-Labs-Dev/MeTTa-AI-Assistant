@@ -1,4 +1,3 @@
-import os 
 from typing import List, Optional, Union
 from bson import ObjectId
 from pymongo.errors import BulkWriteError
@@ -7,6 +6,7 @@ from pymongo.collection import Collection
 from app.core.logging import logger
 from typing import Union, List
 from app.model.chunk import ChunkSchema
+
 
 def _get_collection(mongo_db: Database, name: str) -> Collection:
     if mongo_db is None:
