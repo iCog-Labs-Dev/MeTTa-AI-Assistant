@@ -1,11 +1,10 @@
-import os
 from app.rag.embedding.pipeline import embedding_user_input
 from app.core.logging import logger
 from qdrant_client.models import ScoredPoint
 from app.rag.retriever.schema import Document
 import asyncio
 from typing import Dict, List, Tuple
-
+from app.core.utils.helpers import get_required_env
 
 class EmbeddingRetriever:
     def __init__(self, model, qdrant, collection_name: str):
