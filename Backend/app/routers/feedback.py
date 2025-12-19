@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any
 from pydantic import BaseModel
 from pymongo.database import Database
 from bson import ObjectId
-from loguru import logger
+from app.core.logging import logger
 
 from app.model.feedback import FeedbackSentiment
 from app.db.feedback_db import upsert_feedback, get_feedback_by_response, get_feedback_stats

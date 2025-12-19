@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, List
-from loguru import logger
+from app.core.logging import logger
 from pymongo.database import Database
 
 

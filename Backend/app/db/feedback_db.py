@@ -6,7 +6,7 @@ from typing import List, Optional
 from datetime import datetime
 from pymongo.database import Database
 from pymongo.collection import Collection
-from loguru import logger
+from app.core.logging import logger
 from app.model.feedback import FeedbackSchema
 from app.db.db import _get_collection
 

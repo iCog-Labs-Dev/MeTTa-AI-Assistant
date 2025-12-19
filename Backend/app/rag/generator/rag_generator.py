@@ -6,7 +6,8 @@ from app.rag.retriever.schema import Document
 from app.core.clients.llm_clients import LLMClient, LLMProvider
 from app.core.utils.llm_utils import LLMClientFactory, LLMResponseFormatter
 from app.core.utils.rewriter_utils import RewriterUtils
-from loguru import logger
+from app.core.logging import logger
+
 class RAGGenerator:
     def __init__(
         self,

@@ -1,12 +1,9 @@
 import os
 import uvicorn
 from dotenv import load_dotenv
-from app.core.log_config import setup_logging
 
 load_dotenv()
 def main() -> None:
-    setup_logging(os.getenv("LOG_LEVEL", "DEBUG"))
-
     reload_enabled = os.getenv("RELOAD", "0").strip() == "1"
 
     # Always use import string to support reload reliably

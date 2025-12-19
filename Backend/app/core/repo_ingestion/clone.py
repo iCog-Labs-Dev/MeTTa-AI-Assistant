@@ -1,7 +1,7 @@
 import os
 import subprocess
 from urllib.parse import urlparse
-from loguru import logger
+from app.core.logging import logger
 from typing import List
 
 def get_repo_name(repo_url: str) -> str:
