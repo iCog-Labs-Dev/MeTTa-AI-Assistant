@@ -35,9 +35,9 @@ class RAGGenerator:
 
         try:
             rewritten_query = json.loads(cleaned_query_str)
-            logger.info(f"Rewritten query: {rewritten_query}")
+            logger.info("Rewritten query: %s", rewritten_query)
         except json.JSONDecodeError:
-            logger.warning(f"Failed to parse rewritten query JSON: {cleaned_query_str}")
+            logger.warning("Failed to parse rewritten query JSON: %s", cleaned_query_str)
             rewritten_query = {"retriever_needed": True, "query": query}
 
         if rewritten_query.get("retriever_needed"):
