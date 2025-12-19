@@ -108,7 +108,6 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.error(f"Invalid KMS_KEK: {e}")
         raise
 
-    logger.info("Key Management Service initialized")
     yield
 
     # === Shutdown cleanup ===
