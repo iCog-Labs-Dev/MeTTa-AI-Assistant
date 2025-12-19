@@ -77,6 +77,8 @@ class ColoredFormatter(logging.Formatter):
         msg = record.getMessage()
         if len(msg) > MAX_MSG_LENGTH:
             msg = msg[:MAX_MSG_LENGTH] + "...[TRUNCATED]"
+        if record.exc_info:
+            msg += "\n" + self.formatException(record.exc_info)
         return f"{color}{self.formatTime(record, '%Y-%m-%d %H:%M:%S')} | {record.levelname:<8} | {record.filename}:{record.lineno}:{record.funcName} - {msg}{RESET_COLOR}"
 
 # ------------------------
@@ -87,10 +89,10 @@ class CompressedRotatingFileHandler(RotatingFileHandler):
     def doRollover(self):
         super().doRollover()
         if self.backupCount > 0:
-            for i in range(self.backupCount, 0, -1):
-                sfn = f"{self.baseFilename}.{i}"
-                if os.path.exists(sfn):
-                    compress_file(sfn)
+            # Only the most recent rotation (baseFilename.1) needs compression; earlier ones stay as .gz
+            rotated_file = f"{self.baseFilename}.1"
+            if os.path.exists(rotated_file):
+                compress_file(rotated_file)
 
 # ------------------------
 # Logging setup
@@ -142,8 +144,6 @@ def setup_logging(log_level: str = "DEBUG") -> logging.Logger:
 
     # Minimal library noise filtering
     for noisy_logger in ("uvicorn", "uvicorn.error", "fastapi", "asyncio"):
-        logging.getLogger(noisy_logger).handlers = [console_handler]
-        logging.getLogger(noisy_logger).propagate = False
         logging.getLogger(noisy_logger).setLevel(level)
 
     root_logger.info(f"Logging initialized at level {log_level}")
@@ -152,4 +152,6 @@ def setup_logging(log_level: str = "DEBUG") -> logging.Logger:
     return root_logger
 
 # Initialize global logger when the module is imported
-logger = setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO"))
+logger= setup_logging(os.getenv("LOG_LEVEL", "INFO"))
+
+
