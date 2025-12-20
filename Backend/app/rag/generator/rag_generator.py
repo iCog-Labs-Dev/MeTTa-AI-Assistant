@@ -46,10 +46,10 @@ class RAGGenerator:
             context = self._assemble_context(retrieved_docs)
             prompt = LLMResponseFormatter.build_rag_prompt(query, context, history)
             response = await self.llm_client.generate_text(prompt, api_key)
+            sources = self._format_sources(retrieved_docs) if include_sources else None
         else:
             response = rewritten_query.get("query", query)
 
-        sources = self._format_sources(retrieved_docs) if include_sources else None
         return LLMResponseFormatter.format_rag_response(
             query=query, response=response, client=self.llm_client, sources=sources
         )
