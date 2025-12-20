@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ThumbsUp, ThumbsDown, Meh, Copy, Check } from 'lucide-react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '../ui/tooltip'
+import { CopyButton } from '../ui/copy-button'
 import type { Message } from '../../types'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -10,9 +11,41 @@ interface ChatMessageItemProps {
   onFeedback?: (messageId: string, feedback: 'positive' | 'neutral' | 'negative') => void
 }
 
+const PreCode = ({ children, ...props }: any) => {
+  const [isCopied, setIsCopied] = useState(false);
+  const preRef = useRef<HTMLPreElement>(null);
+
+  const handleCopy = () => {
+    if (preRef.current) {
+      const text = preRef.current.innerText || '';
+      navigator.clipboard.writeText(text);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="relative group/code my-2">
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 p-1.5 rounded-md bg-white/10 dark:bg-black/50 text-zinc-400 opacity-0 group-hover/code:opacity-100 transition-all hover:bg-white/20 dark:hover:bg-black/70 hover:text-white z-10"
+        title="Copy code"
+      >
+        {isCopied ? (
+          <Check className="w-3 h-3 text-green-400" />
+        ) : (
+          <Copy className="w-3 h-3" />
+        )}
+      </button>
+      <pre ref={preRef} {...props} className="!my-0">
+        {children}
+      </pre>
+    </div>
+  );
+};
+
 function MessageBubble({ message, onFeedback }: ChatMessageItemProps) {
   const [isHovered, setIsHovered] = useState(false)
-  const [copied, setCopied] = useState(false)
   const [loadingDots, setLoadingDots] = useState('.')
 
   // Handle loading animation
@@ -33,12 +66,6 @@ function MessageBubble({ message, onFeedback }: ChatMessageItemProps) {
     };
   }, [message.isLoading]);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
       <div
@@ -56,7 +83,12 @@ function MessageBubble({ message, onFeedback }: ChatMessageItemProps) {
               </div>
             ) : (
               <div className="markdown-content">
-                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    pre: PreCode
+                  }}
+                >
                   {message.content}
                 </ReactMarkdown>
               </div>
@@ -113,19 +145,13 @@ function MessageBubble({ message, onFeedback }: ChatMessageItemProps) {
               </TooltipContent>
             </Tooltip>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleCopy}
-                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors"
-                >
-                  {copied ? <Check className="w-3 h-3 text-green-600" /> : <Copy className="w-3 h-3" />}
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{copied ? 'Copied!' : 'Copy message'}</p>
-              </TooltipContent>
-            </Tooltip>
+            <CopyButton textToCopy={message.content} />
+          </div>
+        )}
+
+        {message.role === 'user' && (
+          <div className={`flex justify-end mt-1 transition-opacity ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
+            <CopyButton textToCopy={message.content} />
           </div>
         )}
       </div>
