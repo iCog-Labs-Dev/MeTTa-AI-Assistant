@@ -127,11 +127,11 @@ async def chat(
             
             if encrypted_key and api_key:
                 result = await generator.generate_response(
-                    query, top_k=top_k,api_key=api_key, include_sources=False, history=history,
+                    query, top_k=top_k,api_key=api_key, include_sources=True, history=history,
                 )
             else:
                 result = await generator.generate_response(
-                    query, top_k=top_k, api_key=None, include_sources=False, history=history
+                    query, top_k=top_k, api_key=None, include_sources=True, history=history
                 )
 
             response_id = f"resp_{ObjectId()}"
@@ -166,6 +166,7 @@ async def chat(
                 )
             except Exception:
                 logger.warning("Failed to log RAG interaction", exc_info=True)
+            result.pop("sources")
             result["session_id"] = session_id
             result["userMessageId"] = user_message_id
             result["messageId"] = message_id
