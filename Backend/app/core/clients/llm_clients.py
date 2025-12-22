@@ -6,8 +6,6 @@ from typing import List, Optional, AsyncIterator
 from enum import Enum
 from abc import ABC, abstractmethod
 from langchain.chat_models import init_chat_model
-from langchain_openai import ChatOpenAI
-from langchain_google_genai import ChatGoogleGenerativeAI
 from app.core.utils.retry import async_retry, RetryConfig
 from loguru import logger
 
@@ -130,72 +128,45 @@ class LLMClient(BaseLLMClient):
             if _is_rate_limit(e):
                 raise LLMQuotaExceededError(f"Rate limit/quota exceeded: {e}") from e
             raise
-
-    async def generate_text_stream(
-        self,
-        prompt: str,
-        api_key: Optional[str] = None,
-        *,
-        temperature: float = 0.7,
-        max_tokens: int = 1000,
-        chunk_size: int = 256,
-        fallback_sleep: float = 0.0,
-        **kwargs,
+    async def generate_text_stream(self, prompt: str, api_key: Optional[str] = None, *, temperature: float = 0.7, max_tokens: int = 1000, chunk_size: int = 256, fallback_sleep: float = 0.0, **kwargs,
     ) -> AsyncIterator[str]:
         first_token_sent = False
         current_key = api_key or self._next_key()
 
-        # Gemini streaming path
-        if self._provider == LLMProvider.GEMINI:
-            try:
-                client = ChatGoogleGenerativeAI(
+        try:
+            if self._provider == LLMProvider.GEMINI:
+                client = init_chat_model(
                     model=self._model_name,
-                    api_key=current_key,
+                    model_provider="google_genai",
+                    google_api_key=current_key,
                     temperature=temperature,
                     max_output_tokens=max_tokens,
-                    streaming=True,
                 )
-
-                messages = [{"role": "user", "content": prompt}]
-
-                async for chunk in client.astream(messages):
-                    content = getattr(chunk, "content", "") or ""
-                    if not content.strip():
-                        continue
-
-                    if not first_token_sent:
-                        first_token_sent = True
-
-                    yield content
-                    await asyncio.sleep(0.01)
-
-                return
-            except Exception as e:
-                logger.warning("streaming failed: {}", str(e))
-
-        # OpenAI streaming path
-        elif self._provider == LLMProvider.OPENAI:
-            try:
-                client = ChatOpenAI(
+            else:  # OpenAI
+                client = init_chat_model(
                     model=self._model_name,
+                    model_provider="openai",
                     api_key=current_key,
                     temperature=temperature,
                     max_tokens=max_tokens,
-                    streaming=True,
                 )
 
-                messages = [{"role": "user", "content": prompt}]
+            messages = [{"role": "user", "content": prompt}]
 
-                async for chunk in client.astream(messages):
-                    content = getattr(chunk, "content", "") or ""
-                    if content.strip():
-                        if not first_token_sent:
-                            first_token_sent = True
-                        yield content.strip()
-                        await asyncio.sleep(0.01)
-                return
-            except Exception as e:
-                logger.warning("streaming failed: {}", str(e))
+            async for chunk in client.astream(messages):
+                content = getattr(chunk, "content", "") or ""
+                if not content.strip():
+                    continue
+
+                if not first_token_sent:
+                    first_token_sent = True
+
+                yield content.strip()
+                await asyncio.sleep(0.01)
+
+            return
+        except Exception as e:
+            logger.warning("streaming failed: {}", str(e))
 
         # Fallback to non-streaming text generation
         try:
@@ -224,7 +195,6 @@ class LLMClient(BaseLLMClient):
         except Exception as e:
             logger.error("Fallback failed: {}", e)
             raise
-
 
 def _load_gemini_keys_from_env() -> List[str]:
     csv = os.getenv("GEMINI_API_KEYS", "").strip()
