@@ -1,5 +1,5 @@
 # app/db/users.py
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, EmailStr
 from bson import ObjectId
 from pymongo.database import Database
@@ -55,6 +55,35 @@ async def create_user(user_data: UserCreate, mongo_db: Database = None) -> Optio
     except Exception as e:
         logger.error(f"Failed to create user: {e}")
         return None
+
+async def get_users(mongo_db: Database = None) -> List[Dict[str, Any]]:
+    """Get all users from the database."""
+    if mongo_db is None:
+        raise RuntimeError("Database connection not initialized")
+    collection = _get_collection(mongo_db, "users")
+    
+    users = []
+    cursor = collection.find({})
+    async for user in cursor:
+        user_dict = dict(user)
+        user_dict["id"] = str(user_dict.pop("_id"))
+        user_dict.pop("hashed_password", None)
+        users.append(user_dict)
+    
+    return users
+
+async def delete_user(user_id: str, mongo_db: Database = None) -> bool:
+    """Delete a user by ID."""
+    if mongo_db is None:
+        raise RuntimeError("Database connection not initialized")
+    collection = _get_collection(mongo_db, "users")
+    
+    try:
+        obj_id = ObjectId(user_id)
+        result = await collection.delete_one({"_id": obj_id})
+        return result.deleted_count > 0
+    except:
+        return False
 
 async def seed_admin(mongo_db: Database = None) -> None:
     """Seed a default admin user if none exists."""
