@@ -7,7 +7,7 @@ from enum import Enum
 from abc import ABC, abstractmethod
 from langchain.chat_models import init_chat_model
 from app.core.utils.retry import async_retry, RetryConfig
-from loguru import logger
+from app.core.logging import logger
 
 class LLMQuotaExceededError(Exception):
     """Raised when the LLM service returns a quota/rate limit error."""

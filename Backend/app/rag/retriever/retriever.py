@@ -1,5 +1,5 @@
 from app.rag.embedding.pipeline import embedding_user_input
-from loguru import logger
+from app.core.logging import logger
 from qdrant_client.models import ScoredPoint
 from app.rag.retriever.schema import Document
 import asyncio
@@ -13,7 +13,7 @@ class EmbeddingRetriever:
         self.collection_name = collection_name
 
     async def _search_category(
-        self, category: str, query_embedding: List[float], top_k: int, min_score: float
+        self, category: str, query_embedding: List[float], top_k: int, min_score_code: float, min_score_doc: float
 ) -> Tuple[str, List[Document]]:
         
         """Search one category and return (category, documents)."""
@@ -39,26 +39,30 @@ class EmbeddingRetriever:
             payload = dict(result.payload or {})
             chunk_text = payload.pop("chunk", "")
             score = getattr(result, "score", None)
-            payload["_score"] = score
             payload["_id"] = getattr(result, "id", None)
-
+            payload["_score"] = score
+            
             if score is None:
                 logger.warning(f"Dropping document without score in category={category}")
                 continue
-            if score < min_score:
-                logger.info(f"Dropping document with score {score} < min_score {min_score} in category={category}")
+
+            if score < min_score_code and payload.get("source") == "code":
+                logger.info(f"Dropping code chunk with score {score} < min_score {min_score_code} in category={category}")
+                continue
+
+            if score < min_score_doc and (payload.get("source") == "documentation" or payload.get("source") == "others"):
+                logger.info(f"Dropping document with score {score} < min_score {min_score_doc} in category={category}")
                 continue
 
             documents.append(Document(text=chunk_text, metadata=payload))
             logger.info(f"Retrieved {category} document from Qdrant with chunk: {chunk_text[:30]}...")
         return category, documents
 
-    async def retrieve(self, query: str, top_k: int = 5, min_score: float = 0.0) -> Dict[str, List[Document]]:
+    async def retrieve(self, query: str, top_k: int = 5) -> Dict[str, List[Document]]:
         query_embedding = await embedding_user_input(self.model, query)
         categories = ["code", "documentation", "others"]
-        min_score = float(get_required_env("MIN_SCORE", default=0.0))
         tasks = [
-            asyncio.create_task(self._search_category(category, query_embedding, top_k, min_score))
+            asyncio.create_task(self._search_category(category, query_embedding, top_k, float(get_required_env("MIN_SCORE_CODE", default=0.0)), float(get_required_env("MIN_SCORE_DOC", default=0.0))))
             for category in categories
         ]
 

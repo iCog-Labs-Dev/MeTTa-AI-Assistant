@@ -1,6 +1,6 @@
 import json
 import time
-from loguru import logger
+from app.core.logging import logger
 from app.db.chat_db import insert_chat_message
 from app.rag.rag_logging import log_rag_interaction
 

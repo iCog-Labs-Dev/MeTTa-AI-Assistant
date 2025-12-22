@@ -1,12 +1,11 @@
 import asyncio
 import time
 from typing import List, Optional
-from loguru import logger
+from app.core.logging import logger
 
 from app.repositories.chunk_repository import ChunkRepository
 from app.model.chunk import ChunkSchema, AnnotationStatus
 from app.core.clients.llm_clients import LLMClient, LLMQuotaExceededError
-
 
 # ------------------------------------------------------------------------------
 # CONFIGURABLE CONSTANTS

@@ -2,7 +2,7 @@ import os
 import hashlib
 import json
 import shutil
-from loguru import logger
+from app.core.logging import logger
 from typing import Optional, List, Dict
 
 def hash_file_content(filepath: str) -> str:
