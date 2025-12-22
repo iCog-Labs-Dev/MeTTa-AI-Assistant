@@ -3,7 +3,8 @@ import time
 from typing import Optional, Literal
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from bson import ObjectId
 from app.dependencies import (
     get_embedding_model_dep,
@@ -16,9 +17,8 @@ from app.dependencies import (
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.core.clients.llm_clients import LLMProvider
 from app.rag.generator.rag_generator import RAGGenerator
+from app.routers.chat_event_generator import EventGenerator
 from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
-from app.rag.rag_logging import log_rag_interaction
-
 from app.core.logging import logger
 
 router = APIRouter(
@@ -26,8 +26,6 @@ router = APIRouter(
     tags=["chat"],
     responses={404: {"description": "Not found"}},
 )
-
-
 class ChatRequest(BaseModel):
     query: str
     provider: Literal["openai", "gemini"] = "gemini"
@@ -39,24 +37,22 @@ class ChatRequest(BaseModel):
 @router.post("/", summary="Chat with RAG system")
 async def chat(
     request: Request,
-    response: Response, 
+    response: Response,
     chat_request: ChatRequest,
+    background_tasks: BackgroundTasks,
     model_dep=Depends(get_embedding_model_dep),
     qdrant=Depends(get_qdrant_client_dep),
     default_llm=Depends(get_llm_provider_dep),
     mongo_db=Depends(get_mongo_db),
     current_user = Depends(get_current_user),
-    kms = Depends(get_kms)
+    kms = Depends(get_kms),
 ):
-
-
     start_time = time.time()
     query, provider, model = (
         chat_request.query,
         chat_request.provider,
         chat_request.model,
     )
-
     mode, top_k = chat_request.mode, chat_request.top_k
     session_id = chat_request.session_id
     created_new_session = False
@@ -66,7 +62,7 @@ async def chat(
     collection_name = os.getenv("COLLECTION_NAME")
     if not collection_name:
         raise HTTPException(status_code=500, detail="COLLECTION_NAME not set")
-    
+   
     if not provider:
         raise HTTPException(status_code=400, detail="Provider must be specified")
     # Extract cookies
@@ -76,7 +72,7 @@ async def chat(
     if encrypted_key and encrypted_key.strip():
         try:
             api_key = await kms.decrypt_api_key(encrypted_key, current_user["id"], provider.lower(), mongo_db)
-            
+           
             # Validate decrypted key is not empty
             if not api_key or not api_key.strip():
                 logger.warning(f"Decrypted API key is empty for user {current_user['id']}, provider {provider}")
@@ -84,9 +80,9 @@ async def chat(
             else:
                 # refresh encrypted_api_key expiry date | sliding expiration refresh
                 response.set_cookie(
-                    key=provider.lower(), 
-                    value=encrypted_key, 
-                    httponly=True, 
+                    key=provider.lower(),
+                    value=encrypted_key,
+                    httponly=True,
                     samesite="none",
                     secure=True,
                     expires=(datetime.now(timezone.utc) + timedelta(days=7))
@@ -94,7 +90,7 @@ async def chat(
         except Exception as e:
             logger.warning(f"Failed to decrypt API key cookie for user {current_user['id']}, provider {provider}: {e}")
             api_key = ""
-    
+   
     try:
         retriever = EmbeddingRetriever(
             model=model_dep, qdrant=qdrant, collection_name=collection_name
@@ -124,53 +120,14 @@ async def chat(
                 {"role": m.get("role"), "content": m.get("content", "")}
                 for m in raw_history
             ]
-            
-            if encrypted_key and api_key:
-                result = await generator.generate_response(
-                    query, top_k=top_k,api_key=api_key, include_sources=True, history=history,
-                )
-            else:
-                result = await generator.generate_response(
-                    query, top_k=top_k, api_key=None, include_sources=True, history=history
-                )
-
+           
             response_id = f"resp_{ObjectId()}"
-
-            message_id = await insert_chat_message(
-                {
-                    "sessionId": session_id,
-                    "role": "assistant",
-                    "content": result.get("response", ""),
-                    "responseId": response_id,
-                },
-                mongo_db=mongo_db,
+            event_gen = EventGenerator( generator, query, session_id, top_k, provider, model, api_key, history, mongo_db, start_time, user_message_id, created_new_session, response_id,
             )
-            try:
-                sources = result.get("sources", []) or []
-                contexts = [str(s.get("text", "")) for s in sources]
-                execution_time = time.time() - start_time
-                await log_rag_interaction(
-                    {
-                        "question": query,
-                        "answer": result.get("response", ""),
-                        "contexts": contexts,
-                        "metadata": {
-                            "session_id": session_id,
-                            "provider": provider,
-                            "model": model if model else "system",
-                            "response_id": response_id,
-                            "execution_time_seconds": execution_time
-                        },
-                    },
-                    mongo_db=mongo_db
-                )
-            except Exception:
-                logger.warning("Failed to log RAG interaction", exc_info=True)
-            result.pop("sources")
-            result["session_id"] = session_id
-            result["userMessageId"] = user_message_id
-            result["messageId"] = message_id
-            result["responseId"] = response_id
-            return result
+            # Handle post-streaming tasks in the background after streaming ends
+            background_tasks.add_task(event_gen._handle_post_streaming)
+
+            return StreamingResponse(event_gen.event_generator(), media_type="text/event-stream")
+           
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")

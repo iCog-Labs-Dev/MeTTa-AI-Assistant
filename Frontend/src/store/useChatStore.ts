@@ -1,21 +1,24 @@
 import { create, StateCreator } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ChatSession, Message } from '../types/chat';
+import type { ChatSession, Message } from '../types/chat';
 import {
   getChatSessions as apiGetChatSessions,
   getSessionMessages as apiGetSessionMessages,
   deleteChatSession as apiDeleteChatSession,
   sendMessage as apiSendMessage,
+  streamMessage,
+  ChatRequest,
 } from '../services/chatService';
 import { refreshAccessToken, isAuthenticated } from '../lib/auth';
 import { useModelStore } from './useModelStore';
+
 
 interface ChatState {
   sessions: ChatSession[];
   messages: Message[];
   selectedSessionId: string | null;
   // Sidebar/session list loading state for better UX
-  sessionsStatus: 'idle' | 'loading' | 'ready' | 'empty';
+  sessionsStatus: "idle" | "loading" | "ready" | "empty";
   sessionsPage: number;
   hasMoreSessions: boolean;
   isLoadingSessions: boolean;
@@ -30,7 +33,7 @@ interface ChatState {
   deleteSession: (sessionId: string) => Promise<void>;
   createSession: () => Promise<void>;
   sendMessage: (query: string) => Promise<void>;
-  updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => void;
+  updateMessageFeedback: ( messageId: string, feedback: "positive" | "neutral" | "negative" | null) => void;
 }
 
 const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
@@ -45,7 +48,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   isSendingMessage: false,
   error: null,
 
-  loadSessions: async () => {
+ loadSessions: async () => {
     if (!isAuthenticated()) {
       set({ error: 'Please log in to view chat sessions', isLoadingSessions: false });
       return;
@@ -229,7 +232,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     }
   },
 
-  selectSession: async (sessionId: string) => {
+ selectSession: async (sessionId: string) => {
     if (!isAuthenticated()) {
       set({ error: 'Please log in to view messages', isLoadingMessages: false });
       return;
@@ -279,7 +282,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     }
   },
 
-  deleteSession: async (sessionId: string) => {
+ deleteSession: async (sessionId: string) => {
     if (!isAuthenticated()) {
       set({ error: 'Please log in to delete sessions' });
       return;
@@ -323,7 +326,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       }
     }
   },
-
+  
   createSession: async () => {
     if (!isAuthenticated()) {
       set({ error: 'Please log in to create a new session' });
@@ -348,7 +351,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
   sendMessage: async (query: string) => {
     if (!isAuthenticated()) {
-      set({ error: 'Please log in to send messages' });
+      set({ error: "Please log in to send messages" });
       return;
     }
 
@@ -359,16 +362,17 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     }
 
     set({ isSendingMessage: true });
-    let { selectedSessionId } = get();
 
-    // Optimistically show the user message and thinking message immediately
+    let selectedSessionId = get().selectedSessionId;
+
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: query,
       timestamp: Date.now(),
     };
-    set((state) => ({ messages: [...state.messages, userMessage] }));
+
+    set((state) => ({ messages: [...state.messages, userMessage]}));
 
     const thinkingMessage: Message = {
       id: (Date.now() + 1).toString(),
@@ -377,67 +381,55 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       timestamp: Date.now() + 1,
       isLoading: true,
     };
-    set((state) => ({ messages: [...state.messages, thinkingMessage] }));
 
-    const isTempSession = selectedSessionId?.startsWith('temp-');
+    set((state) => ({
+      messages: [...state.messages, thinkingMessage],
+    }));
 
-    try {
-      const { models, activeId } = useModelStore.getState();
-      const activeModel = models.find((m) => m.id === activeId);
-      const provider =
-        activeModel?.provider === 'openai'
-          ? 'openai'
-          : 'gemini';
+    const isTempSession = selectedSessionId?.startsWith("temp-") ?? false;
 
-      const response = await apiSendMessage({
-        query,
-        session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
-        provider,
-        mode: 'generate',
-      });
+    const modelsState = useModelStore.getState();
+    const activeModel = modelsState.models.find(
+      (m) => m.id === modelsState.activeId
+    );
+    const provider: "openai" | "gemini" =
+      activeModel?.provider === "openai" ? "openai" : "gemini";
 
-      const assistantMessage: Message = {
-        id: response.messageId || Date.now().toString(),
-        role: 'assistant',
-        content: response.response || 'No response received',
-        timestamp: Date.now(),
-        responseId: response.responseId, // Store responseId for feedback
-      };
-      console.log('[useChatStore] Received response from backend:', {
-        responseId: response.responseId,
-        sessionId: response.session_id,
-        content: response.response?.substring(0, 50) + '...'
-      });
+    const baseRequest: ChatRequest = {
+      query,
+      session_id:
+        !selectedSessionId || isTempSession ? undefined : selectedSessionId,
+      provider,
+      mode: "generate",
+    };
 
-      const realSessionId = response.session_id || selectedSessionId;
+    const updateSessionsWithRealId = (realSessionId: string) => {
+      set((state) => {
+        const existing = state.sessions.find(
+          (s) =>
+            s.sessionId === (selectedSessionId ?? "") ||
+            s.sessionId === realSessionId
+        );
 
-      set((state) => ({
-        messages: state.messages.map((msg) => {
-          // Replace thinking message with actual assistant response
-          if (msg.id === thinkingMessage.id) return assistantMessage;
-          // Update user message with backend ID
-          if (msg.id === userMessage.id && response.userMessageId) {
-            return { ...msg, id: response.userMessageId };
-          }
-          return msg;
-        }),
-        // If this session still has no title, derive it from the first query
-        sessions: (() => {
-          // Replace temp session id with the real backend id, or insert if not present
-          const existing = state.sessions.find((s) => s.sessionId === selectedSessionId || s.sessionId === realSessionId);
-          if (!existing) {
-            return [
+        if (!existing) {
+          return {
+            sessions: [
               {
                 sessionId: realSessionId,
                 createdAt: new Date().toISOString(),
                 title: query,
               },
               ...state.sessions,
-            ];
-          }
+            ],
+          } as Partial<ChatState>;
+        }
 
-          return state.sessions.map((s) => {
-            if (s.sessionId === selectedSessionId || s.sessionId === realSessionId) {
+        return {
+          sessions: state.sessions.map((s) => {
+            if (
+              s.sessionId === selectedSessionId ||
+              s.sessionId === realSessionId
+            ) {
               return {
                 ...s,
                 sessionId: realSessionId,
@@ -445,99 +437,207 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
               };
             }
             return s;
-          });
-        })(),
+          }),
+        } as Partial<ChatState>;
+      });
+    };
+
+    // STREAMING FIRST
+    try {
+      let accumulated = "";
+
+      await streamMessage(
+        baseRequest,
+        (chunk: string) => {
+          accumulated = chunk;
+          set((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === thinkingMessage.id
+                ? { ...thinkingMessage, content: accumulated }
+                : msg
+            ),
+          }));
+        },
+        (payload: any) => {
+          const finalText =
+            payload?.response ??
+            payload?.payload?.response ??
+            accumulated ??
+            "No response received";
+
+          const responseId =
+            payload?.responseId ?? payload?.payload?.responseId ?? undefined;
+
+          const realSessionId =
+            payload?.session_id ??
+            payload?.sessionid ??
+            payload?.payload?.session_id ??
+            payload?.payload?.sessionid ??
+            selectedSessionId;
+
+          const assistantMessage: Message = {
+            id: thinkingMessage.id,
+            role: "assistant",
+            content: finalText,
+            timestamp: Date.now(),
+            responseId,
+          };
+
+          set((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === thinkingMessage.id ? assistantMessage : msg
+            ),
+          }));
+
+          if (realSessionId) {
+            updateSessionsWithRealId(realSessionId);
+            selectedSessionId = realSessionId;
+            set({ selectedSessionId: realSessionId });
+          }
+
+          set({ isSendingMessage: false });
+        },
+        (errorText: string) => {
+          const text = String(errorText || "Streaming error");
+          set((state) => ({
+            messages: state.messages.map((msg) =>
+              msg.id === thinkingMessage.id
+                ? {
+                    ...thinkingMessage,
+                    content: `Error: ${text}`,
+                    isLoading: false,
+                  }
+                : msg
+            ),
+            isSendingMessage: false,
+          }));
+        }
+      );
+
+      return;
+    } catch (streamErr) {
+      console.error(
+        "[useChatStore] Streaming failed, falling back:",
+        streamErr
+      );
+    }
+
+    // FALLBACK TO NON-STREAMING sendMessage
+    const runNonStreaming = async () => {
+      const response = await apiSendMessage(baseRequest);
+
+      const assistantMessage: Message = {
+        id: response.messageId ?? thinkingMessage.id,
+        role: "assistant",
+        content: response.response ?? "No response received",
+        timestamp: Date.now(),
+        responseId: response.responseId,
+      };
+
+      const realSessionId = response.session_id;
+
+      set((state) => ({
+        messages: state.messages.map((msg) => {
+          if (msg.id === thinkingMessage.id) {
+            return assistantMessage;
+          }
+          if (msg.id === userMessage.id && response.userMessageId) {
+            return { ...msg, id: response.userMessageId };
+          }
+          return msg;
+        }),
       }));
 
-      // Ensure selectedSessionId is updated to the real backend id
-      set((state) => ({
+      updateSessionsWithRealId(realSessionId);
+      set({
         selectedSessionId: realSessionId,
         isSendingMessage: false,
-      }));
+      });
+    };
+
+    try {
+      await runNonStreaming();
+      return;
     } catch (err: any) {
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
-          const { models, activeId } = useModelStore.getState();
-          const activeModel = models.find((m) => m.id === activeId);
-          const provider =
-            activeModel?.provider === 'openai'
-              ? 'openai'
-              : 'gemini';
 
-          const response = await apiSendMessage({
+          selectedSessionId = get().selectedSessionId;
+          const isTempSessionAfter =
+            selectedSessionId?.startsWith("temp-") ?? false;
+
+          const modelsState2 = useModelStore.getState();
+          const activeModel2 = modelsState2.models.find(
+            (m) => m.id === modelsState2.activeId
+          );
+          const provider2: "openai" | "gemini" =
+            activeModel2?.provider === "openai" ? "openai" : "gemini";
+
+          const retryRequest: ChatRequest = {
             query,
-            session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
-            provider,
-            mode: 'generate',
-          });
-
-          const assistantMessage: Message = {
-            id: response.messageId || Date.now().toString(),
-            role: 'assistant',
-            content: response.response || 'No response received',
-            timestamp: Date.now(),
-            responseId: response.responseId, // Store responseId for feedback
+            session_id:
+              !selectedSessionId || isTempSessionAfter
+                ? undefined
+                : selectedSessionId,
+            provider: provider2,
+            mode: "generate",
           };
 
-          const realSessionId = response.session_id || selectedSessionId;
+          const response = await apiSendMessage(retryRequest);
+
+          const assistantMessage: Message = {
+            id: response.messageId ?? thinkingMessage.id,
+            role: "assistant",
+            content: response.response ?? "No response received",
+            timestamp: Date.now(),
+            responseId: response.responseId,
+          };
+
+          const realSessionId = response.session_id;
 
           set((state) => ({
             messages: state.messages.map((msg) => {
-              // Replace thinking message with actual assistant response
-              if (msg.id === thinkingMessage.id) return assistantMessage;
-              // Update user message with backend ID
+              if (msg.id === thinkingMessage.id) {
+                return assistantMessage;
+              }
               if (msg.id === userMessage.id && response.userMessageId) {
                 return { ...msg, id: response.userMessageId };
               }
               return msg;
             }),
-            sessions: (() => {
-              const existing = state.sessions.find((s) => s.sessionId === selectedSessionId || s.sessionId === realSessionId);
-              if (!existing) {
-                return [
-                  {
-                    sessionId: realSessionId,
-                    createdAt: new Date().toISOString(),
-                    title: query,
-                  },
-                  ...state.sessions,
-                ];
-              }
-
-              return state.sessions.map((s) => {
-                if (s.sessionId === selectedSessionId || s.sessionId === realSessionId) {
-                  return {
-                    ...s,
-                    sessionId: realSessionId,
-                    title: s.title || query,
-                  };
-                }
-                return s;
-              });
-            })(),
           }));
 
-          set((state) => ({
+          updateSessionsWithRealId(realSessionId);
+          set({
             selectedSessionId: realSessionId,
             isSendingMessage: false,
-          }));
+          });
+
           return;
-        } catch (refreshErr) {
-          set({ error: 'Session expired. Please log in again.' });
-          window.location.href = '/login';
+        } catch {
+          set({
+            error: "Session expired. Please log in again.",
+            isSendingMessage: false,
+          });
+          window.location.href = "/login";
           return;
         }
       }
 
       const errorMessage: Message = {
         id: thinkingMessage.id,
-        role: 'assistant',
-        content: err?.response?.data?.detail || 'Sorry, I encountered an error. Please try again.',
+        role: "assistant",
+        content:
+          err?.response?.data?.detail ||
+          "Sorry, I encountered an error. Please try again.",
         timestamp: Date.now(),
       };
+
       set((state) => ({
-        messages: state.messages.map((msg) => (msg.id === thinkingMessage.id ? errorMessage : msg)),
+        messages: state.messages.map((msg) =>
+          msg.id === thinkingMessage.id ? errorMessage : msg
+        ),
         isSendingMessage: false,
       }));
     }
@@ -559,5 +659,5 @@ export const useChatStore = create<ChatState>()(
       sessions: state.sessions,
       selectedSessionId: state.selectedSessionId,
     }),
-  })
+  }),
 );
