@@ -3,7 +3,7 @@ import time
 from typing import Optional, Literal
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, HTTPException, Depends, Request, Response, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from bson import ObjectId
 from app.dependencies import (
@@ -17,10 +17,8 @@ from app.dependencies import (
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.core.clients.llm_clients import LLMProvider
 from app.rag.generator.rag_generator import RAGGenerator
-from app.rag.generator.event_generator import EventGenerator
+from app.routers.chat_event_generator import EventGenerator
 from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
-from app.rag.rag_logging import log_rag_interaction
-
 from loguru import logger
 
 router = APIRouter(
@@ -43,12 +41,13 @@ async def chat(
     request: Request,
     response: Response, 
     chat_request: ChatRequest,
+    background_tasks: BackgroundTasks,
     model_dep=Depends(get_embedding_model_dep),
     qdrant=Depends(get_qdrant_client_dep),
     default_llm=Depends(get_llm_provider_dep),
     mongo_db=Depends(get_mongo_db),
     current_user = Depends(get_current_user),
-    kms = Depends(get_kms)
+    kms = Depends(get_kms),
 ):
 
     start_time = time.time()
@@ -125,29 +124,14 @@ async def chat(
                 {"role": m.get("role"), "content": m.get("content", "")}
                 for m in raw_history
             ]
-
-            # STREAMING RESPONSE
+            # Streaming Response
             response_id = f"resp_{ObjectId()}"
-            async def event_generator():
-                event_gen = EventGenerator(
-                    generator,
-                    query,
-                    session_id,
-                    top_k,
-                    provider,
-                    model,
-                    api_key,
-                    history,
-                    mongo_db,
-                    start_time,
-                    user_message_id,
-                    created_new_session,
-                    response_id,
-                )
-                async for evt in event_gen.event_generator():
-                    yield evt
+            event_gen = EventGenerator( generator, query, session_id, top_k, provider, model, api_key, history, mongo_db, start_time, user_message_id, created_new_session, response_id,
+            )
+            # Handle post-streaming tasks in the background after streaming ends
+            background_tasks.add_task(event_gen._handle_post_streaming)
 
-            return StreamingResponse(event_generator(), media_type="text/event-stream")
+            return StreamingResponse(event_gen.event_generator(), media_type="text/event-stream")
             
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat failed: {str(e)}")
