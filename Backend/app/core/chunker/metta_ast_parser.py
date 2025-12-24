@@ -122,7 +122,8 @@ class SExprParser:
             elif c == "(":
                 return self.parse_expr()
             elif c == ")":
-                raise ValueError("Unexpected ')' at top level")
+                self.skip_next()
+                continue
             elif c == '"':
                 return self.parse_string()
             else:
@@ -142,10 +143,10 @@ class SExprParser:
 
         if (peeked := self.peek()) and peeked[1] == "(":
             expr_node = self.parse_expr()
+            children = [bang_node, expr_node]
         else:
-            raise ValueError("Expected an expression after '!'")
+            children = [bang_node]
 
-        children = [bang_node, expr_node]
         return SyntaxNode.new(SyntaxNodeType.CallGroup, range(start_idx, self.cur_idx()), children)
 
     def parse_comment(self) -> "SyntaxNode":
@@ -178,7 +179,7 @@ class SExprParser:
 
             peeked = self.peek()
             if peeked is None:
-                raise ValueError("Unclosed expression")
+                return SyntaxNode.new(Exp_type, range(start_idx, self.cur_idx()), children)
             
             idx, c = peeked
             if c == ")":

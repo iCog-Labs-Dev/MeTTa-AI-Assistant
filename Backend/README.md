@@ -37,7 +37,12 @@ docker compose run --rm api python -m app.scripts.ingest_docs --force
 ```
 
 This only needs to be done once (unless you want to re-ingest with `--force`).
-#### 3. Start the server
+#### 3. Add function dependencies
+```bash
+docker compose run --rm api python -m app.scripts.add_dependencies
+```
+
+#### 4. Start the server
 ```bash
 docker compose up
 ```
@@ -64,7 +69,12 @@ You can also use the `--force` flag to re-ingest documents:
 python -m app.scripts.ingest_docs --force
 ```
 
-#### 4. Start the FastAPI server
+#### 4. Add function dependencies
+```bash
+python -m app.scripts.add_dependencies
+```
+
+#### 5. Start the FastAPI server
 ```bash
 python -m app.run
 

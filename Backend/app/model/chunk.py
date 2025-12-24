@@ -35,6 +35,11 @@ class ChunkSchema(BaseModel):
     filename: Optional[str] = None
     page_numbers: Optional[List[int]] = None
 
+    # Function dependency tracking
+    functions: Optional[List[str]] = Field(
+        None,
+        description="List of chunkIds containing custom function definitions this chunk depends on."
+    )
     
     description: Optional[str] = Field(
         None, 
