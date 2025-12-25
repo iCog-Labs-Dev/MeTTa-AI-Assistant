@@ -21,7 +21,7 @@ class LLMClientFactory:
 
         if not model_name:
             model_name = (
-                "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-4.1-mini"
+                "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-5.2"
             )
 
         return LLMClient(
@@ -34,7 +34,7 @@ class LLMClientFactory:
 
     @staticmethod
     def create_default_client() -> LLMClient:
-        return LLMClientFactory.create_client(LLMProvider.GEMINI)
+        return LLMClientFactory.create_client(LLMProvider.OPENAI)
 
 
 class LLMResponseFormatter:
