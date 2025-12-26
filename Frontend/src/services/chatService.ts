@@ -48,6 +48,20 @@ export const getSessionMessages = async (sessionId: string): Promise<Message[]> 
   }
 };
 
+export interface FirstUserMessageResponse {
+  message: { messageId: string; content: string; createdAt: string } | null;
+}
+
+export const getFirstUserMessage = async (sessionId: string): Promise<FirstUserMessageResponse> => {
+  try {
+    const response = await axiosInstance.get<FirstUserMessageResponse>(`${SESSIONS_BASE_URL}/${sessionId}/first-user-message`);
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Sessions');
+    throw error;
+  }
+};
+
 // Delete a chat session
 export const deleteChatSession = async (sessionId: string): Promise<void> => {
   try {

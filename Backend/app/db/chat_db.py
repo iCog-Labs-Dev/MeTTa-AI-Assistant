@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from bson import ObjectId
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
@@ -156,6 +156,9 @@ async def get_chat_sessions(
         "has_prev": page > 1,
     }
 
+
+ 
+
 async def get_messages_for_session(
     session_id: str,
     mongo_db: Database = None,
@@ -173,3 +176,84 @@ async def get_messages_for_session(
         cursor = cursor.limit(limit)
 
     return [ChatMessageSchema(**doc).model_dump() async for doc in cursor]
+
+
+def _encode_msg_cursor(dt: datetime, mid: str) -> str:
+    return f"{dt.isoformat()}|{mid}"
+
+
+def _decode_msg_cursor(cursor: str) -> Tuple[datetime, str]:
+    if "|" not in cursor:
+        raise ValueError("Invalid cursor format")
+    dt_str, mid = cursor.split("|", 1)
+    return datetime.fromisoformat(dt_str), mid
+
+
+async def get_messages_cursor(
+    session_id: str,
+    limit: int = 5,
+    cursor: Optional[str] = None,
+    mongo_db: Database = None,
+) -> dict:
+    if limit < 1:
+        raise ValueError("limit must be a positive integer")
+
+    collection = _get_collection(mongo_db, "chat_messages")
+    filter_query = {"sessionId": session_id}
+
+    if cursor:
+        cdt, cmid = _decode_msg_cursor(cursor)
+        filter_query.update(
+            {
+                "$or": [
+                    {"createdAt": {"$lt": cdt}},
+                    {"createdAt": cdt, "messageId": {"$lt": cmid}},
+                ]
+            }
+        )
+
+    q = (
+        collection.find(filter_query, {"_id": 0})
+        .sort([("createdAt", -1), ("messageId", -1)])
+        .limit(limit + 1)
+    )
+
+    docs = [ChatMessageSchema(**doc).model_dump() async for doc in q]
+
+    has_next = len(docs) > limit
+    page_desc = docs[:limit]
+    messages = list(reversed(page_desc))
+
+    next_cursor = None
+    if has_next:
+        pivot = docs[limit - 1]
+        next_cursor = _encode_msg_cursor(pivot["createdAt"], pivot["messageId"])
+
+    return {
+        "messages": messages,
+        "limit": limit,
+        "nextCursor": next_cursor,
+        "hasNext": has_next,
+    }
+
+
+async def get_first_user_message(
+    session_id: str,
+    mongo_db: Database = None,
+) -> Optional[dict]:
+    collection = _get_collection(mongo_db, "chat_messages")
+    cursor = (
+        collection.find(
+            {"sessionId": session_id, "role": "user"},
+            {"_id": 0, "messageId": 1, "content": 1, "createdAt": 1},
+        )
+        .sort("createdAt", 1)
+        .limit(1)
+    )
+    docs = [doc async for doc in cursor]
+    if not docs:
+        return None
+    doc = docs[0]
+    if "createdAt" in doc and isinstance(doc["createdAt"], datetime):
+        doc["createdAt"] = doc["createdAt"].isoformat()
+    return doc

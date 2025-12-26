@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { ChatSession, Message } from '../types/chat';
 import {
   getChatSessions as apiGetChatSessions,
+  getFirstUserMessage as apiGetFirstUserMessage,
   getSessionMessages as apiGetSessionMessages,
   deleteChatSession as apiDeleteChatSession,
   sendMessage as apiSendMessage,
@@ -65,19 +66,17 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         hasMoreSessions: response.has_next,
       });
 
-      // Then, in the background, derive titles for sessions that don't have one yet
       const sessionsNeedingTitles = sessions.filter((s) => !s.title);
       if (sessionsNeedingTitles.length > 0) {
         Promise.all(
           sessionsNeedingTitles.map(async (s) => {
             try {
-              const messages = await apiGetSessionMessages(s.sessionId);
-              const firstUserMessage = messages.find((m) => m.role === 'user');
-              if (firstUserMessage) {
+              const { message } = await apiGetFirstUserMessage(s.sessionId);
+              if (message?.content) {
                 set((state) => ({
                   sessions: state.sessions.map((session) =>
                     session.sessionId === s.sessionId && !session.title
-                      ? { ...session, title: firstUserMessage.content }
+                      ? { ...session, title: message.content }
                       : session
                   ),
                 }));
@@ -108,13 +107,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             Promise.all(
               sessionsNeedingTitles.map(async (s) => {
                 try {
-                  const messages = await apiGetSessionMessages(s.sessionId);
-                  const firstUserMessage = messages.find((m) => m.role === 'user');
-                  if (firstUserMessage) {
+                  const { message } = await apiGetFirstUserMessage(s.sessionId);
+                  if (message?.content) {
                     set((state) => ({
                       sessions: state.sessions.map((session) =>
                         session.sessionId === s.sessionId && !session.title
-                          ? { ...session, title: firstUserMessage.content }
+                          ? { ...session, title: message.content }
                           : session
                       ),
                     }));
@@ -161,28 +159,29 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         hasMoreSessions: response.has_next,
       }));
 
-      // Derive titles for newly loaded sessions that don't have one yet
-      const sessionsNeedingTitles = newSessions.filter((s) => !s.title);
-      if (sessionsNeedingTitles.length > 0) {
-        Promise.all(
-          sessionsNeedingTitles.map(async (s) => {
-            try {
-              const messages = await apiGetSessionMessages(s.sessionId);
-              const firstUserMessage = messages.find((m) => m.role === 'user');
-              if (firstUserMessage) {
-                set((state) => ({
-                  sessions: state.sessions.map((session) =>
-                    session.sessionId === s.sessionId && !session.title
-                      ? { ...session, title: firstUserMessage.content }
-                      : session
-                  ),
-                }));
+      // Derive titles for newly loaded sessions that don't have one yet, via the lightweight endpoint
+      {
+        const sessionsNeedingTitlesMore = newSessions.filter((s) => !s.title);
+        if (sessionsNeedingTitlesMore.length > 0) {
+          Promise.all(
+            sessionsNeedingTitlesMore.map(async (s) => {
+              try {
+                const { message } = await apiGetFirstUserMessage(s.sessionId);
+                if (message?.content) {
+                  set((state) => ({
+                    sessions: state.sessions.map((session) =>
+                      session.sessionId === s.sessionId && !session.title
+                        ? { ...session, title: message.content }
+                        : session
+                    ),
+                  }));
+                }
+              } catch {
+                // Ignore per-session title derivation errors
               }
-            } catch {
-              // Ignore per-session title derivation errors
-            }
-          })
-        );
+            })
+          );
+        }
       }
     } catch (err: any) {
       if (err?.response?.status === 401) {
@@ -197,18 +196,17 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             hasMoreSessions: response.has_next,
           }));
 
-          const sessionsNeedingTitles = newSessions.filter((s) => !s.title);
-          if (sessionsNeedingTitles.length > 0) {
+          const sessionsNeedingTitlesMore = newSessions.filter((s) => !s.title);
+          if (sessionsNeedingTitlesMore.length > 0) {
             Promise.all(
-              sessionsNeedingTitles.map(async (s) => {
+              sessionsNeedingTitlesMore.map(async (s) => {
                 try {
-                  const messages = await apiGetSessionMessages(s.sessionId);
-                  const firstUserMessage = messages.find((m) => m.role === 'user');
-                  if (firstUserMessage) {
+                  const { message } = await apiGetFirstUserMessage(s.sessionId);
+                  if (message?.content) {
                     set((state) => ({
                       sessions: state.sessions.map((session) =>
                         session.sessionId === s.sessionId && !session.title
-                          ? { ...session, title: firstUserMessage.content }
+                          ? { ...session, title: message.content }
                           : session
                       ),
                     }));
