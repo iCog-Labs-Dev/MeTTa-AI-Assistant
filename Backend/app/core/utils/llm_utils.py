@@ -21,7 +21,7 @@ class LLMClientFactory:
 
         if not model_name:
             model_name = (
-                "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-4.1-mini"
+                "gemini-3-pro-preview" if provider == LLMProvider.GEMINI else "gpt-4.1-mini"
             )
 
         return LLMClient(
