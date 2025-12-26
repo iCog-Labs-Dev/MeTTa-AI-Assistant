@@ -1,5 +1,5 @@
 import axiosInstance, { handleAxiosError } from '../lib/axios';
-import type { ChatSession, SessionsResponse, Message, ChatSessionWithMessages } from '../types/chat';
+import type { ChatSession, SessionsResponse, Message, ChatSessionWithMessages, CursorMessagesResponse } from '../types/chat';
 
 const SESSIONS_BASE_URL = '/api/chat/sessions';
 const CHAT_BASE_URL = '/api/chat';
@@ -42,6 +42,23 @@ export const getSessionMessages = async (sessionId: string): Promise<Message[]> 
   try {
     const response = await axiosInstance.get<ChatSessionWithMessages>(`${SESSIONS_BASE_URL}/${sessionId}`);
     return response.data.messages || [];
+  } catch (error) {
+    handleAxiosError(error, 'Sessions');
+    throw error;
+  }
+};
+
+// Cursor-based message retrieval
+export const getSessionMessagesCursor = async (
+  sessionId: string,
+  limit: number = 5,
+  cursor?: string
+): Promise<CursorMessagesResponse> => {
+  try {
+    const response = await axiosInstance.get<CursorMessagesResponse>(`${SESSIONS_BASE_URL}/${sessionId}/messages`, {
+      params: { limit, cursor },
+    });
+    return response.data;
   } catch (error) {
     handleAxiosError(error, 'Sessions');
     throw error;

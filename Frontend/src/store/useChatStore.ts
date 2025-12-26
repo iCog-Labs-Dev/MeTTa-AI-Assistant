@@ -5,6 +5,7 @@ import {
   getChatSessions as apiGetChatSessions,
   getFirstUserMessage as apiGetFirstUserMessage,
   getSessionMessages as apiGetSessionMessages,
+  getSessionMessagesCursor as apiGetSessionMessagesCursor,
   deleteChatSession as apiDeleteChatSession,
   sendMessage as apiSendMessage,
 } from '../services/chatService';
@@ -23,11 +24,15 @@ interface ChatState {
   isLoadingMessages: boolean;
   isSendingMessage: boolean;
   error: string | null;
+  messagesNextCursor: string | null;
+  hasNextMessages: boolean;
+  isLoadingMoreMessages: boolean;
 
   // Actions
   loadSessions: () => Promise<void>;
   loadMoreSessions: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
+  loadOlderMessages: () => Promise<number>;
   deleteSession: (sessionId: string) => Promise<void>;
   createSession: () => Promise<void>;
   sendMessage: (query: string) => Promise<void>;
@@ -45,6 +50,9 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   isLoadingMessages: false,
   isSendingMessage: false,
   error: null,
+  messagesNextCursor: null,
+  hasNextMessages: false,
+  isLoadingMoreMessages: false,
 
   loadSessions: async () => {
     if (!isAuthenticated()) {
@@ -235,9 +243,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
     set({ selectedSessionId: sessionId, isLoadingMessages: true, error: null });
     try {
-      const apiMessages = await apiGetSessionMessages(sessionId);
+      const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 5);
 
-      // Ensure every message has a stable id and timestamp for React keys and ordering
       const messages = apiMessages.map((m, index) => ({
         ...m,
         id: m.id || `${sessionId}-${index}`,
@@ -250,6 +257,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       set((state) => ({
         messages,
         isLoadingMessages: false,
+        messagesNextCursor: nextCursor ?? null,
+        hasNextMessages: !!hasNext,
         sessions: state.sessions.map((s) =>
           s.sessionId === sessionId && !s.title && firstUserMessage
             ? { ...s, title: firstUserMessage.content }
@@ -260,13 +269,13 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
-          const apiMessages = await apiGetSessionMessages(sessionId);
+          const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 5);
           const messages = apiMessages.map((m, index) => ({
             ...m,
             id: m.id || `${sessionId}-${index}`,
             timestamp: m.timestamp ?? Date.now(),
           }));
-          set({ messages, isLoadingMessages: false });
+          set({ messages, isLoadingMessages: false, messagesNextCursor: nextCursor ?? null, hasNextMessages: !!hasNext });
         } catch (refreshErr) {
           set({ error: 'Session expired. Please log in again.', isLoadingMessages: false });
           window.location.href = '/login';
@@ -274,6 +283,75 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       } else {
         set({ error: 'Failed to load messages', isLoadingMessages: false });
       }
+    }
+  },
+
+  loadOlderMessages: async () => {
+    if (!isAuthenticated()) {
+      set({ error: 'Please log in to view messages' });
+      return 0;
+    }
+
+    const { selectedSessionId, messagesNextCursor, hasNextMessages, isLoadingMoreMessages } = get();
+    if (!selectedSessionId || !hasNextMessages || !messagesNextCursor || isLoadingMoreMessages) {
+      return 0;
+    }
+
+    set({ isLoadingMoreMessages: true, error: null });
+    try {
+      const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
+        selectedSessionId,
+        5,
+        messagesNextCursor
+      );
+
+      const olderMessages = olderApiMessages.map((m, index) => ({
+        ...m,
+        id: m.id || `${selectedSessionId}-older-${messagesNextCursor}-${index}`,
+        timestamp: m.timestamp ?? Date.now(),
+      }));
+
+      set((state) => ({
+        messages: [...olderMessages, ...state.messages],
+        messagesNextCursor: nextCursor ?? null,
+        hasNextMessages: !!hasNext,
+        isLoadingMoreMessages: false,
+      }));
+
+      return olderMessages.length;
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        try {
+          await refreshAccessToken();
+          const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
+            selectedSessionId,
+            5,
+            messagesNextCursor
+          );
+
+          const olderMessages = olderApiMessages.map((m, index) => ({
+            ...m,
+            id: m.id || `${selectedSessionId}-older-${messagesNextCursor}-${index}`,
+            timestamp: m.timestamp ?? Date.now(),
+          }));
+
+          set((state) => ({
+            messages: [...olderMessages, ...state.messages],
+            messagesNextCursor: nextCursor ?? null,
+            hasNextMessages: !!hasNext,
+            isLoadingMoreMessages: false,
+          }));
+
+          return olderMessages.length;
+        } catch (refreshErr) {
+          set({ error: 'Session expired. Please log in again.', isLoadingMoreMessages: false });
+          window.location.href = '/login';
+          return 0;
+        }
+      }
+
+      set({ error: 'Failed to load more messages', isLoadingMoreMessages: false });
+      return 0;
     }
   },
 
