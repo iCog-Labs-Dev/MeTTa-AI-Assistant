@@ -102,12 +102,15 @@ async def get_annotation_stats(
     try:
         chunks_collection = _get_collection(mongo_db, "chunks")
         
-        total_chunks = await chunks_collection.count_documents({})
-        completed = await chunks_collection.count_documents({"status": "ANNOTATED"})
-        failed = await chunks_collection.count_documents({"status": "FAILED_GEN"})
-        quota_exceeded = await chunks_collection.count_documents({"status": "FAILED_QUOTA"})
+        # Only consider chunks from 'code' source for annotation stats
+        annotatable_filter = {"source": "code"}
         
-        # Calculate pending (everything else)
+        total_chunks = await chunks_collection.count_documents(annotatable_filter)
+        completed = await chunks_collection.count_documents({**annotatable_filter, "status": "ANNOTATED"})
+        failed = await chunks_collection.count_documents({**annotatable_filter, "status": "FAILED_GEN"})
+        quota_exceeded = await chunks_collection.count_documents({**annotatable_filter, "status": "FAILED_QUOTA"})
+        
+        # Calculate pending (unprocessed chunks from 'code' source)
         pending = total_chunks - completed - failed - quota_exceeded
         
         completed_percentage = (completed / total_chunks * 100) if total_chunks > 0 else 0

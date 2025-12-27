@@ -309,9 +309,6 @@ function ChunkManagement() {
 
                   <div className="text-xs text-zinc-500 dark:text-zinc-400 flex items-center justify-between">
                     <span>ID: {chunk.chunkId}</span>
-                    {chunk.last_annotated_at && (
-                      <span>Annotated: {new Date(chunk.last_annotated_at).toLocaleDateString()}</span>
-                    )}
                   </div>
                 </div>
               ))}
