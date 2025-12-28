@@ -243,7 +243,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
     set({ selectedSessionId: sessionId, isLoadingMessages: true, error: null });
     try {
-      const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 5);
+      const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 10);
 
       const messages = apiMessages.map((m, index) => ({
         ...m,
@@ -269,7 +269,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
-          const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 5);
+          const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 10);
           const messages = apiMessages.map((m, index) => ({
             ...m,
             id: m.id || `${sessionId}-${index}`,
@@ -298,13 +298,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     }
 
     set({ isLoadingMoreMessages: true, error: null });
-    try {
-      const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
-        selectedSessionId,
-        5,
-        messagesNextCursor
-      );
 
+    const processOlderResponse = (
+      olderApiMessages: Message[],
+      nextCursor?: string | null,
+      hasNext?: boolean
+    ) => {
       const olderMessages = olderApiMessages.map((m, index) => ({
         ...m,
         id: m.id || `${selectedSessionId}-older-${messagesNextCursor}-${index}`,
@@ -319,30 +318,27 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       }));
 
       return olderMessages.length;
+    };
+
+    try {
+      const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
+        selectedSessionId,
+        10,
+        messagesNextCursor
+      );
+
+      return processOlderResponse(olderApiMessages, nextCursor, hasNext);
     } catch (err: any) {
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
           const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
             selectedSessionId,
-            5,
+            10,
             messagesNextCursor
           );
 
-          const olderMessages = olderApiMessages.map((m, index) => ({
-            ...m,
-            id: m.id || `${selectedSessionId}-older-${messagesNextCursor}-${index}`,
-            timestamp: m.timestamp ?? Date.now(),
-          }));
-
-          set((state) => ({
-            messages: [...olderMessages, ...state.messages],
-            messagesNextCursor: nextCursor ?? null,
-            hasNextMessages: !!hasNext,
-            isLoadingMoreMessages: false,
-          }));
-
-          return olderMessages.length;
+          return processOlderResponse(olderApiMessages, nextCursor, hasNext);
         } catch (refreshErr) {
           set({ error: 'Session expired. Please log in again.', isLoadingMoreMessages: false });
           window.location.href = '/login';
