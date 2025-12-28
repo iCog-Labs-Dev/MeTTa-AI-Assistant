@@ -3,7 +3,9 @@ import { persist } from 'zustand/middleware';
 import { ChatSession, Message } from '../types/chat';
 import {
   getChatSessions as apiGetChatSessions,
+  getFirstUserMessage as apiGetFirstUserMessage,
   getSessionMessages as apiGetSessionMessages,
+  getSessionMessagesCursor as apiGetSessionMessagesCursor,
   deleteChatSession as apiDeleteChatSession,
   sendMessage as apiSendMessage,
 } from '../services/chatService';
@@ -22,11 +24,15 @@ interface ChatState {
   isLoadingMessages: boolean;
   isSendingMessage: boolean;
   error: string | null;
+  messagesNextCursor: string | null;
+  hasNextMessages: boolean;
+  isLoadingMoreMessages: boolean;
 
   // Actions
   loadSessions: () => Promise<void>;
   loadMoreSessions: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
+  loadOlderMessages: () => Promise<number>;
   deleteSession: (sessionId: string) => Promise<void>;
   createSession: () => Promise<void>;
   sendMessage: (query: string) => Promise<void>;
@@ -44,6 +50,9 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   isLoadingMessages: false,
   isSendingMessage: false,
   error: null,
+  messagesNextCursor: null,
+  hasNextMessages: false,
+  isLoadingMoreMessages: false,
 
   loadSessions: async () => {
     if (!isAuthenticated()) {
@@ -65,19 +74,17 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         hasMoreSessions: response.has_next,
       });
 
-      // Then, in the background, derive titles for sessions that don't have one yet
       const sessionsNeedingTitles = sessions.filter((s) => !s.title);
       if (sessionsNeedingTitles.length > 0) {
         Promise.all(
           sessionsNeedingTitles.map(async (s) => {
             try {
-              const messages = await apiGetSessionMessages(s.sessionId);
-              const firstUserMessage = messages.find((m) => m.role === 'user');
-              if (firstUserMessage) {
+              const { message } = await apiGetFirstUserMessage(s.sessionId);
+              if (message?.content) {
                 set((state) => ({
                   sessions: state.sessions.map((session) =>
                     session.sessionId === s.sessionId && !session.title
-                      ? { ...session, title: firstUserMessage.content }
+                      ? { ...session, title: message.content }
                       : session
                   ),
                 }));
@@ -108,13 +115,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             Promise.all(
               sessionsNeedingTitles.map(async (s) => {
                 try {
-                  const messages = await apiGetSessionMessages(s.sessionId);
-                  const firstUserMessage = messages.find((m) => m.role === 'user');
-                  if (firstUserMessage) {
+                  const { message } = await apiGetFirstUserMessage(s.sessionId);
+                  if (message?.content) {
                     set((state) => ({
                       sessions: state.sessions.map((session) =>
                         session.sessionId === s.sessionId && !session.title
-                          ? { ...session, title: firstUserMessage.content }
+                          ? { ...session, title: message.content }
                           : session
                       ),
                     }));
@@ -161,28 +167,29 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         hasMoreSessions: response.has_next,
       }));
 
-      // Derive titles for newly loaded sessions that don't have one yet
-      const sessionsNeedingTitles = newSessions.filter((s) => !s.title);
-      if (sessionsNeedingTitles.length > 0) {
-        Promise.all(
-          sessionsNeedingTitles.map(async (s) => {
-            try {
-              const messages = await apiGetSessionMessages(s.sessionId);
-              const firstUserMessage = messages.find((m) => m.role === 'user');
-              if (firstUserMessage) {
-                set((state) => ({
-                  sessions: state.sessions.map((session) =>
-                    session.sessionId === s.sessionId && !session.title
-                      ? { ...session, title: firstUserMessage.content }
-                      : session
-                  ),
-                }));
+      // Derive titles for newly loaded sessions that don't have one yet, via the lightweight endpoint
+      {
+        const sessionsNeedingTitlesMore = newSessions.filter((s) => !s.title);
+        if (sessionsNeedingTitlesMore.length > 0) {
+          Promise.all(
+            sessionsNeedingTitlesMore.map(async (s) => {
+              try {
+                const { message } = await apiGetFirstUserMessage(s.sessionId);
+                if (message?.content) {
+                  set((state) => ({
+                    sessions: state.sessions.map((session) =>
+                      session.sessionId === s.sessionId && !session.title
+                        ? { ...session, title: message.content }
+                        : session
+                    ),
+                  }));
+                }
+              } catch {
+                // Ignore per-session title derivation errors
               }
-            } catch {
-              // Ignore per-session title derivation errors
-            }
-          })
-        );
+            })
+          );
+        }
       }
     } catch (err: any) {
       if (err?.response?.status === 401) {
@@ -197,18 +204,17 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             hasMoreSessions: response.has_next,
           }));
 
-          const sessionsNeedingTitles = newSessions.filter((s) => !s.title);
-          if (sessionsNeedingTitles.length > 0) {
+          const sessionsNeedingTitlesMore = newSessions.filter((s) => !s.title);
+          if (sessionsNeedingTitlesMore.length > 0) {
             Promise.all(
-              sessionsNeedingTitles.map(async (s) => {
+              sessionsNeedingTitlesMore.map(async (s) => {
                 try {
-                  const messages = await apiGetSessionMessages(s.sessionId);
-                  const firstUserMessage = messages.find((m) => m.role === 'user');
-                  if (firstUserMessage) {
+                  const { message } = await apiGetFirstUserMessage(s.sessionId);
+                  if (message?.content) {
                     set((state) => ({
                       sessions: state.sessions.map((session) =>
                         session.sessionId === s.sessionId && !session.title
-                          ? { ...session, title: firstUserMessage.content }
+                          ? { ...session, title: message.content }
                           : session
                       ),
                     }));
@@ -237,9 +243,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
     set({ selectedSessionId: sessionId, isLoadingMessages: true, error: null });
     try {
-      const apiMessages = await apiGetSessionMessages(sessionId);
+      const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 10);
 
-      // Ensure every message has a stable id and timestamp for React keys and ordering
       const messages = apiMessages.map((m, index) => ({
         ...m,
         id: m.id || `${sessionId}-${index}`,
@@ -252,6 +257,8 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       set((state) => ({
         messages,
         isLoadingMessages: false,
+        messagesNextCursor: nextCursor ?? null,
+        hasNextMessages: !!hasNext,
         sessions: state.sessions.map((s) =>
           s.sessionId === sessionId && !s.title && firstUserMessage
             ? { ...s, title: firstUserMessage.content }
@@ -262,13 +269,13 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
-          const apiMessages = await apiGetSessionMessages(sessionId);
+          const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 10);
           const messages = apiMessages.map((m, index) => ({
             ...m,
             id: m.id || `${sessionId}-${index}`,
             timestamp: m.timestamp ?? Date.now(),
           }));
-          set({ messages, isLoadingMessages: false });
+          set({ messages, isLoadingMessages: false, messagesNextCursor: nextCursor ?? null, hasNextMessages: !!hasNext });
         } catch (refreshErr) {
           set({ error: 'Session expired. Please log in again.', isLoadingMessages: false });
           window.location.href = '/login';
@@ -276,6 +283,71 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       } else {
         set({ error: 'Failed to load messages', isLoadingMessages: false });
       }
+    }
+  },
+
+  loadOlderMessages: async () => {
+    if (!isAuthenticated()) {
+      set({ error: 'Please log in to view messages' });
+      return 0;
+    }
+
+    const { selectedSessionId, messagesNextCursor, hasNextMessages, isLoadingMoreMessages } = get();
+    if (!selectedSessionId || !hasNextMessages || !messagesNextCursor || isLoadingMoreMessages) {
+      return 0;
+    }
+
+    set({ isLoadingMoreMessages: true, error: null });
+
+    const processOlderResponse = (
+      olderApiMessages: Message[],
+      nextCursor?: string | null,
+      hasNext?: boolean
+    ) => {
+      const olderMessages = olderApiMessages.map((m, index) => ({
+        ...m,
+        id: m.id || `${selectedSessionId}-older-${messagesNextCursor}-${index}`,
+        timestamp: m.timestamp ?? Date.now(),
+      }));
+
+      set((state) => ({
+        messages: [...olderMessages, ...state.messages],
+        messagesNextCursor: nextCursor ?? null,
+        hasNextMessages: !!hasNext,
+        isLoadingMoreMessages: false,
+      }));
+
+      return olderMessages.length;
+    };
+
+    try {
+      const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
+        selectedSessionId,
+        10,
+        messagesNextCursor
+      );
+
+      return processOlderResponse(olderApiMessages, nextCursor, hasNext);
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        try {
+          await refreshAccessToken();
+          const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
+            selectedSessionId,
+            10,
+            messagesNextCursor
+          );
+
+          return processOlderResponse(olderApiMessages, nextCursor, hasNext);
+        } catch (refreshErr) {
+          set({ error: 'Session expired. Please log in again.', isLoadingMoreMessages: false });
+          window.location.href = '/login';
+          return 0;
+        }
+      }
+
+      set({ error: 'Failed to load more messages', isLoadingMoreMessages: false });
+      return 0;
     }
   },
 
