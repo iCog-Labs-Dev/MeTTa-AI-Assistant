@@ -51,7 +51,7 @@ export const getSessionMessages = async (sessionId: string): Promise<Message[]> 
 // Cursor-based message retrieval
 export const getSessionMessagesCursor = async (
   sessionId: string,
-  limit: number = 5,
+  limit: number = 10,
   cursor?: string
 ): Promise<CursorMessagesResponse> => {
   try {
