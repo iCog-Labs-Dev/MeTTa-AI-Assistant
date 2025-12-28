@@ -40,7 +40,7 @@ async def insert_chat_message(
 
 async def get_last_messages(
     session_id: str,
-    limit: int = 5,
+    limit: int = 10,
     mongo_db: Database = None,
 ) -> List[dict]:
     """
@@ -191,7 +191,7 @@ def _decode_msg_cursor(cursor: str) -> Tuple[datetime, str]:
 
 async def get_messages_cursor(
     session_id: str,
-    limit: int = 5,
+    limit: int = 10,
     cursor: Optional[str] = None,
     mongo_db: Database = None,
 ) -> dict:
@@ -202,23 +202,23 @@ async def get_messages_cursor(
     filter_query = {"sessionId": session_id}
 
     if cursor:
-        cdt, cmid = _decode_msg_cursor(cursor)
+        cursor_created_at, cursor_message_id = _decode_msg_cursor(cursor)
         filter_query.update(
             {
                 "$or": [
-                    {"createdAt": {"$lt": cdt}},
-                    {"createdAt": cdt, "messageId": {"$lt": cmid}},
+                    {"createdAt": {"$lt": cursor_created_at}},
+                    {"createdAt": cursor_created_at, "messageId": {"$lt": cursor_message_id}},
                 ]
             }
         )
 
-    q = (
+    message_cursor = (
         collection.find(filter_query, {"_id": 0})
         .sort([("createdAt", -1), ("messageId", -1)])
         .limit(limit + 1)
     )
 
-    docs = [ChatMessageSchema(**doc).model_dump() async for doc in q]
+    docs = [ChatMessageSchema(**doc).model_dump() async for doc in message_cursor]
 
     has_next = len(docs) > limit
     page_desc = docs[:limit]
