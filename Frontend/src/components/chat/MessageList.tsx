@@ -64,9 +64,6 @@ function MessageList({
           const delta = nextHeight - prevHeight;
           container.scrollTop = prevTop + delta;
         });
-        if (added === 0) {
-          isFetchingRef.current = false;
-        }
       } finally {
         isFetchingRef.current = false;
       }
