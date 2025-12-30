@@ -28,3 +28,9 @@ export interface SessionsResponse {
   has_next: boolean;
   has_prev: boolean;
 }
+
+export interface CursorMessagesResponse {
+  messages: Message[];
+  nextCursor: string | null;
+  hasNext: boolean;
+}
