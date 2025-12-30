@@ -3,7 +3,7 @@ from typing import Optional, List
 from pydantic import BaseModel
 from pymongo.database import Database
 from bson import ObjectId
-from loguru import logger
+from app.core.logging import logger
 from datetime import datetime, timezone
 
 from app.dependencies import get_mongo_db, require_role
