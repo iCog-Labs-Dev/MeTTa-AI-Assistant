@@ -5,7 +5,7 @@ from pymongo.database import Database
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from ..core.repo_ingestion.ingest import ingest_pipeline
 from app.db.db import update_chunk, delete_chunk, get_chunk_by_id, get_chunks, _get_collection
-from loguru import logger
+from app.core.logging import logger
 from app.dependencies import (
     get_mongo_db,
     get_embedding_model_dep,
