@@ -1,17 +1,18 @@
-import { create, StateCreator } from 'zustand';
-import { persist } from 'zustand/middleware';
-import type { ChatSession, Message } from '../types/chat';
+import { create, StateCreator } from "zustand";
+import { persist } from "zustand/middleware";
+import type { ChatSession, Message } from "../types/chat";
 import {
   getChatSessions as apiGetChatSessions,
+  getFirstUserMessage as apiGetFirstUserMessage,
   getSessionMessages as apiGetSessionMessages,
+  getSessionMessagesCursor as apiGetSessionMessagesCursor,
   deleteChatSession as apiDeleteChatSession,
   sendMessage as apiSendMessage,
   streamMessage,
   ChatRequest,
-} from '../services/chatService';
-import { refreshAccessToken, isAuthenticated } from '../lib/auth';
-import { useModelStore } from './useModelStore';
-
+} from "../services/chatService";
+import { refreshAccessToken, isAuthenticated } from "../lib/auth";
+import { useModelStore } from "./useModelStore";
 
 interface ChatState {
   sessions: ChatSession[];
@@ -25,36 +26,44 @@ interface ChatState {
   isLoadingMessages: boolean;
   isSendingMessage: boolean;
   error: string | null;
+  messagesNextCursor: string | null;
+  hasNextMessages: boolean;
+  isLoadingMoreMessages: boolean;
 
   // Actions
   loadSessions: () => Promise<void>;
   loadMoreSessions: () => Promise<void>;
   selectSession: (sessionId: string) => Promise<void>;
+  loadOlderMessages: () => Promise<number>;
   deleteSession: (sessionId: string) => Promise<void>;
   createSession: () => Promise<void>;
   sendMessage: (query: string) => Promise<void>;
-  updateMessageFeedback: ( messageId: string, feedback: "positive" | "neutral" | "negative" | null) => void;
+  updateMessageFeedback: ( messageId: string, feedback: "positive" | "neutral" | "negative" | null ) => void;
 }
 
 const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
   sessions: [],
   messages: [],
   selectedSessionId: null,
-  sessionsStatus: 'idle',
+  sessionsStatus: "idle",
   sessionsPage: 1,
   hasMoreSessions: false,
   isLoadingSessions: false,
   isLoadingMessages: false,
   isSendingMessage: false,
   error: null,
+  messagesNextCursor: null,
+  hasNextMessages: false,
+  isLoadingMoreMessages: false,
 
- loadSessions: async () => {
+  loadSessions: async () => {
     if (!isAuthenticated()) {
-      set({ error: 'Please log in to view chat sessions', isLoadingSessions: false });
+      set({ error: "Please log in to view chat sessions",  isLoadingSessions: false });
       return;
     }
 
-    set({ isLoadingSessions: true, error: null, sessionsStatus: 'loading' });
+    set({ isLoadingSessions: true, error: null, sessionsStatus: "loading" });
+
     try {
       const response = await apiGetChatSessions(1, 20);
       const sessions = response.sessions;
@@ -63,24 +72,22 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       set({
         sessions,
         isLoadingSessions: false,
-        sessionsStatus: sessions.length > 0 ? 'ready' : 'empty',
+        sessionsStatus: sessions.length > 0 ? "ready" : "empty",
         sessionsPage: 1,
         hasMoreSessions: response.has_next,
       });
 
-      // Then, in the background, derive titles for sessions that don't have one yet
       const sessionsNeedingTitles = sessions.filter((s) => !s.title);
       if (sessionsNeedingTitles.length > 0) {
         Promise.all(
           sessionsNeedingTitles.map(async (s) => {
             try {
-              const messages = await apiGetSessionMessages(s.sessionId);
-              const firstUserMessage = messages.find((m) => m.role === 'user');
-              if (firstUserMessage) {
+              const { message } = await apiGetFirstUserMessage(s.sessionId);
+              if (message?.content) {
                 set((state) => ({
                   sessions: state.sessions.map((session) =>
                     session.sessionId === s.sessionId && !session.title
-                      ? { ...session, title: firstUserMessage.content }
+                      ? { ...session, title: message.content }
                       : session
                   ),
                 }));
@@ -101,7 +108,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           set({
             sessions,
             isLoadingSessions: false,
-            sessionsStatus: sessions.length > 0 ? 'ready' : 'empty',
+            sessionsStatus: sessions.length > 0 ? "ready" : "empty",
             sessionsPage: 1,
             hasMoreSessions: response.has_next,
           });
@@ -111,13 +118,12 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             Promise.all(
               sessionsNeedingTitles.map(async (s) => {
                 try {
-                  const messages = await apiGetSessionMessages(s.sessionId);
-                  const firstUserMessage = messages.find((m) => m.role === 'user');
-                  if (firstUserMessage) {
+                  const { message } = await apiGetFirstUserMessage(s.sessionId);
+                  if (message?.content) {
                     set((state) => ({
                       sessions: state.sessions.map((session) =>
                         session.sessionId === s.sessionId && !session.title
-                          ? { ...session, title: firstUserMessage.content }
+                          ? { ...session, title: message.content }
                           : session
                       ),
                     }));
@@ -128,24 +134,24 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
               })
             );
           }
-        } catch (refreshErr) {
+        } catch {
           set({
-            error: 'Session expired. Please log in again.',
+            error: "Session expired. Please log in again.",
             isLoadingSessions: false,
-            sessionsStatus: 'empty',
+            sessionsStatus: "empty",
           });
           // Redirect to login or handle token refresh failure
-          window.location.href = '/login';
+          window.location.href = "/login";
         }
       } else {
-        set({ error: 'Failed to load sessions', isLoadingSessions: false, sessionsStatus: 'empty' });
+        set({ error: "Failed to load sessions", isLoadingSessions: false, sessionsStatus: "empty" });
       }
     }
   },
 
   loadMoreSessions: async () => {
     if (!isAuthenticated()) {
-      set({ error: 'Please log in to view more sessions' });
+      set({ error: "Please log in to view more sessions" });
       return;
     }
 
@@ -159,24 +165,23 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       const newSessions = response.sessions;
 
       set((state) => ({
-        sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some(s => s.sessionId === ns.sessionId))],
+        sessions: [...state.sessions, ...newSessions.filter((ns) => !state.sessions.some((s) => s.sessionId === ns.sessionId))],
         sessionsPage: nextPage,
         hasMoreSessions: response.has_next,
       }));
 
-      // Derive titles for newly loaded sessions that don't have one yet
-      const sessionsNeedingTitles = newSessions.filter((s) => !s.title);
-      if (sessionsNeedingTitles.length > 0) {
+      // Derive titles for newly loaded sessions that don't have one yet, via the lightweight endpoint
+      const sessionsNeedingTitlesMore = newSessions.filter((s) => !s.title);
+      if (sessionsNeedingTitlesMore.length > 0) {
         Promise.all(
-          sessionsNeedingTitles.map(async (s) => {
+          sessionsNeedingTitlesMore.map(async (s) => {
             try {
-              const messages = await apiGetSessionMessages(s.sessionId);
-              const firstUserMessage = messages.find((m) => m.role === 'user');
-              if (firstUserMessage) {
+              const { message } = await apiGetFirstUserMessage(s.sessionId);
+              if (message?.content) {
                 set((state) => ({
                   sessions: state.sessions.map((session) =>
                     session.sessionId === s.sessionId && !session.title
-                      ? { ...session, title: firstUserMessage.content }
+                      ? { ...session, title: message.content }
                       : session
                   ),
                 }));
@@ -195,23 +200,22 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           const newSessions = response.sessions;
 
           set((state) => ({
-            sessions: [...state.sessions, ...newSessions.filter(ns => !state.sessions.some(s => s.sessionId === ns.sessionId))],
+            sessions: [...state.sessions, ...newSessions.filter((ns) => !state.sessions.some((s) => s.sessionId === ns.sessionId))],
             sessionsPage: nextPage,
             hasMoreSessions: response.has_next,
           }));
 
-          const sessionsNeedingTitles = newSessions.filter((s) => !s.title);
-          if (sessionsNeedingTitles.length > 0) {
+          const sessionsNeedingTitlesMore = newSessions.filter((s) => !s.title);
+          if (sessionsNeedingTitlesMore.length > 0) {
             Promise.all(
-              sessionsNeedingTitles.map(async (s) => {
+              sessionsNeedingTitlesMore.map(async (s) => {
                 try {
-                  const messages = await apiGetSessionMessages(s.sessionId);
-                  const firstUserMessage = messages.find((m) => m.role === 'user');
-                  if (firstUserMessage) {
+                  const { message } = await apiGetFirstUserMessage(s.sessionId);
+                  if (message?.content) {
                     set((state) => ({
                       sessions: state.sessions.map((session) =>
                         session.sessionId === s.sessionId && !session.title
-                          ? { ...session, title: firstUserMessage.content }
+                          ? { ...session, title: message.content }
                           : session
                       ),
                     }));
@@ -223,26 +227,25 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             );
           }
         } catch (refreshErr) {
-          set({ error: 'Session expired. Please log in again.' });
-          window.location.href = '/login';
+          set({ error: "Session expired. Please log in again." });
+          window.location.href = "/login";
         }
       } else {
-        set({ error: 'Failed to load more sessions' });
+        set({ error: "Failed to load more sessions" });
       }
     }
   },
 
- selectSession: async (sessionId: string) => {
+  selectSession: async (sessionId: string) => {
     if (!isAuthenticated()) {
-      set({ error: 'Please log in to view messages', isLoadingMessages: false });
+      set({ error: "Please log in to view messages", isLoadingMessages: false});
       return;
     }
 
     set({ selectedSessionId: sessionId, isLoadingMessages: true, error: null });
     try {
-      const apiMessages = await apiGetSessionMessages(sessionId);
+      const { messages: apiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(sessionId, 10);
 
-      // Ensure every message has a stable id and timestamp for React keys and ordering
       const messages = apiMessages.map((m, index) => ({
         ...m,
         id: m.id || `${sessionId}-${index}`,
@@ -250,11 +253,13 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       }));
 
       // Derive a title from the first user message if the session has no title yet
-      const firstUserMessage = messages.find((m) => m.role === 'user');
+      const firstUserMessage = messages.find((m) => m.role === "user");
 
       set((state) => ({
         messages,
         isLoadingMessages: false,
+        messagesNextCursor: nextCursor ?? null,
+        hasNextMessages: !!hasNext,
         sessions: state.sessions.map((s) =>
           s.sessionId === sessionId && !s.title && firstUserMessage
             ? { ...s, title: firstUserMessage.content }
@@ -265,26 +270,99 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       if (err?.response?.status === 401) {
         try {
           await refreshAccessToken();
-          const apiMessages = await apiGetSessionMessages(sessionId);
+          const {
+            messages: apiMessages,
+            nextCursor,
+            hasNext,
+          } = await apiGetSessionMessagesCursor(sessionId, 10);
+
           const messages = apiMessages.map((m, index) => ({
             ...m,
             id: m.id || `${sessionId}-${index}`,
             timestamp: m.timestamp ?? Date.now(),
           }));
-          set({ messages, isLoadingMessages: false });
-        } catch (refreshErr) {
-          set({ error: 'Session expired. Please log in again.', isLoadingMessages: false });
-          window.location.href = '/login';
+
+          set({ messages, isLoadingMessages: false, messagesNextCursor: nextCursor ?? null, hasNextMessages: !!hasNext });
+        } catch {
+          set({ error: "Session expired. Please log in again.", isLoadingMessages: false });
+          window.location.href = "/login";
         }
       } else {
-        set({ error: 'Failed to load messages', isLoadingMessages: false });
+        set({ error: "Failed to load messages", isLoadingMessages: false });
       }
     }
   },
 
- deleteSession: async (sessionId: string) => {
+  loadOlderMessages: async () => {
     if (!isAuthenticated()) {
-      set({ error: 'Please log in to delete sessions' });
+      set({ error: "Please log in to view messages" });
+      return 0;
+    }
+
+    const { selectedSessionId, messagesNextCursor, hasNextMessages, isLoadingMoreMessages } = get();
+    if ( !selectedSessionId || !hasNextMessages || !messagesNextCursor || isLoadingMoreMessages) {
+      return 0;
+    }
+
+    set({ isLoadingMoreMessages: true, error: null });
+
+    const processOlderResponse = (
+      olderApiMessages: Message[],
+      nextCursor?: string | null,
+      hasNext?: boolean
+    ) => {
+      const olderMessages = olderApiMessages.map((m, index) => ({
+        ...m,
+        id:
+          m.id ||
+          `${selectedSessionId}-older-${messagesNextCursor}-${index}`,
+        timestamp: m.timestamp ?? Date.now(),
+      }));
+
+      set((state) => ({
+        messages: [...olderMessages, ...state.messages],
+        messagesNextCursor: nextCursor ?? null,
+        hasNextMessages: !!hasNext,
+        isLoadingMoreMessages: false,
+      }));
+
+      return olderMessages.length;
+    };
+
+    try {
+      const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
+        selectedSessionId,
+        10,
+        messagesNextCursor
+      );
+
+      return processOlderResponse(olderApiMessages, nextCursor, hasNext);
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        try {
+          await refreshAccessToken();
+          const { messages: olderApiMessages, nextCursor, hasNext } = await apiGetSessionMessagesCursor(
+            selectedSessionId,
+            10,
+            messagesNextCursor
+          );
+
+          return processOlderResponse(olderApiMessages, nextCursor, hasNext);
+        } catch {
+          set({ error: "Session expired. Please log in again.", isLoadingMoreMessages: false });
+          window.location.href = "/login";
+          return 0;
+        }
+      }
+
+      set({ error: "Failed to load more messages", isLoadingMoreMessages: false });
+      return 0;
+    }
+  },
+
+  deleteSession: async (sessionId: string) => {
+    if (!isAuthenticated()) {
+      set({ error: "Please log in to delete sessions" });
       return;
     }
 
@@ -298,7 +376,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           sessions: remaining,
           selectedSessionId: deletingActive ? null : state.selectedSessionId,
           messages: deletingActive ? [] : state.messages,
-          sessionsStatus: remaining.length > 0 ? 'ready' : 'empty',
+          sessionsStatus: remaining.length > 0 ? "ready" : "empty",
         };
       });
     } catch (err: any) {
@@ -314,22 +392,22 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
               sessions: remaining,
               selectedSessionId: deletingActive ? null : state.selectedSessionId,
               messages: deletingActive ? [] : state.messages,
-              sessionsStatus: remaining.length > 0 ? 'ready' : 'empty',
+              sessionsStatus: remaining.length > 0 ? "ready" : "empty",
             };
           });
-        } catch (refreshErr) {
-          set({ error: 'Session expired. Please log in again.' });
-          window.location.href = '/login';
+        } catch {
+          set({ error: "Session expired. Please log in again." });
+          window.location.href = "/login";
         }
       } else {
-        set({ error: 'Failed to delete session' });
+        set({ error: "Failed to delete session" });
       }
     }
   },
-  
+
   createSession: async () => {
     if (!isAuthenticated()) {
-      set({ error: 'Please log in to create a new session' });
+      set({ error: "Please log in to create a new session" });
       return;
     }
 
@@ -367,17 +445,19 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      role: "user",
       content: query,
       timestamp: Date.now(),
     };
 
-    set((state) => ({ messages: [...state.messages, userMessage]}));
+    set((state) => ({
+      messages: [...state.messages, userMessage],
+    }));
 
     const thinkingMessage: Message = {
       id: (Date.now() + 1).toString(),
-      role: 'assistant',
-      content: 'Thinking...',
+      role: "assistant",
+      content: "Thinking...",
       timestamp: Date.now() + 1,
       isLoading: true,
     };
@@ -442,7 +522,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
       });
     };
 
-    // STREAMING FIRST
+    // Streaming first
     try {
       let accumulated = "";
 
@@ -516,10 +596,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
       return;
     } catch (streamErr) {
-      console.error(
-        "[useChatStore] Streaming failed, falling back:",
-        streamErr
-      );
+      console.error("[useChatStore] Streaming failed, falling back:", streamErr);
     }
 
     // FALLBACK TO NON-STREAMING sendMessage
@@ -643,7 +720,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     }
   },
 
-  updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => {
+  updateMessageFeedback: (messageId: string, feedback: "positive" | "neutral" | "negative" | null) => {
     set((state) => ({
       messages: state.messages.map((msg) =>
         msg.id === messageId ? { ...msg, feedback } : msg
@@ -654,10 +731,10 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
 
 export const useChatStore = create<ChatState>()(
   persist(chatStoreCreator, {
-    name: 'chat-storage',
+    name: "chat-storage",
     partialize: (state) => ({
       sessions: state.sessions,
       selectedSessionId: state.selectedSessionId,
     }),
-  }),
+  })
 );
