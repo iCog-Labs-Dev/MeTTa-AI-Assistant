@@ -21,7 +21,7 @@ class LLMClientFactory:
 
         if not model_name:
             model_name = (
-                "gemini-2.5-flash" if provider == LLMProvider.GEMINI else "gpt-4.1-mini"
+                "gemini-3-pro-preview" if provider == LLMProvider.GEMINI else "gpt-4.1-mini"
             )
 
         return LLMClient(
@@ -80,6 +80,7 @@ Instructions:
   * MeTTa syntax, semantics, and best practices
   * Hyperon concepts and usage
   * Code examples, patterns, and translations when relevant
+* Include every non-built-in helper function needed for the implementation, using any previously provided functions from the context or chat history.    
 * Keep answers medium length. If the user wants more details, they will ask.
 * You may answer greetings, farewells, small talk, and simple conversational questions.
 * Only provide answers that are directly supported by Context or History. Do NOT invent or assume information.

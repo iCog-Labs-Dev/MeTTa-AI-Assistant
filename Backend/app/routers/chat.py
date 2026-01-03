@@ -104,11 +104,11 @@ async def chat(
             return {"query": query, "mode": "search", "results": results}
         else:
             if provider.lower() == "gemini" and not model:
-                generator = RAGGenerator(retriever=retriever, llm_client=default_llm)
+                generator = RAGGenerator(retriever=retriever, llm_client=default_llm, mongo_db=mongo_db)
             else:
                 provider_enum = LLMProvider(provider.lower())
                 generator = RAGGenerator(
-                    retriever=retriever, provider=provider_enum, model_name=model
+                    retriever=retriever, provider=provider_enum, model_name=model, mongo_db=mongo_db
                 )
             user_message_id = await insert_chat_message(
                 {"sessionId": session_id, "role": "user", "content": query},

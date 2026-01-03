@@ -85,14 +85,21 @@ class LLMClient(BaseLLMClient):
 
         temperature = kwargs.get("temperature", 0.7)
         max_tokens = kwargs.get("max_tokens", 1000)
-
         if self._provider == LLMProvider.GEMINI:
-            client = init_chat_model(
-                model=self._model_name,
+            if api_key:
+                client = init_chat_model(
+                model="gemini-2.5-flash",
                 model_provider="google_genai",
                 google_api_key=current_key,
                 temperature=temperature,
-            )
+                )
+            else:
+                client = init_chat_model(
+                    model=self._model_name,
+                    model_provider="google_genai",
+                    google_api_key=current_key,
+                    temperature=temperature,
+                )
         else:  # OpenAI
             client = init_chat_model(
                 model=self._model_name,
