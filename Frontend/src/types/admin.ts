@@ -66,7 +66,6 @@ export interface Repository {
   chunkSize: number
   chunks: number
   status: "Completed" | "Processing" | "Failed"
-  createdAt: string
 }
 
 export interface BatchAnnotationRequest {

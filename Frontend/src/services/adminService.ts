@@ -19,7 +19,7 @@ export const getRepositories = async () => {
 export const getPaginatedChunks = async (params: ChunkFilters) => {
   // Convert frontend param names to backend param names
   const backendParams: any = {
-    limit: params.limit || 100,
+    limit: params.limit || 25,
     page: params.page || 1
   }
 

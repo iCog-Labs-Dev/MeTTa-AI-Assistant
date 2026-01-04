@@ -100,7 +100,7 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
         source: filters.source,
         search: filters.search,
         page: filters.page || 1,
-        limit: filters.limit || 100
+        limit: filters.limit || 25
       }
 
       const cleanParams = Object.fromEntries(

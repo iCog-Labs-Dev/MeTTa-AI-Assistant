@@ -24,7 +24,7 @@ function ChunkManagement() {
     search: '',
   })
 
-  const [fetchLimit, setFetchLimit] = useState(100)
+  const [fetchLimit, setFetchLimit] = useState(25)
 
   const [editingChunk, setEditingChunk] = useState<CodeChunk | null>(null)
   const [editContent, setEditContent] = useState("")

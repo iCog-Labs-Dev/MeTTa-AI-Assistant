@@ -44,7 +44,6 @@ class RepositoryResponse(BaseModel):
     chunkSize: int
     chunks: int
     status: str
-    createdAt: str
 
 @router.get("/stats", response_model=AdminStatsResponse)
 async def get_admin_stats(
@@ -242,8 +241,7 @@ async def get_repositories(
                 url=repo_data["repo"],
                 chunkSize=int(repo_data.get("chunk_size", 1000) or 1000),
                 chunks=int(repo_data.get("chunks", 0)),
-                status="Completed",
-                createdAt=datetime.now(timezone.utc).isoformat()
+                status="Completed"
             )
             repositories.append(repository)
         

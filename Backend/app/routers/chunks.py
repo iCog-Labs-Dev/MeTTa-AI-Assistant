@@ -127,7 +127,7 @@ async def list_chunks_paginated(
     section: Optional[str] = None,
     source: Optional[str] = None,
     search: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=1000, description="Limit per page"),
+    limit: int = Query(25, ge=1, le=1000, description="Limit per page"),
     page: int = Query(1, ge=1, description="Page number"),
     mongo_db : Database =Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
