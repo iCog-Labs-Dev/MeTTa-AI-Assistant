@@ -12,12 +12,34 @@ export const ingestRepository = async (repoUrl: string, chunkSize: number): Prom
 }
 
 export const getRepositories = async () => {
-  const response = await axiosInstance.get<Repository[]>('/api/admin/repositories') 
+  const response = await axiosInstance.get<Repository[]>('/api/admin/repositories')
   return response.data
 }
 
-export const getChunks = async (params: ChunkFilters) => {
-  const response = await axiosInstance.get<CodeChunk[]>('/api/chunks/', { params })
+export const getPaginatedChunks = async (params: ChunkFilters) => {
+  // Convert frontend param names to backend param names
+  const backendParams: any = {
+    limit: params.limit || 25,
+    page: params.page || 1
+  }
+
+  if (params.project) {
+    backendParams.project = params.project
+  }
+  if (params.repository) {
+    backendParams.repo = params.repository
+  }
+  if (params.section) {
+    backendParams.section = params.section
+  }
+  if (params.source) {
+    backendParams.source = params.source
+  }
+  if (params.search) {
+    backendParams.search = params.search
+  }
+
+  const response = await axiosInstance.get('/api/chunks/paginated', { params: backendParams })
   return response.data
 }
 
@@ -59,11 +81,6 @@ export const getAnnotationStats = async () => {
 
 export const getUsers = async () => {
   const response = await axiosInstance.get<User[]>('/api/admin/users')
-  return response.data
-}
-
-export const createUser = async (userData: { email: string; password?: string; role: string }) => {
-  const response = await axiosInstance.post('/api/admin/users', userData)
   return response.data
 }
 

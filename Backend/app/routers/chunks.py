@@ -4,7 +4,8 @@ from pydantic import BaseModel
 from pymongo.database import Database
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from ..core.repo_ingestion.ingest import ingest_pipeline
-from app.db.db import update_chunk, delete_chunk, get_chunk_by_id, get_chunks
+from app.db.db import update_chunk, delete_chunk, get_chunk_by_id, get_chunks, _get_collection
+from app.core.logging import logger
 from app.dependencies import (
     get_mongo_db,
     get_embedding_model_dep,
@@ -119,22 +120,20 @@ async def delete_chunk_endpoint(
 
     return None
 
-@router.get("/", response_model=List[Dict[str, Any]])
-async def list_chunks(
+@router.get("/paginated", response_model=Dict[str, Any])
+async def list_chunks_paginated(
     project: Optional[str] = None,
     repo: Optional[str] = None,
     section: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=1000, description="Limit the number of results (1-1000)"),
+    source: Optional[str] = None,
+    search: Optional[str] = None,
+    limit: int = Query(25, ge=1, le=1000, description="Limit per page"),
+    page: int = Query(1, ge=1, description="Page number"),
     mongo_db : Database =Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
 ):
     """
-    List all chunks with optional filtering.
-    
-    - **project**: Filter by project name
-    - **repo**: Filter by repository name
-    - **section**: Filter by section name
-    - **limit**: Number of results to return (1-1000)
+    Get paginated chunks for admin dashboard with total count.
     """
     filter_query = {}
     if project:
@@ -143,17 +142,39 @@ async def list_chunks(
         filter_query["repo"] = repo
     if section:
         filter_query["section"] = section
+    if source:
+        filter_query["source"] = source
+    if search:
+        filter_query["chunk"] = {"$regex": search, "$options": "i"}
+    
+    logger.info(f"Paginated chunks query: {filter_query}, page: {page}, limit: {limit}")
     
     try:
-        return await get_chunks(
-            filter_query=filter_query, limit=limit, mongo_db=mongo_db
-        )
+        # Get total count first
+        collection = _get_collection(mongo_db, "chunks")
+        total = await collection.count_documents(filter_query)
+        logger.info(f"Total chunks found: {total}")
+        
+        # Calculate skip for pagination
+        skip = (page - 1) * limit
+        
+        # Get paginated chunks using existing function
+        chunks = await get_chunks(filter_query=filter_query, limit=limit, skip=skip, mongo_db=mongo_db)
+        logger.info(f"Returning {len(chunks)} chunks")
+        
+        return {
+            "chunks": chunks,
+            "total": total,
+            "page": page,
+            "limit": limit,
+            "totalPages": (total + limit - 1) // limit
+        }
     except Exception as e:
+        logger.error(f"Error in paginated chunks: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving chunks: {str(e)}"
+            detail=f"Error retrieving paginated chunks: {str(e)}"
         )
-
 
 @router.post("/embed", summary="Run embedding pipeline for unembedded chunks")
 async def run_embedding_pipeline(

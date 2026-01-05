@@ -1,13 +1,12 @@
 import { create, type StateCreator } from "zustand"
-import type { AdminStats, AnnotationStats, User, CodeChunk, Repository } from "../types/admin"
+import type { AdminStats, AnnotationStats, User, CodeChunk, Repository, ChunkFilters } from "../types/admin"
 import {
   getAdminStats,
   getAnnotationStats,
   getUsers,
-  getChunks,
+  getPaginatedChunks,
   getRepositories,
   deleteUser as apiDeleteUser,
-  createUser as apiCreateUser,
   startBatchAnnotation as apiStartBatchAnnotation,
   retryFailedAnnotations as apiRetryFailedAnnotations
 } from "../services/adminService"
@@ -22,6 +21,8 @@ interface AdminState {
 
   chunks: CodeChunk[]
   totalChunks: number
+  totalPages: number
+  currentPage: number
   isLoadingChunks: boolean
 
   repositories: Repository[]
@@ -33,16 +34,8 @@ interface AdminState {
   loadStats: () => Promise<void>
   loadAnnotationStats: () => Promise<void>
   loadUsers: () => Promise<void>
-  loadChunks: (filters?: { 
-    project?: string; 
-    repository?: string; 
-    section?: string; 
-    search?: string;
-    page?: number;
-    limit?: number;
-  }) => Promise<void>
+  loadChunks: (filters?: ChunkFilters) => Promise<void>
   loadRepositories: () => Promise<void>
-  addUser: (userData: { email: string; password?: string; role: string }) => Promise<void>
   deleteUser: (userId: string) => Promise<void>
   startBatchAnnotation: (limit?: number) => Promise<void>
   retryFailedAnnotations: (includeQuotaExceeded: boolean) => Promise<void>
@@ -57,6 +50,8 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
   isLoadingUsers: false,
   chunks: [],
   totalChunks: 0,
+  totalPages: 1,
+  currentPage: 1,
   isLoadingChunks: false,
   repositories: [],
   isLoadingRepositories: false,
@@ -95,39 +90,52 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
     }
   },
 
-  loadChunks: async (filters = {}) => {
+  loadChunks: async (filters: ChunkFilters = {}) => {
     set({ isLoadingChunks: true, error: null })
     try {
       const params = {
         project: filters.project,
-        repo: filters.repository,
+        repository: filters.repository,
         section: filters.section,
+        source: filters.source,
         search: filters.search,
         page: filters.page || 1,
-        limit: filters.limit || 10
+        limit: filters.limit || 25
       }
 
       const cleanParams = Object.fromEntries(
         Object.entries(params).filter(([_, v]) => v != null && v !== '')
       )
 
-      const responseData = await getChunks(cleanParams)
-      
-      let data: CodeChunk[] = []
-      let total = 0
+      const responseData = await getPaginatedChunks(cleanParams)
 
-      if (Array.isArray(responseData)) {
-        data = responseData
-        total = responseData.length
+      let data: CodeChunk[] = []
+      if (responseData && typeof responseData === 'object' && 'chunks' in responseData) {
+        data = responseData.chunks || []
+        set({
+          chunks: data,
+          totalChunks: responseData.total || 0,
+          totalPages: responseData.totalPages || 1,
+          currentPage: responseData.page || 1,
+          isLoadingChunks: false
+        })
       } else {
-        data = (responseData as any).items || []
-        total = (responseData as any).total || data.length
+        // Fallback for non-paginated response
+        data = Array.isArray(responseData) ? responseData : []
+        set({
+          chunks: data,
+          totalChunks: data.length,
+          totalPages: 1,
+          currentPage: 1,
+          isLoadingChunks: false
+        })
       }
-      
-      set({ chunks: data, totalChunks: total, isLoadingChunks: false })
-    } catch (err: any) {
-      console.error("Failed to load chunks:", err)
-      set({ error: "Failed to load chunks", isLoadingChunks: false })
+    } catch (error) {
+      console.error('Failed to load chunks:', error)
+      set({
+        error: 'Failed to load chunks',
+        isLoadingChunks: false
+      })
     }
   },
 
@@ -139,16 +147,6 @@ const adminStoreCreator: StateCreator<AdminState> = (set) => ({
     } catch (err: any) {
       console.error("Failed to load repositories:", err)
       set({ error: "Failed to load repositories", isLoadingRepositories: false })
-    }
-  },
-
-  addUser: async (userData) => {
-    try {
-      const newUser = await apiCreateUser(userData)
-      set((state) => ({ users: [...state.users, newUser] }))
-    } catch (err: any) {
-      set({ error: "Failed to create user" })
-      throw err
     }
   },
 

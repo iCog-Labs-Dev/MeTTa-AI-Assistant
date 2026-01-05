@@ -148,9 +148,6 @@ function RepositoryIngestion() {
                   </div>
                   <div className="flex items-center gap-3 ml-4">
                     <div className="text-right">
-                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                        {new Date(repo.createdAt).toLocaleDateString()}
-                      </p>
                       <span
                         className={`inline-block px-2 py-1 rounded text-xs font-medium ${
                           repo.status === "Completed"

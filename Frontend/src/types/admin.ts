@@ -53,7 +53,7 @@ export interface IngestResponse {
 }
 
 export interface ChunkUpdateData {
-  chunk?: string; 
+  chunk?: string;
   metadata?: Record<string, any>;
   embedding_status?: string;
   annotation_status?: string;
@@ -66,7 +66,6 @@ export interface Repository {
   chunkSize: number
   chunks: number
   status: "Completed" | "Processing" | "Failed"
-  createdAt: string
 }
 
 export interface BatchAnnotationRequest {
@@ -82,6 +81,7 @@ export interface ChunkFilters {
   project?: string
   repository?: string
   section?: string
+  source?: string
   search?: string
   page?: number
   limit?: number
