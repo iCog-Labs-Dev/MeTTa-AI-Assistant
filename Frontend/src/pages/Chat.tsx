@@ -14,6 +14,7 @@ function Chat() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
   const {
     messages,
     isLoadingMessages,
@@ -99,12 +100,13 @@ function Chat() {
       {/* Left panel: sidebar */}
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Right panel: chat window */}
+      {/* Right panel: Chat window */}
       <div className="flex-1 flex flex-col overflow-hidden">
         <ChatHeader
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setSettingsOpen(true)}
         />
+
         {isLoadingMessages ? (
           <div
             className="flex-1 overflow-y-auto px-4 py-8"
@@ -134,20 +136,16 @@ function Chat() {
             messages={messages}
             onSuggestionClick={handleSuggestionClick}
             onFeedback={handleFeedback}
+            isStreaming={isSendingMessage}
             onLoadOlder={loadOlderMessages}
             hasNextMessages={hasNextMessages}
             isLoadingMoreMessages={isLoadingMoreMessages}
           />
         )}
-        <MessageInput
-          onSend={sendMessage}
-          isSendingMessage={isSendingMessage}
-        />
+
+        <MessageInput onSend={sendMessage} isSendingMessage={isSendingMessage} />
       </div>
-      <SettingsModal
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
+      <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

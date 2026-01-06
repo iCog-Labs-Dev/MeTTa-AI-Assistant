@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Message, SuggestionCard } from "../../types";
 import ChatMessageItem from "./MessageBubble";
 
@@ -9,6 +9,7 @@ interface ChatMessageListProps {
     messageId: string,
     feedback: "positive" | "neutral" | "negative"
   ) => void;
+  isStreaming: boolean;
   onLoadOlder?: () => Promise<number>;
   hasNextMessages?: boolean;
   isLoadingMoreMessages?: boolean;
@@ -25,6 +26,7 @@ function MessageList({
   messages,
   onSuggestionClick,
   onFeedback,
+  isStreaming,
   onLoadOlder,
   hasNextMessages = false,
   isLoadingMoreMessages = false,
@@ -34,41 +36,64 @@ function MessageList({
   const containerRef = useRef<HTMLDivElement>(null);
   const isFetchingRef = useRef(false);
 
-  // Auto-scroll to bottom when messages change
-  useEffect(() => {
-    if (isLoadingMoreMessages) return;
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoadingMoreMessages]);
+  const [stickToBottom, setStickToBottom] = useState(true);
+  const lastMessageCountRef = useRef<number>(messages.length);
 
+  // Auto-scroll on new messages
+  useEffect(() => {
+    if (messages.length > lastMessageCountRef.current) {
+      lastMessageCountRef.current = messages.length;
+      setStickToBottom(true);
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    } else {
+      lastMessageCountRef.current = messages.length;
+    }
+  }, [messages]);
+
+  // Handle scrolling and stick-to-bottom / infinite scroll
   async function handleScroll() {
     const container = containerRef.current;
-    if (
-      !container ||
-      !hasNextMessages ||
-      !onLoadOlder ||
-      isLoadingMoreMessages ||
-      isFetchingRef.current
-    ) {
-      return;
+    if (!container) return;
+
+    // Stick-to-bottom for streaming
+    if (isStreaming) {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const distanceFromBottom = scrollHeight - (scrollTop + clientHeight);
+      const threshold = 100;
+      setStickToBottom(distanceFromBottom <= threshold);
     }
 
-    const threshold = 24;
-    if (container.scrollTop <= threshold) {
-      isFetchingRef.current = true;
-      const prevHeight = container.scrollHeight;
-      const prevTop = container.scrollTop;
-      try {
-        const added = await onLoadOlder();
-        requestAnimationFrame(() => {
-          const nextHeight = container.scrollHeight;
-          const delta = nextHeight - prevHeight;
-          container.scrollTop = prevTop + delta;
-        });
-      } finally {
-        isFetchingRef.current = false;
+    // Infinite scroll
+    if (
+      hasNextMessages &&
+      onLoadOlder &&
+      !isLoadingMoreMessages &&
+      !isFetchingRef.current
+    ) {
+      const threshold = 24;
+      if (container.scrollTop <= threshold) {
+        isFetchingRef.current = true;
+        const prevHeight = container.scrollHeight;
+        const prevTop = container.scrollTop;
+        try {
+          await onLoadOlder();
+          requestAnimationFrame(() => {
+            const nextHeight = container.scrollHeight;
+            const delta = nextHeight - prevHeight;
+            container.scrollTop = prevTop + delta;
+          });
+        } finally {
+          isFetchingRef.current = false;
+        }
       }
     }
   }
+
+  // Auto-scroll effect
+  useEffect(() => {
+    if (!isStreaming || !stickToBottom || isLoadingMoreMessages) return;
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isStreaming, stickToBottom, isLoadingMoreMessages]);
 
   return (
     <div

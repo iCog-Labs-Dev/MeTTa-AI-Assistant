@@ -1,13 +1,9 @@
-from typing import Dict, List, Optional, Any
-import json
-import re
+from typing import Dict, List, Optional, Any, AsyncIterator
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.rag.retriever.schema import Document
 from app.core.clients.llm_clients import LLMClient, LLMProvider
 from app.core.utils.llm_utils import LLMClientFactory, LLMResponseFormatter
-from app.core.utils.rewriter_utils import RewriterUtils
-from app.core.logging import logger
-
+import asyncio
 class RAGGenerator:
     def __init__(
         self,
@@ -20,41 +16,46 @@ class RAGGenerator:
         self.llm_client = llm_client or LLMClientFactory.create_client(
             provider=provider, model_name=model_name
         )
-
-    async def generate_response(
+    
+    async def generate_response_stream(
         self,
         query: str,
         top_k: int = 5,
         api_key: Optional[str] = None,
-        include_sources: bool = False,
+        include_sources: bool = True,
         history: Optional[List[Dict[str, str]]] = None,
-    ) -> Dict[str, Any]:
-        prompt = RewriterUtils.rewrite_query(query, history)
-        rewritten_query_str = await self.llm_client.generate_text(prompt, api_key)
-
-        cleaned_query_str = re.sub(r"```(?:json)?\n?(.*?)\n?```", r"\1", rewritten_query_str, flags=re.DOTALL).strip()
-
+    ) -> AsyncIterator[Dict[str, Any]]:
+        retrieved_docs = await self.retriever.retrieve(query, top_k=top_k)
+        context = self._assemble_context(retrieved_docs)
+        prompt = LLMResponseFormatter.build_rag_prompt(query, context, history)
+        buffer_parts: List[str] = []
+        
         try:
-            rewritten_query = json.loads(cleaned_query_str)
-            logger.info("Rewritten query: %s", rewritten_query)
-        except json.JSONDecodeError:
-            logger.warning("Failed to parse rewritten query JSON: %s", cleaned_query_str)
-            rewritten_query = {"retriever_needed": True, "query": query}
-
-        if rewritten_query.get("retriever_needed"):
-            retrieval_query = rewritten_query.get("query", query)
-            retrieved_docs = await self.retriever.retrieve(retrieval_query, top_k=top_k)
-            context = self._assemble_context(retrieved_docs)
-            prompt = LLMResponseFormatter.build_rag_prompt(query, context, history)
-            response = await self.llm_client.generate_text(prompt, api_key)
+            async for chunk in self.llm_client.generate_text_stream(
+                prompt, api_key=api_key, max_tokens=2000
+            ):
+                buffer_parts.append(chunk)
+                for token in self._split_into_tokens(chunk, max_len=6):
+                    yield {"type": "partial", "delta": token}
+                    await asyncio.sleep(0)
+            
+            # Run ONCE after stream completes
+            final_text = "".join(buffer_parts)
             sources = self._format_sources(retrieved_docs) if include_sources else None
-        else:
-            sources = []
-            response = rewritten_query.get("query", query)
-
-        return LLMResponseFormatter.format_rag_response(
-            query=query, response=response, client=self.llm_client, sources=sources
-        )
+            final_payload = LLMResponseFormatter.format_rag_response(
+                query=query,
+                response=final_text,
+                client=self.llm_client,
+                sources=sources,
+            )
+            yield {"type": "final", "response": final_payload}
+        
+        except Exception as e:
+            yield {"type": "error", "error": str(e)}
+   
+    def _split_into_tokens(self, text: str, max_len: int = 6):
+        for i in range(0, len(text), max_len):
+            yield text[i:i+max_len]
 
     def _assemble_context(self, docs_by_category: Dict[str, List[Document]]) -> str:
         context_parts = []

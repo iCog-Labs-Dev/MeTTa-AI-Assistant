@@ -25,10 +25,10 @@ export interface ChatResponse {
 }
 
 // Fetch paginated chat sessions
-export const getChatSessions = async (page: number = 1, limit: number = 100): Promise<SessionsResponse> => {
+export const getChatSessions = async ( page: number = 1, limit: number = 100): Promise<SessionsResponse> => {
   try {
     const response = await axiosInstance.get<SessionsResponse>(`${SESSIONS_BASE_URL}/`, {
-      params: { page, limit },
+params: { page, limit },
     });
     return response.data;
   } catch (error) {
@@ -89,7 +89,7 @@ export const deleteChatSession = async (sessionId: string): Promise<void> => {
   }
 };
 
-// Send a chat message
+// Send a chat message (this non-streaming will use if streaming falls back to non-streaming in Usechatstore)
 export const sendMessage = async (data: ChatRequest): Promise<ChatResponse> => {
   try {
     const response = await axiosInstance.post<ChatResponse>(`${CHAT_BASE_URL}/`, data);
@@ -97,6 +97,175 @@ export const sendMessage = async (data: ChatRequest): Promise<ChatResponse> => {
   } catch (error) {
     handleAxiosError(error, 'Chat');
     throw error;
+  }
+};
+
+// Streaming chat message (SSE over fetch)
+export const streamMessage = async (
+  data: ChatRequest,
+  onPartial: (chunk: string) => void,
+  onFinal: (payload: ChatResponse) => void,
+  onError: (error: string) => void,
+) => {
+  try {
+    const token = localStorage.getItem('access_token') || '';
+
+    const payload: ChatRequest = {
+      query: data.query,
+      provider: data.provider,
+      model: data.model,
+      mode: data.mode,
+      session_id: data.session_id,
+    };
+
+    const res = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}${CHAT_BASE_URL}/`,
+      {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      },
+    );
+
+    if (!res.ok || !res.body) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    let accumulatedForUi = '';
+    let rafScheduled = false;
+
+    const scheduleFlush = () => {
+      if (rafScheduled) return;
+      rafScheduled = true;
+      requestAnimationFrame(() => {
+        rafScheduled = false;
+        if (accumulatedForUi.length) {
+          onPartial(accumulatedForUi);
+        }
+      });
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // split on SSE event boundary 
+      const events = buffer.split(/\n\n/);
+      buffer = events.pop() || ''; // incomplete event stays in buffer
+
+      for (const evt of events) {
+        const line = evt.trim();
+        if (!line) continue;
+
+        const dataLines = line
+          .split(/\r?\n/)
+          .filter((l) => l.startsWith('data:'))
+          .map((l) => l.replace(/^data:\s*/, ''));
+
+        if (dataLines.length === 0) continue;
+
+        const jsonStr = dataLines.join('\n');
+
+        if (!jsonStr || jsonStr === '[DONE]') continue;
+
+        let event: any;
+        try {
+          event = JSON.parse(jsonStr);
+        } catch {
+          const raw = jsonStr;
+          accumulatedForUi += raw;
+          scheduleFlush();
+          continue;
+        }
+
+        switch (event.type) {
+          case 'partial': {
+            const delta =
+              typeof event.delta === 'string'
+                ? event.delta
+                : JSON.stringify(event.delta);
+            accumulatedForUi += delta;
+            scheduleFlush();
+            break;
+          }
+          case 'final': {
+            const finalPayload: ChatResponse =
+              event.payload || event.response || event;
+
+            if (
+              typeof finalPayload.response === 'string' &&
+              finalPayload.response.length
+            ) {
+              accumulatedForUi = finalPayload.response;
+              if (rafScheduled) onPartial(accumulatedForUi);
+            }
+            onFinal(finalPayload);
+            break;
+          }
+          case 'error': {
+            onError(event.error || 'Unknown error');
+            break;
+          }
+          default: {
+            if (event && typeof event === 'object' && event.response) {
+              const finalPayload = event as ChatResponse;
+              if (typeof finalPayload.response === 'string') {
+                accumulatedForUi = finalPayload.response;
+                onPartial(accumulatedForUi);
+              }
+              onFinal(finalPayload);
+            } else {
+              const raw = JSON.stringify(event);
+              accumulatedForUi += raw;
+              scheduleFlush();
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    // Final leftover buffer handling
+    if (buffer.trim()) {
+      const leftover = buffer.trim();
+      const jsonStr = leftover.replace(/^data:\s*/, '');
+      try {
+        const event: any = JSON.parse(jsonStr);
+        if (event.type === 'final') {
+          const finalPayload: ChatResponse =
+            event.payload || event.response || event;
+          if (typeof finalPayload.response === 'string') {
+            accumulatedForUi = finalPayload.response;
+            onPartial(accumulatedForUi);
+          }
+          onFinal(finalPayload);
+        } else if (event.type === 'partial') {
+          const delta =
+            typeof event.delta === 'string'
+              ? event.delta
+              : JSON.stringify(event.delta);
+          accumulatedForUi += delta;
+          onPartial(accumulatedForUi);
+        } else if (event.type === 'error') {
+          onError(event.error || 'Unknown error');
+        }
+      } catch {
+        accumulatedForUi += leftover;
+        onPartial(accumulatedForUi);
+      }
+    }
+  } catch (err) {
+    onError(err instanceof Error ? err.message : String(err));
   }
 };
 
