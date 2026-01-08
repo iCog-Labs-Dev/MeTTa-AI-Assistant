@@ -1,8 +1,11 @@
 import os
 import uvicorn
 from dotenv import load_dotenv
+from app.main import app
 
 load_dotenv()
+
+
 def main() -> None:
     reload_enabled = os.getenv("RELOAD", "0").strip() == "1"
 
