@@ -4,7 +4,6 @@ from pymongo.errors import BulkWriteError
 from pymongo.database import Database
 from pymongo.collection import Collection
 from app.core.logging import logger
-from typing import Union, List
 from app.model.chunk import ChunkSchema
 
 
