@@ -15,6 +15,8 @@ from app.model.chat_session import (
     ChatSessionWithMessages
 )
 
+from app.core.logging import logger
+
 router = APIRouter(
     prefix="/api/chat/sessions",
     tags=["chat_sessions"],
@@ -40,9 +42,10 @@ async def list_sessions(
         )
         return result
     except Exception as e:
+        logger.error(f"Error retrieving sessions: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving sessions: {str(e)}",
+            detail="Error retrieving sessions.",
         )
 
 
@@ -141,7 +144,8 @@ async def delete_session(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Error deleting session: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error deleting session: {str(e)}",
+            detail="Error deleting session.",
         )

@@ -69,7 +69,7 @@ async def submit_feedback(
         logger.error(f"Error submitting feedback: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Error submitting feedback.",
         )
 
 
@@ -93,7 +93,7 @@ async def get_feedback_for_response(
         logger.error(f"Error retrieving feedback: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Error retrieving feedback.",
         )
 
 
@@ -113,5 +113,5 @@ async def get_stats(
         logger.error(f"Error getting stats: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
+            detail="Error getting stats.",
         )
