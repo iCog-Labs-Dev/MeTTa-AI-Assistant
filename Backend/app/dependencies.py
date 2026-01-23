@@ -7,6 +7,7 @@ from app.core.clients.llm_clients import LLMClient
 from app.repositories.chunk_repository import ChunkRepository
 from app.services.chunk_annotation_service import ChunkAnnotationService
 from app.services.key_management_service import KMS
+from app.services.chat_service import ChatService
 from app.db.users import UserRole
 
 
@@ -50,6 +51,23 @@ def get_annotation_service(
 def get_kms(request: Request) -> KMS:
     '''Key management service class dependency'''
     return request.app.state.kms
+
+
+def get_chat_service(
+    mongo_db=Depends(get_mongo_db),
+    embedding_model=Depends(get_embedding_model_dep),
+    qdrant_client=Depends(get_qdrant_client_dep),
+    default_llm=Depends(get_llm_provider_dep),
+    kms=Depends(get_kms),
+) -> ChatService:
+    """Provide ChatService instance with all required dependencies."""
+    return ChatService(
+        mongo_db=mongo_db,
+        embedding_model=embedding_model,
+        qdrant_client=qdrant_client,
+        default_llm_client=default_llm,
+        kms=kms,
+    )
 
 
 def get_current_user(request: Request) -> dict:

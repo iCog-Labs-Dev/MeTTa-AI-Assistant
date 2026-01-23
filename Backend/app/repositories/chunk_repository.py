@@ -3,6 +3,7 @@ from pymongo.database import Database
 from typing import Optional, List
 import time
 from app.model.chunk import ChunkSchema, AnnotationStatus
+from app.repositories.constants import MongoFields
 
 STALE_PENDING_THRESHOLD = 60 * 60
 
@@ -17,21 +18,21 @@ class ChunkRepository:
         self.collection = db.get_collection(collection_name)
 
     async def _ensure_indexes(self):
-        await self.collection.create_index("chunkId", unique=True)
-        await self.collection.create_index("status")
-        await self.collection.create_index([("status", 1), ("description", 1)])
-        await self.collection.create_index([("source", 1), ("status", 1)])
+        await self.collection.create_index(MongoFields.CHUNK_ID, unique=True)
+        await self.collection.create_index(MongoFields.STATUS)
+        await self.collection.create_index([(MongoFields.STATUS, 1), (MongoFields.DESCRIPTION, 1)])
+        await self.collection.create_index([(MongoFields.SOURCE, 1), (MongoFields.STATUS, 1)])
         logger.info("MongoDB indexes ensured for chunks collection.")
 
     async def get_chunk_by_id(self, chunk_id: str) -> Optional[ChunkSchema]:
-        doc = await self.collection.find_one({"chunkId": chunk_id})
+        doc = await self.collection.find_one({MongoFields.CHUNK_ID: chunk_id})
         if doc:
             return ChunkSchema(**doc)
         return None
 
     async def get_chunk_for_annotation(self, chunk_id: str) -> Optional[ChunkSchema]:
         """Retrieve a chunk by ID."""
-        doc = await self.collection.find_one({"chunkId": chunk_id, "source": "code"})
+        doc = await self.collection.find_one({MongoFields.CHUNK_ID: chunk_id, MongoFields.SOURCE: "code"})
         if doc:
             return ChunkSchema(**doc)
         return None
@@ -43,25 +44,25 @@ class ChunkRepository:
         Updates chunk annotation, status, last_annotated_at, and pending_since.
         """
         updates = {
-            "description": description,
-            "status": status.value,
-            "last_annotated_at": time.time(),
+            MongoFields.DESCRIPTION: description,
+            MongoFields.STATUS: status.value,
+            MongoFields.LAST_ANNOTATED_AT: time.time(),
         }
 
         if status == AnnotationStatus.PENDING:
-            updates["pending_since"] = time.time()
+            updates[MongoFields.PENDING_SINCE] = time.time()
         else:
-            updates["pending_since"] = None
+            updates[MongoFields.PENDING_SINCE] = None
 
         update_result = await self.collection.update_one(
-            {"chunkId": chunk_id}, {"$set": updates}
+            {MongoFields.CHUNK_ID: chunk_id}, {"$set": updates}
         )
         return update_result.modified_count > 0
 
     async def increment_retry_count(self, chunk_id: str) -> bool:
         """Increments the retry_count field for a chunk."""
         update_result = await self.collection.update_one(
-            {"chunkId": chunk_id}, {"$inc": {"retry_count": 1}}
+            {MongoFields.CHUNK_ID: chunk_id}, {"$inc": {MongoFields.RETRY_COUNT: 1}}
         )
         return update_result.modified_count > 0
 
@@ -74,20 +75,20 @@ class ChunkRepository:
         """
         now = time.time()
         base_conditions = [
-            {"description": {"$exists": False}},
-            {"description": None},
-            {"status": AnnotationStatus.RAW.value},
-            {"status": AnnotationStatus.UNANNOTATED.value},
+            {MongoFields.DESCRIPTION: {"$exists": False}},
+            {MongoFields.DESCRIPTION: None},
+            {MongoFields.STATUS: AnnotationStatus.RAW.value},
+            {MongoFields.STATUS: AnnotationStatus.UNANNOTATED.value},
             {
-                "status": AnnotationStatus.PENDING.value,
-                "pending_since": {"$lt": now - STALE_PENDING_THRESHOLD},
+                MongoFields.STATUS: AnnotationStatus.PENDING.value,
+                MongoFields.PENDING_SINCE: {"$lt": now - STALE_PENDING_THRESHOLD},
             },
         ]
 
         if include_failed:
             base_conditions.append(
                 {
-                    "status": {
+                    MongoFields.STATUS: {
                         "$in": [
                             AnnotationStatus.FAILED_GEN.value,
                             AnnotationStatus.FAILED_QUOTA.value,
@@ -96,7 +97,7 @@ class ChunkRepository:
                 }
             )
 
-        query = {"$or": base_conditions, "source": "code"}
+        query = {"$or": base_conditions, MongoFields.SOURCE: "code"}
 
         cursor = self.collection.find(query)
 
@@ -121,6 +122,6 @@ class ChunkRepository:
             statuses.append(AnnotationStatus.FAILED_QUOTA.value)
 
         cursor = self.collection.find(
-            {"status": {"$in": statuses}, "source": "code"}
+            {MongoFields.STATUS: {"$in": statuses}, MongoFields.SOURCE: "code"}
         ).limit(limit)
         return [ChunkSchema(**doc) async for doc in cursor]

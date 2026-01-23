@@ -6,6 +6,7 @@ from app.dependencies import get_mongo_db, get_kms, get_current_user
 from app.model.key import APIKeyIn
 from app.services.key_management_service import KMS
 from app.core.utils.helpers import validate_api_key
+from app.core.logging import logger
 
 router = APIRouter(
     prefix="/api/kms",
@@ -27,7 +28,8 @@ async def store_api_key(
     try:
         await validate_api_key(payload.provider_name, payload.api_key)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid API Key: {str(e)}")
+        logger.error(f"Invalid API Key: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid API Key.")
 
     try:
         generated, encrypted_api_key = await kms.encrypt_and_store(

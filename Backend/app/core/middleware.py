@@ -114,7 +114,7 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
             try:
                 decrypted = await kms.decrypt_api_key(gemini_cookie, user_id, "gemini", mongo_db)
                 if decrypted and decrypted.strip():
-                    logger.debug(f"Valid gemini API key for user {user_id}")
+                    logger.info(f"Valid gemini API key for user {user_id}")
                     return True
             except Exception as e:
                 logger.warning(f"Invalid gemini cookie for user {user_id}: {e}")
@@ -124,7 +124,7 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
             try:
                 decrypted = await kms.decrypt_api_key(openai_cookie, user_id, "openai", mongo_db)
                 if decrypted and decrypted.strip():
-                    logger.debug(f"Valid openai API key for user {user_id}")
+                    logger.info(f"Valid openai API key for user {user_id}")
                     return True
             except Exception as e:
                 logger.warning(f"Invalid openai cookie for user {user_id}: {e}")
@@ -148,15 +148,15 @@ class UserWindowRateLimiter(BaseHTTPMiddleware):
 
         if await self._is_using_user_api_key(request, user_id):
             
-            logger.debug(f"Rate limiting skipped for user {user_id} - using own API key")
+            logger.info(f"Rate limiting skipped for user {user_id} - using own API key")
             
             return await call_next(request)
 
         if user_role != "user":
-            logger.debug(f"Rate limiting skipped for user {user_id} - not a regular user")
+            logger.info(f"Rate limiting skipped for user {user_id} - not a regular user")
             return await call_next(request)
         
-        logger.debug(f"Rate limiting applied for user {user_id} - using system API key")
+        logger.info(f"Rate limiting applied for user {user_id} - using system API key")
 
         redis_key = f"ratelimit:fixed{self.window_seconds}s:{user_id}"
 
