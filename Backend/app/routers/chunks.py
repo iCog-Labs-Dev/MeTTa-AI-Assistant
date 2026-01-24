@@ -1,4 +1,5 @@
 import os
+import subprocess
 from typing import Optional, Dict, Any, List
 from pydantic import BaseModel
 from pymongo.database import Database
@@ -46,19 +47,47 @@ class ChunkUpdate(BaseModel):
 # chunk repository
 @router.post("/ingest", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def ingest_repository(
-    repo_url: str, 
-    chunk_size: int = Query(1500, ge=500, le=1500), 
+    repo_url: str,
+    branch: str = "main",  # new parameter for branch selection
+    chunk_size: int = Query(1500, ge=500, le=1500),
     mongo_db: Database = Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
 ):
-    """Ingest and chunk a code repository."""
+    """Ingest and chunk a code repository with optional branch selection."""
     try:
-        await ingest_pipeline(repo_url, chunk_size, mongo_db)
+        await ingest_pipeline(repo_url, chunk_size, mongo_db, branch=branch)  # forward branch
         return {"message": "Repository ingested and chunked successfully"}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error ingesting repository: {str(e)}"
+        )
+
+@router.get("/branches", summary="List all branches of a repository")
+async def list_branches(repo_url: str = Query(..., description="Git repository URL")):
+    """
+    Return a list of branches for the given repository URL.
+    """
+    try:
+        # Run git command to list remote branches
+        result = subprocess.run(
+            ["git", "ls-remote", "--heads", repo_url],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        branches = []
+        for line in result.stdout.splitlines():
+            # Each line: <hash>  refs/heads/<branch_name>
+            parts = line.split()
+            if len(parts) == 2 and parts[1].startswith("refs/heads/"):
+                branch_name = parts[1].replace("refs/heads/", "")
+                branches.append(branch_name)
+        return {"repo_url": repo_url, "branches": branches}
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to list branches for repo: {str(e)}"
         )
 
 @router.patch("/{chunk_id}", response_model=Dict[str, Any])

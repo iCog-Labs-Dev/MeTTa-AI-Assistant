@@ -6,9 +6,10 @@ from app.core.repo_ingestion.filters import process_metta_files
 from app.core.repo_ingestion.config import TEMP_DIR, DATA_DIR
 from app.core.chunker import chunker
 
-async def ingest_pipeline(repo_url: str, max_size: int, db: Database) -> None:
-    repo_path: str = clone_repo(repo_url, TEMP_DIR)
-    
+
+async def ingest_pipeline(repo_url: str, max_size: int, db: Database, branch: str = "main") -> None:
+    repo_path: str = clone_repo(repo_url, TEMP_DIR, branch=branch)
+
     try:
         files: list[str] = get_all_files(repo_path)
         indexes = process_metta_files(files, DATA_DIR, repo_root=repo_path)
