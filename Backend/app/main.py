@@ -90,8 +90,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.warning(f"Metadata index setup skipped or failed: {e}")
 
     # === Embedding Model Setup ===
-    app.state.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-    logger.info("Embedding model loaded and ready")
+    # FIXED: Added try/except to handle model loading failures
+    try:
+        app.state.embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+        logger.info("Embedding model loaded and ready")
+    except Exception as e:
+        logger.warning(f"Failed to load embedding model: {e}")
+        logger.warning("Application will continue without embedding model. Some features may not work.")
+        app.state.embedding_model = None
 
     # === LLM Provider Setup ===
     app.state.default_llm_provider = LLMClientFactory.create_default_client()

@@ -22,39 +22,35 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
+# -------------------- Schemas --------------------
 class ChunkUpdate(BaseModel):
     source: Optional[str] = None
     chunk: Optional[str] = None
     isEmbedded: Optional[bool] = None
-    
-    # Code-specific fields
     project: Optional[str] = None
     repo: Optional[str] = None
     section: Optional[List[str]] = None
     file: Optional[List[str]] = None
     version: Optional[str] = None
-
-    # Documentation-specific fields
     url: Optional[str] = None
     page_title: Optional[str] = None
     category: Optional[str] = None
-
-    # PDF-specific fields
     filename: Optional[str] = None
     page_numbers: Optional[List[int]] = None
 
-# chunk repository
+# -------------------- Endpoints --------------------
 @router.post("/ingest", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def ingest_repository(
-    repo_url: str, 
-    chunk_size: int = Query(1500, ge=500, le=1500), 
+    repo_url: str,
+    branch: str = Query("main", description="Git branch to ingest"),
+    chunk_size: int = Query(1500, ge=500, le=1500),
     mongo_db: Database = Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
 ):
-    """Ingest and chunk a code repository."""
+    """Ingest a code repository and optional branch selection"""
     try:
-        await ingest_pipeline(repo_url, chunk_size, mongo_db)
-        return {"message": "Repository ingested and chunked successfully"}
+        await ingest_pipeline(repo_url, chunk_size, mongo_db, branch)
+        return {"message": f"Repository '{repo_url}' (branch: {branch}) ingested successfully"}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -67,31 +63,18 @@ async def update_chunk_endpoint(
     mongo_db : Database =Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
 ):
-    """
-    Update a chunk by its ID.
-    Only the fields provided in the request body will be updated.
-    """
     update_data = {k: v for k, v in chunk_update.dict().items() if v is not None}
     
     if not update_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No update data provided"
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
     
     existing_chunk = await get_chunk_by_id(chunk_id, mongo_db=mongo_db)
     if not existing_chunk:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Chunk with ID {chunk_id} not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Chunk {chunk_id} not found")
 
     updated_count = await update_chunk(chunk_id, update_data, mongo_db=mongo_db)
     if updated_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update chunk"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to update chunk")
 
     updated_chunk = await get_chunk_by_id(chunk_id, mongo_db=mongo_db)
     return {"message": "Chunk updated successfully", "chunk": updated_chunk}
@@ -99,24 +82,16 @@ async def update_chunk_endpoint(
 @router.delete("/{chunk_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_chunk_endpoint(
     chunk_id: str, 
-    mongo_db : Database =Depends(get_mongo_db),
-    _: None = Depends(require_role(UserRole.ADMIN)),):
-    """
-    Delete a chunk by its ID.
-    """
+    mongo_db: Database =Depends(get_mongo_db),
+    _: None = Depends(require_role(UserRole.ADMIN)),
+):
     existing_chunk = await get_chunk_by_id(chunk_id, mongo_db=mongo_db)
     if not existing_chunk:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Chunk with ID {chunk_id} not found"
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Chunk {chunk_id} not found")
 
     deleted_count = await delete_chunk(chunk_id, mongo_db=mongo_db)
     if deleted_count == 0:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete chunk"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete chunk")
 
     return None
 
@@ -127,41 +102,23 @@ async def list_chunks_paginated(
     section: Optional[str] = None,
     source: Optional[str] = None,
     search: Optional[str] = None,
-    limit: int = Query(25, ge=1, le=1000, description="Limit per page"),
-    page: int = Query(1, ge=1, description="Page number"),
+    limit: int = Query(25, ge=1, le=1000),
+    page: int = Query(1, ge=1),
     mongo_db : Database =Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
 ):
-    """
-    Get paginated chunks for admin dashboard with total count.
-    """
     filter_query = {}
-    if project:
-        filter_query["project"] = project
-    if repo:
-        filter_query["repo"] = repo
-    if section:
-        filter_query["section"] = section
-    if source:
-        filter_query["source"] = source
-    if search:
-        filter_query["chunk"] = {"$regex": search, "$options": "i"}
-    
-    logger.info(f"Paginated chunks query: {filter_query}, page: {page}, limit: {limit}")
+    if project: filter_query["project"] = project
+    if repo: filter_query["repo"] = repo
+    if section: filter_query["section"] = section
+    if source: filter_query["source"] = source
+    if search: filter_query["chunk"] = {"$regex": search, "$options": "i"}
     
     try:
-        # Get total count first
         collection = _get_collection(mongo_db, "chunks")
         total = await collection.count_documents(filter_query)
-        logger.info(f"Total chunks found: {total}")
-        
-        # Calculate skip for pagination
         skip = (page - 1) * limit
-        
-        # Get paginated chunks using existing function
         chunks = await get_chunks(filter_query=filter_query, limit=limit, skip=skip, mongo_db=mongo_db)
-        logger.info(f"Returning {len(chunks)} chunks")
-        
         return {
             "chunks": chunks,
             "total": total,
@@ -170,72 +127,4 @@ async def list_chunks_paginated(
             "totalPages": (total + limit - 1) // limit
         }
     except Exception as e:
-        logger.error(f"Error in paginated chunks: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving paginated chunks: {str(e)}"
-        )
-
-@router.post("/embed", summary="Run embedding pipeline for unembedded chunks")
-async def run_embedding_pipeline(
-    mongo_db: Database = Depends(get_mongo_db),
-    model = Depends(get_embedding_model_dep),
-    qdrant = Depends(get_qdrant_client_dep),
-    _: None = Depends(require_role(UserRole.ADMIN)),
-):
-    """Trigger the embedding pipeline until all unembedded chunks are processed."""
-    collection_name = os.getenv("COLLECTION_NAME")
-    if not collection_name:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="COLLECTION_NAME not set in environment variables."
-        )
-
-    total_embedded = 0
-    batch_size = 50
-    try:
-        while True:
-            num_embedded = await embedding_pipeline(
-                collection_name=collection_name,
-                mongo_db=mongo_db,
-                model=model,
-                qdrant=qdrant,
-                batch_size=batch_size
-            )
-            if num_embedded == 0:
-                break
-            total_embedded += num_embedded
-        return {"message": f"All unembedded chunks embedded successfully. Total embedded: {total_embedded}"}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Embedding pipeline failed: {str(e)}"
-        )
-
-
-@router.get("/search", summary="Semantic search over chunks")
-async def semantic_search(
-    q: str = Query(..., min_length=1, description="User query"),
-    top_k: int = Query(5, ge=1, le=50),
-    model = Depends(get_embedding_model_dep),
-    qdrant = Depends(get_qdrant_client_dep),
-    _: None = Depends(require_role(UserRole.ADMIN)),
-):
-    collection_name = os.getenv("COLLECTION_NAME")
-    if not collection_name:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="COLLECTION_NAME not set in environment variables."
-        )
-
-    try:
-        retriever = EmbeddingRetriever(model=model, qdrant=qdrant, collection_name=collection_name)
-        results = await retriever.retrieve(q, top_k=top_k)
-        
-        # Flatten or return grouped by category
-        return {"query": q, "top_k": top_k, "results": results}
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Search failed: {str(e)}"
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
