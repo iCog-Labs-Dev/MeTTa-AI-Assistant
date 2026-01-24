@@ -6,7 +6,6 @@ from app.core.repo_ingestion.filters import process_metta_files
 from app.core.repo_ingestion.config import TEMP_DIR, DATA_DIR
 from app.core.chunker import chunker
 
-
 async def ingest_pipeline(repo_url: str, max_size: int, db: Database, branch: str = "main") -> None:
     repo_path: str = clone_repo(repo_url, TEMP_DIR, branch=branch)
 
