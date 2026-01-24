@@ -1,7 +1,14 @@
 from typing import Optional, Literal
 from datetime import datetime, timedelta, timezone
 from pydantic import BaseModel, Field
-from fastapi import APIRouter, HTTPException, Depends, Request, Response
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Depends,
+    Request,
+    Response,
+    BackgroundTasks,
+)
 
 from app.dependencies import get_chat_service, get_current_user
 from app.services.chat_service import ChatService
@@ -27,6 +34,7 @@ async def chat(
     request: Request,
     response: Response,
     chat_request: ChatRequest,
+    background_tasks: BackgroundTasks,
     chat_service: ChatService = Depends(get_chat_service),
     current_user: dict = Depends(get_current_user),
 ):
@@ -52,6 +60,7 @@ async def chat(
             query=chat_request.query,
             user_id=current_user["id"],
             provider=provider,
+            background_tasks=background_tasks,
             mode=chat_request.mode,
             model=chat_request.model,
             session_id=chat_request.session_id,

@@ -90,6 +90,19 @@ async def get_chat_session_by_id(session_id: str, mongo_db: Database = None) -> 
     return await collection.find_one({"sessionId": session_id}, {"_id": 0})
 
 
+async def update_chat_session_title(
+    session_id: str, title: str, mongo_db: Database = None
+) -> bool:
+    """
+    Update the title of a chat session.
+    """
+    collection = _get_collection(mongo_db, "chat_sessions")
+    result = await collection.update_one(
+        {"sessionId": session_id}, {"$set": {"title": title}}
+    )
+    return result.modified_count > 0
+
+
 async def get_chat_sessions(
     user_id: str,
     page: int = 1,

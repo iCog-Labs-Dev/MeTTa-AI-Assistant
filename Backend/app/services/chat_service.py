@@ -10,6 +10,7 @@ This service orchestrates:
 """
 import os
 import time
+import asyncio
 from typing import Optional, Dict, Any, List, Literal
 from datetime import datetime, timedelta, timezone
 from bson import ObjectId
@@ -22,8 +23,17 @@ from app.core.clients.llm_clients import LLMClient, LLMProvider
 from app.services.key_management_service import KMS
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.rag.generator.rag_generator import RAGGenerator
-from app.db.chat_db import insert_chat_message, get_last_messages, create_chat_session
+from app.rag.generator.rag_generator import RAGGenerator
+from app.db.chat_db import (
+    insert_chat_message,
+    get_last_messages,
+    create_chat_session,
+    update_chat_session_title,
+)
 from app.rag.rag_logging import log_rag_interaction
+
+
+from fastapi import BackgroundTasks
 
 
 class ChatService:
@@ -155,6 +165,7 @@ class ChatService:
         session_id: str,
         user_id: str,
         provider: Literal["openai", "gemini"],
+        background_tasks: BackgroundTasks,
         model: Optional[str] = None,
         api_key: Optional[str] = None,
         top_k: int = 5,
@@ -167,6 +178,7 @@ class ChatService:
             session_id: Chat session ID
             user_id: User ID for logging
             provider: LLM provider (openai or gemini)
+            background_tasks: FastAPI BackgroundTasks
             model: Optional specific model name
             api_key: Optional user's API key
             top_k: Number of chunks to retrieve
@@ -209,7 +221,9 @@ class ChatService:
         
         # Get chat history
         history = await self.get_chat_history(session_id, limit=10)
-        
+
+        is_first_message = len(history) == 0
+
         # Generate response
         result = await generator.generate_response(
             query,
@@ -244,7 +258,17 @@ class ChatService:
             response_id=response_id,
             execution_time=time.time() - start_time,
         )
-        
+
+        # If first message, generate title in background
+        if is_first_message:
+            background_tasks.add_task(
+                self.generate_session_title,
+                session_id=session_id,
+                query=query,
+                response=result.get("response", ""),
+                provider=provider,
+            )
+
         # Prepare response
         result.pop("sources", None)
         result["session_id"] = session_id
@@ -253,6 +277,35 @@ class ChatService:
         result["responseId"] = response_id
         
         return result
+
+    async def generate_session_title(
+        self,
+        session_id: str,
+        query: str,
+        response: str,
+        provider: str,
+    ) -> None:
+        """
+        Generate a concise title for the session using LLM and update DB.
+        """
+        try:
+            prompt = (
+                f"Summarize the following conversation into a short, concise title (max 4-6 words). "
+                f"Do not use quotes or special characters.\n\n"
+                f"User: {query}\n"
+                f"Assistant: {response}\n\n"
+                f"Title:"
+            )
+
+            title = await self.default_llm_client.generate_text(prompt, temperature=0.7)
+            title = title.strip().strip('"').strip("'")
+
+            if title:
+                await update_chat_session_title(
+                    session_id=session_id, title=title, mongo_db=self.mongo_db
+                )
+        except Exception as e:
+            logger.error(f"Failed to generate session title: {e}")
 
     async def _log_interaction(
         self,
@@ -292,6 +345,7 @@ class ChatService:
         query: str,
         user_id: str,
         provider: Literal["openai", "gemini"],
+        background_tasks: BackgroundTasks,
         mode: Literal["search", "generate"] = "generate",
         model: Optional[str] = None,
         session_id: Optional[str] = None,
@@ -310,6 +364,7 @@ class ChatService:
             query: User's question
             user_id: User ID
             provider: LLM provider
+            background_tasks: FastAPI BackgroundTasks
             mode: 'search' or 'generate'
             model: Optional model name
             session_id: Optional existing session ID
@@ -337,6 +392,7 @@ class ChatService:
             session_id=session_id,
             user_id=user_id,
             provider=provider,
+            background_tasks=background_tasks,
             model=model,
             api_key=api_key if api_key else None,
             top_k=top_k,
