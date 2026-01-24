@@ -1,75 +1,127 @@
-import { useEffect, useState } from "react"
-import { Check, X, Loader2 } from "lucide-react"
-import { useAdminStore } from "../../store/useAdminStore"
-import { Button } from "../ui/button"
-import { ingestRepository } from "../../services/adminService" 
-import { toast } from "sonner"
+import { useEffect, useState, useCallback } from "react";
+import { Check, X, Loader2, ChevronDown } from "lucide-react";
+import { useAdminStore } from "../../store/useAdminStore";
+import { Button } from "../ui/button";
+import { ingestRepository, getBranches } from "../../services/adminService";
+import { toast } from "sonner";
 
 function RepositoryIngestion() {
-  const { repositories, isLoadingRepositories, loadRepositories } = useAdminStore()
-  const [repoUrl, setRepoUrl] = useState("")
-  const [chunkSize, setChunkSize] = useState("1000")
-  const [isIngesting, setIsIngesting] = useState(false)
+  const { repositories, isLoadingRepositories, loadRepositories } =
+    useAdminStore();
+  const [repoUrl, setRepoUrl] = useState("");
+  const [chunkSize, setChunkSize] = useState("1000");
+  const [isIngesting, setIsIngesting] = useState(false);
+  const [branches, setBranches] = useState<string[]>([]);
+  const [selectedBranch, setSelectedBranch] = useState("main");
 
-  useEffect(() => {
-    loadRepositories()
-  }, [loadRepositories])
-
-  const handleIngest = async () => {
-    if (!repoUrl.trim()) {
-      toast.error("Please enter a repository URL")
-      return
-    }
-
-    const size = parseInt(chunkSize)
-    if (isNaN(size) || size < 500 || size > 1500) {
-      toast.error("Chunk size must be between 500 and 1500")
-      return
+  // Fetch branches when repoUrl changes
+  const fetchBranches = useCallback(async (url: string) => {
+    if (!url.trim()) {
+      setBranches([]);
+      setSelectedBranch("main");
+      return;
     }
 
     try {
-      setIsIngesting(true)
-      
-      await ingestRepository(repoUrl, size)
-
-      toast.success("Ingestion pipeline started successfully")
-      setRepoUrl("")
-      loadRepositories()
-      
-    } catch (error: any) {
-      console.error("Ingestion error:", error)
-      const message = error.response?.data?.detail || "Failed to start ingestion"
-      toast.error(message)
-    } finally {
-      setIsIngesting(false)
+      const branchList = await getBranches(url);
+      setBranches(branchList);
+      if (branchList.includes("main")) setSelectedBranch("main");
+      else if (branchList.length > 0) setSelectedBranch(branchList[0]);
+      else setSelectedBranch("main");
+    } catch (err: any) {
+      console.error("Failed to fetch branches:", err);
+      toast.error("Failed to fetch branches for this repo");
+      setBranches([]);
+      setSelectedBranch("main");
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadRepositories();
+  }, [loadRepositories]);
+
+  useEffect(() => {
+    fetchBranches(repoUrl);
+  }, [repoUrl, fetchBranches]);
+
+  const handleIngest = async () => {
+    if (!repoUrl.trim()) {
+      toast.error("Please enter a repository URL");
+      return;
+    }
+
+    const size = parseInt(chunkSize);
+    if (isNaN(size) || size < 500 || size > 1500) {
+      toast.error("Chunk size must be between 500 and 1500");
+      return;
+    }
+
+    try {
+      setIsIngesting(true);
+
+      // Start ingestion asynchronously
+      await ingestRepository(repoUrl, size, selectedBranch);
+      toast.success("Ingestion started successfully");
+      setRepoUrl("");
+      setBranches([]);
+      setSelectedBranch("main");
+
+      // Refresh repo list immediately to show Processing
+      loadRepositories();
+
+      // Poll for completion
+      const interval = setInterval(async () => {
+        await loadRepositories();
+        const repo = repositories.find((r) => r.url === repoUrl);
+        if (repo?.status === "Completed" || repo?.status === "Failed") {
+          clearInterval(interval);
+        }
+      }, 5000); // every 5 seconds
+    } catch (error: any) {
+      console.error("Ingestion error:", error);
+      const message =
+        error.response?.data?.detail || "Failed to start ingestion";
+      toast.error(message);
+    } finally {
+      setIsIngesting(false);
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case "Completed":
-        return <Check className="w-5 h-5 text-green-600 dark:text-green-400" />
+        return <Check className="w-5 h-5 text-green-600 dark:text-green-400" />;
       case "Processing":
-        return <Loader2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400 animate-spin" />
+        return (
+          <Loader2 className="w-5 h-5 text-yellow-600 dark:text-yellow-400 animate-spin" />
+        );
       case "Failed":
-        return <X className="w-5 h-5 text-red-600 dark:text-red-400" />
+        return <X className="w-5 h-5 text-red-600 dark:text-red-400" />;
       default:
-        return null
+        return null;
     }
-  }
+  };
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">Repository Ingestion</h1>
-        <p className="text-zinc-600 dark:text-zinc-400 mt-1">Ingest and process code repositories</p>
+        <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
+          Repository Ingestion
+        </h1>
+        <p className="text-zinc-600 dark:text-zinc-400 mt-1">
+          Ingest and process code repositories
+        </p>
       </div>
 
       <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">Ingest New Repository</h3>
+        <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
+          Ingest New Repository
+        </h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Repository URL</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Repository URL
+            </label>
             <input
               type="text"
               value={repoUrl}
@@ -80,8 +132,30 @@ function RepositoryIngestion() {
             />
           </div>
 
+          {branches.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                Branch
+              </label>
+              <select
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value)}
+                className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 rounded-lg text-sm"
+                disabled={isIngesting}
+              >
+                {branches.map((b) => (
+                  <option key={b} value={b}>
+                    {b}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
-            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">Chunk Size</label>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+              Chunk Size
+            </label>
             <input
               type="number"
               value={chunkSize}
@@ -92,10 +166,13 @@ function RepositoryIngestion() {
               className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 rounded-lg text-sm"
               disabled={isIngesting}
             />
-            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Number of characters per chunk (500-1500)</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+              Number of characters per chunk (500-1500)
+            </p>
           </div>
-          <Button 
-            onClick={handleIngest} 
+
+          <Button
+            onClick={handleIngest}
             className="w-full bg-black dark:bg-white text-white dark:text-black"
             disabled={isIngesting}
           >
@@ -117,9 +194,13 @@ function RepositoryIngestion() {
         </h3>
         <div className="bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-lg overflow-hidden">
           {isLoadingRepositories ? (
-            <div className="px-6 py-8 text-center text-zinc-600 dark:text-zinc-400">Loading repositories...</div>
+            <div className="px-6 py-8 text-center text-zinc-600 dark:text-zinc-400">
+              Loading repositories...
+            </div>
           ) : repositories.length === 0 ? (
-            <div className="px-6 py-8 text-center text-zinc-600 dark:text-zinc-400">No repositories ingested yet</div>
+            <div className="px-6 py-8 text-center text-zinc-600 dark:text-zinc-400">
+              No repositories ingested yet
+            </div>
           ) : (
             <div className="divide-y divide-zinc-200 dark:divide-zinc-800">
               {repositories.map((repo) => (
@@ -135,11 +216,13 @@ function RepositoryIngestion() {
                           fill="currentColor"
                           viewBox="0 0 24 24"
                         >
-                          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v 3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+                          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                         </svg>
                       </div>
                       <div>
-                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">{repo.url}</p>
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+                          {repo.url}
+                        </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
                           Chunk size: {repo.chunkSize} • Chunks: {repo.chunks}
                         </p>
@@ -153,8 +236,8 @@ function RepositoryIngestion() {
                           repo.status === "Completed"
                             ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400"
                             : repo.status === "Processing"
-                              ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
-                              : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
+                            ? "bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400"
+                            : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-400"
                         }`}
                       >
                         {repo.status}
@@ -169,7 +252,7 @@ function RepositoryIngestion() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
-export default RepositoryIngestion
+export default RepositoryIngestion;

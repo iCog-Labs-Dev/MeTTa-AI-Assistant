@@ -99,3 +99,10 @@ export const retryFailedAnnotations = async (includeQuotaExceeded: boolean) => {
   const response = await axiosInstance.post('/annotation/batch/retry_failed', null, { params })
   return response.data
 }
+
+export const getBranches = async (repoUrl: string) => {
+  const response = await axiosInstance.get("/api/chunks/branches", {
+    params: { repo_url: repoUrl },
+  });
+  return response.data.branches as string[];
+};
