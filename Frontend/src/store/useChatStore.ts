@@ -8,6 +8,7 @@ import {
   getSessionMessagesCursor as apiGetSessionMessagesCursor,
   deleteChatSession as apiDeleteChatSession,
   sendMessage as apiSendMessage,
+  getSession as apiGetSession,
 } from '../services/chatService';
 import { refreshAccessToken, isAuthenticated } from '../lib/auth';
 import { useModelStore } from './useModelStore';
@@ -37,6 +38,7 @@ interface ChatState {
   createSession: () => Promise<void>;
   sendMessage: (query: string) => Promise<void>;
   updateMessageFeedback: (messageId: string, feedback: 'positive' | 'neutral' | 'negative' | null) => void;
+  refreshSession: (sessionId: string) => Promise<void>;
 }
 
 const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
@@ -526,6 +528,14 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         selectedSessionId: realSessionId,
         isSendingMessage: false,
       }));
+
+      setTimeout(() => {
+        get().refreshSession(realSessionId);
+      }, 3000); //Update session title
+      
+      setTimeout(() => {
+        get().refreshSession(realSessionId);
+      }, 10000); //Update session title backup
     } catch (err: any) {
       if (err?.response?.status === 401) {
         try {
@@ -621,6 +631,22 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
         msg.id === messageId ? { ...msg, feedback } : msg
       ),
     }));
+  },
+
+  refreshSession: async (sessionId: string) => {
+    try {
+      const sessionData = await apiGetSession(sessionId, false);
+      
+      if (sessionData.title) {
+         set((state) => ({
+           sessions: state.sessions.map((s) => 
+             s.sessionId === sessionId ? { ...s, title: sessionData.title } : s
+           ),
+         }));
+      }
+    } catch (error) {
+       console.error("Failed to refresh session title:", error);
+    }
   },
 });
 

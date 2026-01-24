@@ -48,6 +48,19 @@ export const getSessionMessages = async (sessionId: string): Promise<Message[]> 
   }
 };
 
+// Get a single session
+export const getSession = async (sessionId: string, includeMessages: boolean = true): Promise<ChatSessionWithMessages> => {
+  try {
+    const response = await axiosInstance.get<ChatSessionWithMessages>(`${SESSIONS_BASE_URL}/${sessionId}`, {
+      params: { include_messages: includeMessages },
+    });
+    return response.data;
+  } catch (error) {
+    handleAxiosError(error, 'Sessions');
+    throw error;
+  }
+};
+
 // Cursor-based message retrieval
 export const getSessionMessagesCursor = async (
   sessionId: string,
