@@ -94,6 +94,20 @@ function Chat() {
     return null;
   }
 
+  const [restoredSessionId, setRestoredSessionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (
+      selectedSessionId && 
+      messages.length === 0 && 
+      !isLoadingMessages &&
+      restoredSessionId !== selectedSessionId
+    ) {
+      setRestoredSessionId(selectedSessionId);
+      useChatStore.getState().selectSession(selectedSessionId);
+    }
+  }, [selectedSessionId, messages.length, isLoadingMessages, restoredSessionId]);
+
   return (
     <div className="flex h-screen bg-white dark:bg-black overflow-hidden">
       {/* Left panel: sidebar */}
