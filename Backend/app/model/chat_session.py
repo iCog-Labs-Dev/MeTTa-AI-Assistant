@@ -7,6 +7,7 @@ class ChatSessionSchema(BaseModel):
     sessionId: str
     createdAt: datetime
     userId: Optional[str] = None
+    title: Optional[str] = None
 
 
 class ChatSessionCreate(BaseModel):

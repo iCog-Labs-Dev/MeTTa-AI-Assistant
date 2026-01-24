@@ -52,6 +52,9 @@ async def list_sessions(
 @router.get("/{session_id}", response_model=ChatSessionWithMessages)
 async def get_session(
     session_id: str,
+    include_messages: bool = Query(
+        True, description="Whether to include messages in the response"
+    ),
     current_user: dict = Depends(get_current_user),
     mongo_db: Database = Depends(get_mongo_db),
 ):
@@ -67,9 +70,13 @@ async def get_session(
 
     if session.get("userId") != current_user["id"]:
         raise HTTPException(status_code=403, detail="Access denied")
-        
-    messages = await get_messages_for_session(session_id, mongo_db=mongo_db)
-    session["messages"] = messages
+
+    if include_messages:
+        messages = await get_messages_for_session(session_id, mongo_db=mongo_db)
+        session["messages"] = messages
+    else:
+        session["messages"] = []
+
     return session
 
 
