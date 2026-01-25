@@ -100,9 +100,17 @@ export const retryFailedAnnotations = async (includeQuotaExceeded: boolean) => {
   return response.data
 }
 
-export const getBranches = async (repoUrl: string) => {
+export const getBranches = async (repoUrl: string): Promise<string[]> => {
   const response = await axiosInstance.get("/api/chunks/branches", {
     params: { repo_url: repoUrl },
   });
-  return response.data.branches as string[];
+
+  // Defensive check to avoid silent UI failures
+  if (!response.data || !Array.isArray(response.data.branches)) {
+    console.error("Invalid branches response:", response.data);
+    throw new Error("Invalid branch response format");
+  }
+
+  return response.data.branches;
 };
+

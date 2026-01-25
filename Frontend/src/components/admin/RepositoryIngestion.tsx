@@ -1,9 +1,21 @@
 import { useEffect, useState, useCallback } from "react";
-import { Check, X, Loader2, ChevronDown } from "lucide-react";
+import { Check, X, Loader2 } from "lucide-react";
 import { useAdminStore } from "../../store/useAdminStore";
 import { Button } from "../ui/button";
 import { ingestRepository, getBranches } from "../../services/adminService";
 import { toast } from "sonner";
+
+const DUMMY_REPOS = [
+  "https://github.com/iCog-Labs-Dev/hyperon-miner",
+  "https://github.com/trueagi-io/PLN",
+  "https://github.com/trueagi-io/chaining/",
+  "https://github.com/iCog-Labs-Dev/metta-attention",
+  "https://github.com/iCog-Labs-Dev/meTTa-utils",
+  "https://github.com/trueagi-io/metta-examples",
+  "https://github.com/123nol/metta_reasoning",
+  "https://github.com/123nol/superposedMetta",
+  "https://github.com/patham9/metta-nars",
+];
 
 function RepositoryIngestion() {
   const { repositories, isLoadingRepositories, loadRepositories } =
@@ -13,6 +25,12 @@ function RepositoryIngestion() {
   const [isIngesting, setIsIngesting] = useState(false);
   const [branches, setBranches] = useState<string[]>([]);
   const [selectedBranch, setSelectedBranch] = useState("main");
+
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const filteredRepos = DUMMY_REPOS.filter((r) =>
+    r.toLowerCase().includes(repoUrl.toLowerCase())
+  );
 
   // Fetch branches when repoUrl changes
   const fetchBranches = useCallback(async (url: string) => {
@@ -40,10 +58,6 @@ function RepositoryIngestion() {
     loadRepositories();
   }, [loadRepositories]);
 
-  useEffect(() => {
-    fetchBranches(repoUrl);
-  }, [repoUrl, fetchBranches]);
-
   const handleIngest = async () => {
     if (!repoUrl.trim()) {
       toast.error("Please enter a repository URL");
@@ -59,24 +73,21 @@ function RepositoryIngestion() {
     try {
       setIsIngesting(true);
 
-      // Start ingestion asynchronously
       await ingestRepository(repoUrl, size, selectedBranch);
       toast.success("Ingestion started successfully");
       setRepoUrl("");
       setBranches([]);
       setSelectedBranch("main");
 
-      // Refresh repo list immediately to show Processing
       loadRepositories();
 
-      // Poll for completion
       const interval = setInterval(async () => {
         await loadRepositories();
         const repo = repositories.find((r) => r.url === repoUrl);
         if (repo?.status === "Completed" || repo?.status === "Failed") {
           clearInterval(interval);
         }
-      }, 5000); // every 5 seconds
+      }, 5000);
     } catch (error: any) {
       console.error("Ingestion error:", error);
       const message =
@@ -117,21 +128,47 @@ function RepositoryIngestion() {
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
           Ingest New Repository
         </h3>
+
         <div className="space-y-4">
-          <div>
+          {/* Repository URL with dropdown */}
+          <div className="relative">
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
               Repository URL
             </label>
             <input
               type="text"
               value={repoUrl}
-              onChange={(e) => setRepoUrl(e.target.value)}
-              placeholder="https://github.com/username/repository"
+              onChange={(e) => {
+                setRepoUrl(e.target.value);
+                setShowDropdown(true);
+              }}
+              onFocus={() => setShowDropdown(true)}
+              placeholder="Type or select a repository"
               className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 rounded-lg text-sm"
               disabled={isIngesting}
             />
+
+            {showDropdown && filteredRepos.length > 0 && (
+              <ul className="absolute z-20 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 mt-1 max-h-48 overflow-auto rounded-md shadow-md">
+                {filteredRepos.map((r) => (
+                  <li
+                    key={r}
+                    className="px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-sm"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      setRepoUrl(r);
+                      fetchBranches(r);
+                      setShowDropdown(false);
+                    }}
+                  >
+                    {r}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
+          {/* Branch selector */}
           {branches.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
@@ -152,6 +189,7 @@ function RepositoryIngestion() {
             </div>
           )}
 
+          {/* Chunk size */}
           <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
               Chunk Size
@@ -171,6 +209,7 @@ function RepositoryIngestion() {
             </p>
           </div>
 
+          {/* Start ingestion button */}
           <Button
             onClick={handleIngest}
             className="w-full bg-black dark:bg-white text-white dark:text-black"
@@ -188,6 +227,7 @@ function RepositoryIngestion() {
         </div>
       </div>
 
+      {/* Ingested repositories list */}
       <div>
         <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
           Ingested Repositories ({repositories.length})

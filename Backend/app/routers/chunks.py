@@ -16,6 +16,7 @@ from app.dependencies import (
 from app.rag.embedding.pipeline import embedding_pipeline
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.db.users import UserRole
+from app.core.repo_ingestion.clone import list_branches as get_repo_branches
 
 router = APIRouter(
     prefix="/api/chunks",
@@ -48,7 +49,7 @@ class ChunkUpdate(BaseModel):
 @router.post("/ingest", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def ingest_repository(
     repo_url: str,
-    branch: str = "main",  # new parameter for branch selection
+    branch: str = "main", 
     chunk_size: int = Query(1500, ge=500, le=1500),
     mongo_db: Database = Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
@@ -64,30 +65,19 @@ async def ingest_repository(
         )
 
 @router.get("/branches", summary="List all branches of a repository")
-async def list_branches(repo_url: str = Query(..., description="Git repository URL")):
-    """
-    Return a list of branches for the given repository URL.
-    """
+async def list_branches_endpoint(
+    repo_url: str = Query(..., description="Git repository URL")
+):
     try:
-        # Run git command to list remote branches
-        result = subprocess.run(
-            ["git", "ls-remote", "--heads", repo_url],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        branches = []
-        for line in result.stdout.splitlines():
-            # Each line: <hash>  refs/heads/<branch_name>
-            parts = line.split()
-            if len(parts) == 2 and parts[1].startswith("refs/heads/"):
-                branch_name = parts[1].replace("refs/heads/", "")
-                branches.append(branch_name)
-        return {"repo_url": repo_url, "branches": branches}
-    except subprocess.CalledProcessError as e:
+        branches = get_repo_branches(repo_url)
+        return {
+            "repo_url": repo_url,
+            "branches": branches
+        }
+    except RuntimeError as e:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to list branches for repo: {str(e)}"
+            detail=str(e)
         )
 
 @router.patch("/{chunk_id}", response_model=Dict[str, Any])
