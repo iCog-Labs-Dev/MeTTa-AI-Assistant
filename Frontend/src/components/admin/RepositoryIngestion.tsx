@@ -5,18 +5,6 @@ import { Button } from "../ui/button";
 import { ingestRepository, getBranches } from "../../services/adminService";
 import { toast } from "sonner";
 
-const DUMMY_REPOS = [
-  "https://github.com/iCog-Labs-Dev/hyperon-miner",
-  "https://github.com/trueagi-io/PLN",
-  "https://github.com/trueagi-io/chaining/",
-  "https://github.com/iCog-Labs-Dev/metta-attention",
-  "https://github.com/iCog-Labs-Dev/meTTa-utils",
-  "https://github.com/trueagi-io/metta-examples",
-  "https://github.com/123nol/metta_reasoning",
-  "https://github.com/123nol/superposedMetta",
-  "https://github.com/patham9/metta-nars",
-];
-
 function RepositoryIngestion() {
   const { repositories, isLoadingRepositories, loadRepositories } =
     useAdminStore();
@@ -25,12 +13,6 @@ function RepositoryIngestion() {
   const [isIngesting, setIsIngesting] = useState(false);
   const [branches, setBranches] = useState<string[]>([]);
   const [selectedBranch, setSelectedBranch] = useState("main");
-
-  const [showDropdown, setShowDropdown] = useState(false);
-
-  const filteredRepos = DUMMY_REPOS.filter((r) =>
-    r.toLowerCase().includes(repoUrl.toLowerCase())
-  );
 
   // Fetch branches when repoUrl changes
   const fetchBranches = useCallback(async (url: string) => {
@@ -72,22 +54,34 @@ function RepositoryIngestion() {
 
     try {
       setIsIngesting(true);
-
       await ingestRepository(repoUrl, size, selectedBranch);
       toast.success("Ingestion started successfully");
       setRepoUrl("");
       setBranches([]);
       setSelectedBranch("main");
-
-      loadRepositories();
-
-      const interval = setInterval(async () => {
+      await loadRepositories();
+      const pollForStatus = async () => {
         await loadRepositories();
-        const repo = repositories.find((r) => r.url === repoUrl);
-        if (repo?.status === "Completed" || repo?.status === "Failed") {
+        const { repositories: currentRepos } = useAdminStore.getState();
+        const hasProcessing = currentRepos.some(repo => repo.status === "Processing");
+
+        if (!hasProcessing) {
+          return true;
+        }
+        return false;
+      };
+      if (await pollForStatus()) return;
+      const interval = setInterval(async () => {
+        if (await pollForStatus()) {
           clearInterval(interval);
         }
-      }, 5000);
+      }, 3000);
+
+      // Stop polling after 5 minutes to prevent infinite polling
+      setTimeout(() => {
+        clearInterval(interval);
+      }, 5 * 60 * 1000);
+
     } catch (error: any) {
       console.error("Ingestion error:", error);
       const message =
@@ -115,11 +109,11 @@ function RepositoryIngestion() {
 
   return (
     <div className="space-y-8">
-      <div>
+      <div className="flex items-center gap-4">
         <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-50">
           Repository Ingestion
         </h1>
-        <p className="text-zinc-600 dark:text-zinc-400 mt-1">
+        <p className="text-zinc-600 dark:text-zinc-400">
           Ingest and process code repositories
         </p>
       </div>
@@ -130,8 +124,8 @@ function RepositoryIngestion() {
         </h3>
 
         <div className="space-y-4">
-          {/* Repository URL with dropdown */}
-          <div className="relative">
+          {/* Repository URL */}
+          <div>
             <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
               Repository URL
             </label>
@@ -140,39 +134,29 @@ function RepositoryIngestion() {
               value={repoUrl}
               onChange={(e) => {
                 setRepoUrl(e.target.value);
-                setShowDropdown(true);
+                // Auto-fetch branches when a valid GitHub URL is entered
+                if (
+                  e.target.value.match(
+                    /^https:\/\/github\.com\/[^\/]+\/[^\/]+\/?$/
+                  )
+                ) {
+                  fetchBranches(e.target.value);
+                } else if (!e.target.value.trim()) {
+                  setBranches([]);
+                  setSelectedBranch("main");
+                }
               }}
-              onFocus={() => setShowDropdown(true)}
-              placeholder="Type or select a repository"
+              placeholder="https://github.com/username/repository"
               className="w-full px-3 py-2 border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-50 rounded-lg text-sm"
               disabled={isIngesting}
             />
-
-            {showDropdown && filteredRepos.length > 0 && (
-              <ul className="absolute z-20 w-full bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 mt-1 max-h-48 overflow-auto rounded-md shadow-md">
-                {filteredRepos.map((r) => (
-                  <li
-                    key={r}
-                    className="px-3 py-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 cursor-pointer text-sm"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      setRepoUrl(r);
-                      fetchBranches(r);
-                      setShowDropdown(false);
-                    }}
-                  >
-                    {r}
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Branch selector */}
           {branches.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
-                Branch
+                Branches
               </label>
               <select
                 value={selectedBranch}
@@ -264,7 +248,8 @@ function RepositoryIngestion() {
                           {repo.url}
                         </p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Chunk size: {repo.chunkSize} • Chunks: {repo.chunks}
+                          Branch: {repo.branch} • Chunk size: {repo.chunkSize} •
+                          Chunks: {repo.chunks}
                         </p>
                       </div>
                     </div>

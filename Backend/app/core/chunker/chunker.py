@@ -11,9 +11,10 @@ def getSize(node: metta_ast_parser.SyntaxNode) -> int:
     start, end = node.src_range
     return end - start
 
-async def ChunkPreprocessedCode(potential_chunks: List[List[str]], max_size: int, repo_url: str) -> List[Dict[str, Any]]:
+async def ChunkPreprocessedCode(potential_chunks: List[List[str]], max_size: int, repo_url: str, branch: str = "main") -> List[Dict[str, Any]]:
     """Chunks a list of potential chunks based on max_size.
-    Each potential chunk is a list of text_node table IDs from our db.
+    Each potential chunk is a list of text_node table IDs from our 
+    db.
     Returns a list of chunked code strings.
     """
     # chunk, rel_path 
@@ -49,17 +50,17 @@ async def ChunkPreprocessedCode(potential_chunks: List[List[str]], max_size: int
         if chunk:
             chunks.append(["\n".join(chunk), rel_paths])
 
-    chunks = [ utils._build_chunk_doc(chunk, list(rel_paths), repo_url) for chunk, rel_paths in chunks if chunk != ""]
+    chunks = [ utils._build_chunk_doc(chunk, list(rel_paths), repo_url, branch) for chunk, rel_paths in chunks if chunk != ""]
     return chunks
 
-async def ChunkCode(repo_files: defaultdict, max_size: int, db: DB, repo_url: str) -> List[Dict[str, Any]]:
+async def ChunkCode(repo_files: defaultdict, max_size: int, db: DB, repo_url: str, branch: str = "main") -> List[Dict[str, Any]]:
     """
     Chunks the code into smaller pieces based on the max_size.
     Stores the chunks in the database.
     """
     
     potential_chunks = await preprocess.preprocess_code(repo_files, db)
-    chunks = await ChunkPreprocessedCode(potential_chunks, max_size, repo_url)
+    chunks = await ChunkPreprocessedCode(potential_chunks, max_size, repo_url, branch)
     ids = await insert_chunks(chunks, db)
     return chunks
 
@@ -91,8 +92,10 @@ def ChunkCodeRecursively(node: metta_ast_parser.SyntaxNode, text: str, max_size:
     return chunks
 
 
-async def ast_based_chunker(index: Dict[str, str], db: DB, repo_url: str,max_size: int = 1500) -> None:   
-    # Group files by repo (can adjust this by determining scope)
+async def ast_based_chunker(index: Dict[str, str], db: DB, repo_url: str,max_size: int = 1500, branch: str = "main") -> None: 
+    
+    # Group files by repo (can adjust this by determining scope)  
+   
     data_dir = os.path.join(os.path.dirname(__file__), "../repo_ingestion/data")
     data_dir = os.path.abspath(data_dir)
 
@@ -102,7 +105,7 @@ async def ast_based_chunker(index: Dict[str, str], db: DB, repo_url: str,max_siz
         repo_files[repo_name].append([rel_path, os.path.join(data_dir, f"{file_hash}.metta")])
 
     # pass the repo_files to chunk_code
-    await ChunkCode(repo_files, max_size, db, repo_url)
+    await ChunkCode(repo_files, max_size, db, repo_url, branch)
     # After all files in this repo are processed, reset symbol index
     await clear_symbols_index(db)
 

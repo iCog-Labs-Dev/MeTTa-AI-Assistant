@@ -12,7 +12,7 @@ async def ingest_pipeline(repo_url: str, max_size: int, db: Database, branch: st
     try:
         files: list[str] = get_all_files(repo_path)
         indexes = process_metta_files(files, DATA_DIR, repo_root=repo_path)
-        await chunker.ast_based_chunker(indexes, db, repo_url, max_size)
+        await chunker.ast_based_chunker(indexes, db, repo_url, max_size, branch)
     finally:
         logger.info(f"Cleaning up {repo_path}")
         shutil.rmtree(repo_path, ignore_errors=True)

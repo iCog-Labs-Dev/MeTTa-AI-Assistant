@@ -25,6 +25,7 @@ class ChunkSchema(BaseModel):
     section: Optional[List[str]] = None
     file: Optional[List[str]] = None
     version: Optional[str] = None
+    branch: Optional[str] = None
 
     # Documentation-specific fields
     url: Optional[str] = None
