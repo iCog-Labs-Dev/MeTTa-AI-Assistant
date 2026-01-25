@@ -14,7 +14,7 @@ def clone_repo(repo_url: str, temp_dir: str, branch: str = "main") -> str:
 
     if os.path.exists(repo_path):
         logger.info(f"Repo already exists at {repo_path}, removing...")
-        subprocess.run(["rm", "-rf", repo_path], shell=True)
+        subprocess.run(["rm", "-rf", repo_path], check=True)
 
     logger.info(f"Cloning {repo_url} (branch: {branch}) into {repo_path}")
     subprocess.run(["git", "clone", "--branch", branch, repo_url, repo_path], check=True)
