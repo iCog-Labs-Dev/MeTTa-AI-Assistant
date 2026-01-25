@@ -41,6 +41,7 @@ class UserResponse(BaseModel):
 class RepositoryResponse(BaseModel):
     id: str
     url: str
+    branch: str
     chunkSize: int
     chunks: int
     status: str
@@ -214,7 +215,8 @@ async def get_repositories(
                 "$group": {
                     "_id": {
                         "project": "$project",
-                        "repo": "$repo"
+                        "repo": "$repo",
+                        "branch": {"$ifNull": ["$branch", "main"]}
                     },
                     "chunks": {"$sum": 1},
                     "chunk_size": {"$first": "$chunk_size"}
@@ -225,6 +227,7 @@ async def get_repositories(
                     "_id": 0,
                     "project": "$_id.project",
                     "repo": "$_id.repo",
+                    "branch": "$_id.branch",
                     "chunks": 1,
                     "chunk_size": 1
                 }
@@ -233,12 +236,15 @@ async def get_repositories(
         cursor = await collection.aggregate(pipeline)
         ingested_repos = [doc async for doc in cursor]
         
+        
+        
         # Convert to RepositoryResponse format
         repositories = []
         for repo_data in ingested_repos:
             repository = RepositoryResponse(
-                id=f"{repo_data['project']}_{repo_data['repo']}".replace("/", "_").replace(":", "_"),
+                id=f"{repo_data['project']}_{repo_data['repo']}_{repo_data['branch']}".replace("/", "_").replace(":", "_"),
                 url=repo_data["repo"],
+                branch=repo_data["branch"],
                 chunkSize=int(repo_data.get("chunk_size", 1000) or 1000),
                 chunks=int(repo_data.get("chunks", 0)),
                 status="Completed"

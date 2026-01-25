@@ -15,6 +15,7 @@ from app.dependencies import (
 from app.rag.embedding.pipeline import embedding_pipeline
 from app.rag.retriever.retriever import EmbeddingRetriever
 from app.db.users import UserRole
+from app.core.repo_ingestion.clone import list_branches as get_repo_branches
 
 router = APIRouter(
     prefix="/api/chunks",
@@ -46,19 +47,36 @@ class ChunkUpdate(BaseModel):
 # chunk repository
 @router.post("/ingest", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def ingest_repository(
-    repo_url: str, 
-    chunk_size: int = Query(1500, ge=500, le=1500), 
+    repo_url: str,
+    branch: str = "main", 
+    chunk_size: int = Query(1500, ge=500, le=1500),
     mongo_db: Database = Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
 ):
-    """Ingest and chunk a code repository."""
+    """Ingest and chunk a code repository with optional branch selection."""
     try:
-        await ingest_pipeline(repo_url, chunk_size, mongo_db)
+        await ingest_pipeline(repo_url, chunk_size, mongo_db, branch=branch)  # forward branch
         return {"message": "Repository ingested and chunked successfully"}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error ingesting repository: {str(e)}"
+        )
+
+@router.get("/branches", summary="List all branches of a repository")
+async def list_branches_endpoint(
+    repo_url: str = Query(..., description="Git repository URL")
+):
+    try:
+        branches = get_repo_branches(repo_url)
+        return {
+            "repo_url": repo_url,
+            "branches": branches
+        }
+    except RuntimeError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
         )
 
 @router.patch("/{chunk_id}", response_model=Dict[str, Any])
