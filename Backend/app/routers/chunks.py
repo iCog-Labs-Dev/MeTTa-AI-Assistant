@@ -47,14 +47,16 @@ class ChunkUpdate(BaseModel):
 @router.post("/ingest", response_model=Dict[str, Any], status_code=status.HTTP_201_CREATED)
 async def ingest_repository(
     repo_url: str, 
-    chunk_size: int = Query(1500, ge=500, le=1500), 
+    chunk_size: int = Query(1500, ge=500, le=1500),
+    branch: str = Query(None, description="Specific branch to clone. Defaults to repository's default branch."),
     mongo_db: Database = Depends(get_mongo_db),
     _: None = Depends(require_role(UserRole.ADMIN)),
 ):
-    """Ingest and chunk a code repository."""
+    """Ingest and chunk a code repository from a specific branch."""
     try:
-        await ingest_pipeline(repo_url, chunk_size, mongo_db)
-        return {"message": "Repository ingested and chunked successfully"}
+        await ingest_pipeline(repo_url, chunk_size, mongo_db, branch=branch)
+        branch_info = f" (branch: {branch})" if branch else ""
+        return {"message": f"Repository{branch_info} ingested and chunked successfully"}
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
