@@ -25,7 +25,7 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!formData.provider || !formData.apiKey) return
+    if (!formData.provider || !formData.modelName || !formData.apiKey) return
     
     setIsSubmitting(true)
     setError(null)
@@ -88,6 +88,18 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
         <ProviderSelect
           value={formData.provider}
           onChange={value => onFormChange({ ...formData, provider: value })}
+          className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
+          required
+        />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="model-name">Model Name</Label>
+        <Input
+          id="model-name"
+          type="text"
+          placeholder="e.g. gemini-2.0-flash, gpt-4-turbo, claude-3-sonnet"
+          value={formData.modelName}
+          onChange={e => onFormChange({ ...formData, modelName: e.target.value })}
           className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
           required
         />

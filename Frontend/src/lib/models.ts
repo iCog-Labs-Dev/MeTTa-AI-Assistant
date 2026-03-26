@@ -4,6 +4,7 @@ import { AVAILABLE_PROVIDERS, getProviderById } from '../lib/providers'
 // Form data for creating or updating a model
 export interface ModelFormData {
   provider: string
+  modelName: string
   apiKey: string
 }
 
@@ -12,13 +13,9 @@ export function createModelFromForm(formData: ModelFormData): Model {
   // Generate a unique ID using the provider name and timestamp
   const id = formData.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
   
-  // Get the provider info to use the correct name
-  const providerInfo = getProviderById(formData.provider)
-  const displayName = providerInfo?.displayName || formData.provider
-  
   return {
     id,
-    name: displayName,
+    name: formData.modelName || formData.provider,
     apiKey: formData.apiKey,
     provider: formData.provider,
     isCustom: true
@@ -27,12 +24,8 @@ export function createModelFromForm(formData: ModelFormData): Model {
 
 // Updates model data from form
 export function updateModelFromForm(formData: ModelFormData): Partial<Model> {
-  // Get the provider info to use the correct name
-  const providerInfo = getProviderById(formData.provider)
-  const displayName = providerInfo?.displayName || formData.provider
-  
   return {
-    name: displayName,
+    name: formData.modelName || formData.provider,
     apiKey: formData.apiKey,
     provider: formData.provider
   }
@@ -42,6 +35,7 @@ export function updateModelFromForm(formData: ModelFormData): Partial<Model> {
 export function modelToFormData(model: Model): ModelFormData {
   return {
     provider: model.provider || '',
+    modelName: model.name || '',
     apiKey: model.apiKey || ''
   }
 }
@@ -49,7 +43,7 @@ export function modelToFormData(model: Model): ModelFormData {
 // Validates model form data
 export function validateModelForm(formData: ModelFormData): boolean {
   const isValidProvider = AVAILABLE_PROVIDERS.some(provider => provider.id === formData.provider)
-  return formData.provider.trim() !== '' && formData.apiKey.trim() !== '' && isValidProvider
+  return formData.provider.trim() !== '' && formData.modelName.trim() !== '' && formData.apiKey.trim() !== '' && isValidProvider
 }
 
 // Gets available provider options

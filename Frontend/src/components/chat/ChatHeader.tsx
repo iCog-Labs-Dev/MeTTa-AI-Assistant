@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import ModelSelector from '../ui/ModelSelector'
 import { User, Settings, LogOut, Menu } from 'lucide-react'
 import { useUserStore } from '../../store/useUserStore'
 
@@ -48,7 +47,6 @@ function ChatHeader({ onToggleSidebar, onOpenSettings }: ChatHeaderProps) {
             <Menu className="w-4 h-4" />
           </button>
         )}
-        <ModelSelector />
       </div>
       <div className="flex items-center gap-2.5 relative" ref={profileRef}>
         <button 

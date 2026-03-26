@@ -29,7 +29,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>('general')
   const [isMobile, setIsMobile] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
-  const [formData, setFormData] = useState<ModelFormData>({ provider: '', apiKey: '' })
+  const [formData, setFormData] = useState<ModelFormData>({ provider: '', modelName: '', apiKey: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const { deleteAPIKey } = useKMS()
 
@@ -96,7 +96,7 @@ function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   function closeModal() {
     setShowAddModal(false)
-    setFormData({ provider: '', apiKey: '' })
+    setFormData({ provider: '', modelName: '', apiKey: '' })
   }
 
   return (
