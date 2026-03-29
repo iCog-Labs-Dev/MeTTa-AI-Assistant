@@ -6,6 +6,7 @@ export * from './chat';
 export interface Model {
   id: string;
   name: string;
+  modelId?: string;
   provider?: string;
   apiKey?: string;
   isCustom?: boolean;

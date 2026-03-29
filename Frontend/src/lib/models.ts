@@ -1,9 +1,41 @@
 import { Model } from '../types'
-import { AVAILABLE_PROVIDERS, getProviderById } from '../lib/providers'
+import { AVAILABLE_PROVIDERS } from '../lib/providers'
+
+export interface ProviderModelOption {
+  value: string
+  label: string
+  provider: string
+  description?: string
+}
+
+const PROVIDER_MODEL_OPTIONS: Record<string, ProviderModelOption[]> = {
+  gemini: [
+    { value: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro', provider: 'gemini', description: 'Highest quality, best for detailed reasoning' },
+    { value: 'gemini-3.1-flash', label: 'Gemini 3.1 Flash', provider: 'gemini', description: 'Faster, lower-latency option' },
+  ],
+  openai: [
+    { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', provider: 'openai', description: 'Balanced quality and latency' },
+    { value: 'gpt-4o-mini', label: 'GPT-4o Mini', provider: 'openai', description: 'Great for lightweight tasks' },
+  ],
+}
+
+export function getModelOptionsForProvider(provider: string): ProviderModelOption[] {
+  return PROVIDER_MODEL_OPTIONS[provider] ?? []
+}
+
+export function getModelOption(provider: string, value: string): ProviderModelOption | undefined {
+  if (!provider || !value) return undefined
+  return getModelOptionsForProvider(provider).find(option => option.value === value)
+}
+
+export function getAllSupportedModelOptions(): ProviderModelOption[] {
+  return Object.values(PROVIDER_MODEL_OPTIONS).flat()
+}
 
 // Form data for creating or updating a model
 export interface ModelFormData {
   provider: string
+  modelName: string
   apiKey: string
 }
 
@@ -11,14 +43,13 @@ export interface ModelFormData {
 export function createModelFromForm(formData: ModelFormData): Model {
   // Generate a unique ID using the provider name and timestamp
   const id = formData.provider.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now()
-  
-  // Get the provider info to use the correct name
-  const providerInfo = getProviderById(formData.provider)
-  const displayName = providerInfo?.displayName || formData.provider
+  const selectedModel = getModelOption(formData.provider, formData.modelName)
+  const displayName = selectedModel?.label || formData.modelName || formData.provider
   
   return {
     id,
     name: displayName,
+    modelId: selectedModel?.value || formData.modelName,
     apiKey: formData.apiKey,
     provider: formData.provider,
     isCustom: true
@@ -27,12 +58,10 @@ export function createModelFromForm(formData: ModelFormData): Model {
 
 // Updates model data from form
 export function updateModelFromForm(formData: ModelFormData): Partial<Model> {
-  // Get the provider info to use the correct name
-  const providerInfo = getProviderById(formData.provider)
-  const displayName = providerInfo?.displayName || formData.provider
-  
+  const selectedModel = getModelOption(formData.provider, formData.modelName)
   return {
-    name: displayName,
+    name: selectedModel?.label || formData.modelName || formData.provider,
+    modelId: selectedModel?.value || formData.modelName,
     apiKey: formData.apiKey,
     provider: formData.provider
   }
@@ -42,6 +71,7 @@ export function updateModelFromForm(formData: ModelFormData): Partial<Model> {
 export function modelToFormData(model: Model): ModelFormData {
   return {
     provider: model.provider || '',
+    modelName: model.modelId || '',
     apiKey: model.apiKey || ''
   }
 }
@@ -49,7 +79,14 @@ export function modelToFormData(model: Model): ModelFormData {
 // Validates model form data
 export function validateModelForm(formData: ModelFormData): boolean {
   const isValidProvider = AVAILABLE_PROVIDERS.some(provider => provider.id === formData.provider)
-  return formData.provider.trim() !== '' && formData.apiKey.trim() !== '' && isValidProvider
+  const hasSupportedModel = !!getModelOption(formData.provider, formData.modelName)
+  return (
+    formData.provider.trim() !== '' &&
+    formData.modelName.trim() !== '' &&
+    formData.apiKey.trim() !== '' &&
+    isValidProvider &&
+    hasSupportedModel
+  )
 }
 
 // Gets available provider options

@@ -3,6 +3,7 @@ import { useEffect } from "react"
 import Auth from "./pages/Auth"
 import Chat from "./pages/Chat"
 import Admin from "./pages/Admin"
+import Settings from "./pages/Settings"
 import NotFoundPage from "./pages/NotFound"
 import { isAuthenticated } from "./lib/auth"
 
@@ -19,6 +20,7 @@ function App() {
         <Route path="/" element={<Navigate to={authed ? "/chat" : "/login"} replace />} />
         <Route path="/login" element={<Auth />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/settings" element={<Settings />} />
         <Route path="/admin/*" element={<Admin />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>

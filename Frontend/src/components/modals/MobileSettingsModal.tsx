@@ -31,7 +31,7 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
   const [activeTab, setActiveTab] = useState<SettingsTab>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingModel, setEditingModel] = useState<string | null>(null)
-  const [formData, setFormData] = useState<ModelFormData>({ provider: '', apiKey: '' })
+  const [formData, setFormData] = useState<ModelFormData>({ provider: '', modelName: '', apiKey: '' })
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   if (!isOpen) return null
@@ -98,7 +98,7 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
   function closeModal() {
     setShowAddModal(false)
     setEditingModel(null)
-    setFormData({ provider: '', apiKey: '' })
+    setFormData({ provider: '', modelName: '', apiKey: '' })
   }
 
   function goBack() {
