@@ -457,12 +457,14 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
     const isTempSession = selectedSessionId?.startsWith('temp-');
 
     try {
-      const { models, activeId } = useModelStore.getState();
-      const activeModel = models.find((m) => m.id === activeId);
+        const { models, activeId } = useModelStore.getState();
+        const activeModel = models.find((m) => m.id === activeId);
+        // The backend ChatRequest already expects `provider` + `model`, so updating this selection UI requires no server changes.
       const provider =
         activeModel?.provider === 'openai'
           ? 'openai'
           : 'gemini';
+      const modelValue = activeModel?.modelId || activeModel?.name || undefined;
 
       let fullResponse = '';
       let realSessionId = selectedSessionId || '';
@@ -475,6 +477,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
           query,
           session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
           provider,
+          model: modelValue,
           mode: 'generate',
         },
         (event) => {
@@ -561,6 +564,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
             activeModel?.provider === 'openai'
               ? 'openai'
               : 'gemini';
+          const modelValue = activeModel?.modelId || activeModel?.name || undefined;
 
           let fullResponse = '';
           let realSessionId = selectedSessionId || '';
@@ -573,6 +577,7 @@ const chatStoreCreator: StateCreator<ChatState> = (set, get) => ({
               query,
               session_id: !selectedSessionId || isTempSession ? undefined : selectedSessionId,
               provider,
+              model: modelValue,
               mode: 'generate',
             },
             (event) => {

@@ -1,4 +1,4 @@
-import { ModelFormData } from '../../lib/models'
+import { ModelFormData, getModelOptionsForProvider, getModelOption } from '../../lib/models'
 import { Button } from './button'
 import { Input } from './input'
 import { Label } from './label'
@@ -22,6 +22,12 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
   const [providerMismatch, setProviderMismatch] = useState<ProviderMismatchInfo | null>(null)
   const [detectedProvider, setDetectedProvider] = useState<string | null>(null)
   const successTimer = useRef<number | null>(null)
+  const availableModels = getModelOptionsForProvider(formData.provider)
+  const selectedModel = getModelOption(formData.provider, formData.modelName)
+
+  const handleProviderChange = (value: string) => {
+    onFormChange({ ...formData, provider: value, modelName: '' })
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -87,19 +93,7 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
         <Label htmlFor="provider">Provider</Label>
         <ProviderSelect
           value={formData.provider}
-          onChange={value => onFormChange({ ...formData, provider: value })}
-          className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
-          required
-        />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="model-name">Model Name</Label>
-        <Input
-          id="model-name"
-          type="text"
-          placeholder="e.g. gemini-2.0-flash, gpt-4-turbo, claude-3-sonnet"
-          value={formData.modelName}
-          onChange={e => onFormChange({ ...formData, modelName: e.target.value })}
+          onChange={handleProviderChange}
           className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600"
           required
         />
@@ -112,8 +106,38 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
           placeholder="Enter your API key"
           value={formData.apiKey}
           onChange={e => onFormChange({ ...formData, apiKey: e.target.value })}
+          autoComplete="off"
           required
         />
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="model-name">Model Preference</Label>
+          <span className="text-[10px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Supported list only</span>
+        </div>
+        <select
+          id="model-name"
+          value={formData.modelName}
+          onChange={e => onFormChange({ ...formData, modelName: e.target.value })}
+          className="w-full px-3 py-2 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-black focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:focus:ring-zinc-600 disabled:bg-zinc-100 disabled:dark:bg-zinc-900/40"
+          required
+          disabled={!formData.provider || availableModels.length === 0}
+        >
+          <option value="">
+            {formData.provider ? 'Select a supported model' : 'Pick a provider first'}
+          </option>
+          {availableModels.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        {formData.provider && availableModels.length === 0 && (
+          <p className="text-xs text-red-600 dark:text-red-400">We do not support custom models for this provider yet.</p>
+        )}
+        {selectedModel?.description && (
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">{selectedModel.description}</p>
+        )}
       </div>
       
       {error && (
@@ -136,7 +160,7 @@ function ModelForm({ formData, onFormChange, onSubmit, onCancel, isEditing }: Mo
             <button
               type="button"
               className="text-xs font-semibold text-blue-600 dark:text-blue-400 underline"
-              onClick={() => onFormChange({ ...formData, provider: detectedProvider! })}
+              onClick={() => handleProviderChange(detectedProvider!)}
             >
               Switch to {detectedProvider}
             </button>
