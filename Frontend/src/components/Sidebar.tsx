@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Search, ChevronLeft, Menu, MoreHorizontal } from 'lucide-react';
+import { Plus, Search, ChevronLeft, Menu, MoreHorizontal, Code2, ExternalLink, Home } from 'lucide-react';
 import { useChatStore } from '../store/useChatStore';
 import ThemeToggle from './ui/ThemeToggle';
 import { SearchModal } from './ui/SearchModal';
 import { Button } from './ui/button';
+import { useNavigate } from "react-router-dom"
 
 interface SidebarProps {
   isOpen: boolean;
@@ -28,7 +29,8 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
-
+  const navigate = useNavigate();
+  
   useEffect(() => {
     loadSessions();
   }, [loadSessions]);
@@ -52,8 +54,22 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   };
 
+  const handleOpenHome = () => {
+  navigate("/home");
+  if (window.innerWidth < 1024) {
+    onClose?.();
+  }
+};
+
   const handleNewChat = () => {
     createSession();
+    if (window.innerWidth < 1024) {
+      onClose?.();
+    }
+  };
+
+  const handleOpenPlayground = () => {
+    navigate("/playground");
     if (window.innerWidth < 1024) {
       onClose?.();
     }
@@ -116,11 +132,25 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
             <Plus className="w-5 h-5" />
           </button>
           <button
+            onClick={handleOpenHome}
+            className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors text-zinc-700 dark:text-zinc-300"
+            title="Home"
+          >
+            <Home className="w-5 h-5" />
+          </button>
+          <button
             onClick={() => setIsSearchModalOpen(true)}
             className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors text-zinc-700 dark:text-zinc-300"
             title="Search"
           >
             <Search className="w-5 h-5" />
+          </button>
+          <button
+            onClick={handleOpenPlayground}
+            className="p-2 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors text-zinc-700 dark:text-zinc-300"
+            title="Open MeTTa Playground"
+          >
+            <Code2 className="w-5 h-5" />
           </button>
         </div>
 
@@ -146,11 +176,28 @@ function Sidebar({ isOpen, onClose }: SidebarProps) {
               <span>New chat</span>
             </button>
             <button
+              onClick={handleOpenHome}
+              className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors text-xs text-zinc-600 dark:text-zinc-400"
+            >
+              <Home className="w-3.5 h-3.5" />
+              <span>Home</span>
+            </button>
+            <button
               onClick={() => setIsSearchModalOpen(true)}
               className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors text-xs text-zinc-600 dark:text-zinc-400"
             >
               <Search className="w-3.5 h-3.5" />
               <span>Search</span>
+            </button>
+            <button
+              onClick={handleOpenPlayground}
+              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors text-xs text-zinc-600 dark:text-zinc-400"
+            >
+              <span className="flex items-center gap-2.5">
+                <Code2 className="w-3.5 h-3.5" />
+                <span>MeTTa Playground</span>
+              </span>
+              <ExternalLink className="w-3 h-3" />
             </button>
           </div>
 

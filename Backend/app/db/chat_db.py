@@ -1,4 +1,4 @@
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict
 from bson import ObjectId
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
@@ -72,13 +72,31 @@ async def create_chat_session(user_id: str, mongo_db: Database = None) -> str:
     return sid
 
 
-async def delete_chat_session(session_id: str, mongo_db: Database = None) -> int:
+async def delete_chat_session(session_id: str, mongo_db: Database = None) -> Dict[str, int]:
     """
-    Delete a chat session document. Returns number of documents deleted (0 or 1).
+    Delete a chat session and all session-scoped records.
+
+    Child records are removed before the session document so we do not leave
+    orphaned conversation data behind if a later delete fails.
     """
-    collection = _get_collection(mongo_db, "chat_sessions")
-    result = await collection.delete_one({"sessionId": session_id})
-    return result.deleted_count
+    sessions_collection = _get_collection(mongo_db, "chat_sessions")
+    messages_collection = _get_collection(mongo_db, "chat_messages")
+    feedback_collection = _get_collection(mongo_db, "feedback")
+    rag_logs_collection = _get_collection(mongo_db, "rag_logs")
+
+    messages_result = await messages_collection.delete_many({"sessionId": session_id})
+    feedback_result = await feedback_collection.delete_many({"sessionId": session_id})
+    rag_logs_result = await rag_logs_collection.delete_many(
+        {"metadata.session_id": session_id}
+    )
+    session_result = await sessions_collection.delete_one({"sessionId": session_id})
+
+    return {
+        "sessions": session_result.deleted_count,
+        "messages": messages_result.deleted_count,
+        "feedback": feedback_result.deleted_count,
+        "rag_logs": rag_logs_result.deleted_count,
+    }
 
 
 async def get_chat_session_by_id(session_id: str, mongo_db: Database = None) -> dict | None:

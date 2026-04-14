@@ -82,6 +82,8 @@ async def chat(
         
         return result
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Chat request failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Chat failed: Retry later")
@@ -117,7 +119,7 @@ async def chat_stream(
             top_k=chat_request.top_k,
         )
 
-        return StreamingResponse(
+        streaming_response = StreamingResponse(
             generator,
             media_type="text/event-stream",
             headers={
@@ -127,7 +129,7 @@ async def chat_stream(
         )
 
         if encrypted_key and encrypted_key.strip():
-            response.set_cookie(
+            streaming_response.set_cookie(
                 key=provider.lower(),
                 value=encrypted_key,
                 httponly=True,
@@ -136,7 +138,9 @@ async def chat_stream(
                 expires=(datetime.now(timezone.utc) + timedelta(days=7)),
             )
 
-        return response
+        return streaming_response
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Streaming chat request failed: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Streaming failed")

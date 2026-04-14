@@ -6,6 +6,7 @@ import { X, User, Palette, Globe, ArrowLeft, ChevronRight, Plus } from 'lucide-r
 import ModelList from '../ui/ModelList'
 import ModelForm from '../ui/ModelForm'
 import { Button } from '../ui/button'
+import { useKMS } from '../../hooks/useKMS'
 import { 
   createModelFromForm, 
   updateModelFromForm, 
@@ -26,6 +27,7 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
   const { models, addModel, updateModel, removeModel } = useModelStore()
   const { email, username, userId, isAuthenticated, accountCreatedAt } = useUserStore()
   const { theme, setTheme } = useTheme()
+  const { deleteAPIKey } = useKMS()
   const [activeTab, setActiveTab] = useState<SettingsTab>(null)
   const [showAddModal, setShowAddModal] = useState(false)
   const [editingModel, setEditingModel] = useState<string | null>(null)
@@ -70,6 +72,27 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
 
   function handleDelete(modelId: string) {
     setConfirmDeleteId(modelId)
+  }
+
+  async function performDelete() {
+    if (!confirmDeleteId) return
+
+    const model = models.find((m) => m.id === confirmDeleteId)
+    if (!model) {
+      setConfirmDeleteId(null)
+      return
+    }
+
+    if (model.provider) {
+      try {
+        await deleteAPIKey(model.provider)
+      } catch (err) {
+        console.error('Failed to delete key via KMS', err)
+      }
+    }
+
+    removeModel(model.id)
+    setConfirmDeleteId(null)
   }
 
   function closeModal() {
@@ -328,10 +351,7 @@ function MobileSettingsModal({ isOpen, onClose }: MobileSettingsModalProps) {
                 <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>Cancel</Button>
                 <Button 
                   className="bg-red-600 hover:bg-red-700 text-white"
-                  onClick={() => {
-                    removeModel(confirmDeleteId)
-                    setConfirmDeleteId(null)
-                  }}
+                  onClick={performDelete}
                 >
                   Delete
                 </Button>

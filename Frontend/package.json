@@ -5,11 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "dev:full": "npm run wasm:build && vite",
+    "wasm:build": "cd metta-playground/metta-wasm && wasm-pack build --target web --out-dir ../pkg",
+    "build": "npm run wasm:build && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.1",
+    "@codemirror/language": "^6.12.2",
+    "@codemirror/state": "^6.6.0",
+    "@codemirror/view": "^6.40.0",
+    "@lezer/highlight": "^1.2.3",
     "@radix-ui/react-dialog": "^1.1.2",
     "@radix-ui/react-label": "^2.1.8",
     "@radix-ui/react-separator": "^1.0.3",
@@ -18,6 +25,7 @@
     "axios": "^1.13.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "codemirror": "^6.0.2",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.471.0",
     "react": "^19.1.1",
@@ -33,7 +41,7 @@
   "devDependencies": {
     "@eslint/js": "^9.36.0",
     "@types/node": "24.10.1",
-    "@types/react": "^19.1.16",
+    "@types/react": "^19.2.14",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
     "autoprefixer": "^10.4.21",

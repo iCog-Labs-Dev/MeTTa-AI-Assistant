@@ -1,11 +1,12 @@
 import * as authService from '../services/authService';
-import type { SignupRequest, LoginRequest, RefreshRequest } from '../types/auth';
+import type { SignupRequest, LoginRequest, RefreshRequest, RefreshResponse } from '../types/auth';
 import { useUserStore } from '../store/useUserStore';
 import { jwtDecode } from 'jwt-decode';
 
 // Token Management
 let accessToken: string | null = null;
 let refreshToken: string | null = null;
+let refreshInFlight: Promise<RefreshResponse> | null = null;
 
 // Set tokens in memory (called after login/signup/refresh)
 export const setTokens = (access: string, refresh: string) => {
@@ -14,7 +15,7 @@ export const setTokens = (access: string, refresh: string) => {
   // Store in localStorage for persistence
   localStorage.setItem('access_token', access);
   localStorage.setItem('refresh_token', refresh);
-  
+
   // Update authentication state in the store
   useUserStore.getState().setIsAuthenticated(true);
 };
@@ -39,7 +40,7 @@ export const clearTokens = () => {
   refreshToken = null;
   localStorage.removeItem('access_token');
   localStorage.removeItem('refresh_token');
-  
+
   // Update authentication state in the store
   useUserStore.getState().setIsAuthenticated(false);
 };
@@ -47,13 +48,13 @@ export const clearTokens = () => {
 // Check if user is authenticated
 export const isAuthenticated = (): boolean => {
   const isAuth = !!getAccessToken();
-  
+
   // Ensure store state is in sync with token state
   const storeState = useUserStore.getState();
   if (storeState.isAuthenticated !== isAuth) {
     storeState.setIsAuthenticated(isAuth);
   }
-  
+
   if (isAuth && !storeState.role && getAccessToken()) {
     try {
       const decoded: any = jwtDecode(getAccessToken() as string);
@@ -65,7 +66,7 @@ export const isAuthenticated = (): boolean => {
       console.error('Failed to decode token:', error);
     }
   }
-  
+
   return isAuth;
 };
 
@@ -82,28 +83,40 @@ export const signup = async (email: string, password: string) => {
 export const login = async (email: string, password: string) => {
   const data: LoginRequest = { email, password };
   const response = await authService.login(data);
-  
+
   // Store tokens
   setTokens(response.access_token, response.refresh_token);
-  
+
   return response;
 };
 
 // Refresh access token
 export const refreshAccessToken = async () => {
-  const currentRefreshToken = getRefreshToken();
-  
-  if (!currentRefreshToken) {
-    throw new Error('No refresh token available');
+  if (refreshInFlight) {
+    return refreshInFlight;
   }
-  
-  const data: RefreshRequest = { refresh_token: currentRefreshToken };
-  const response = await authService.refresh(data);
-  
-  // Update tokens
-  setTokens(response.access_token, response.refresh_token);
-  
-  return response;
+
+  refreshInFlight = (async () => {
+    const currentRefreshToken = getRefreshToken();
+
+    if (!currentRefreshToken) {
+      throw new Error('No refresh token available');
+    }
+
+    const data: RefreshRequest = { refresh_token: currentRefreshToken };
+    const response = await authService.refresh(data);
+
+    // Update tokens
+    setTokens(response.access_token, response.refresh_token);
+
+    return response;
+  })();
+
+  try {
+    return await refreshInFlight;
+  } finally {
+    refreshInFlight = null;
+  }
 };
 
 // Logout user and clear tokens

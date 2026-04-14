@@ -1,0 +1,15 @@
+{
+  "name": "metta-playground",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "metta_playground_bg.wasm",
+    "metta_playground.js",
+    "metta_playground.d.ts"
+  ],
+  "main": "metta_playground.js",
+  "types": "metta_playground.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

@@ -1,0 +1,16 @@
+[package]
+name = "metta-playground"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+getrandom = { version = "0.3", features = ["wasm_js"] }
+hyperon = { git = "https://github.com/trueagi-io/hyperon-experimental.git", tag = "v0.2.10", default-features = false, features = ["pkg_mgmt"] }
+
+[profile.release]
+lto = true
+opt-level = "s"

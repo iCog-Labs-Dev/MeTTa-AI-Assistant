@@ -1,0 +1,452 @@
+{
+  "schemaVersion": 1,
+  "builtins": {
+    "%": [
+      "% : (-> Number Number Number)"
+    ],
+    "*": [
+      "* : (-> Number Number Number)"
+    ],
+    "+": [
+      "+ : (-> Number Number Number)"
+    ],
+    "-": [
+      "- : (-> Number Number Number)"
+    ],
+    "/": [
+      "/ : (-> Number Number Number)"
+    ],
+    "<": [
+      "< : (-> Number Number Bool)"
+    ],
+    "<=": [
+      "<= : (-> Number Number Bool)"
+    ],
+    "=": [
+      "= : (-> $t $t#850654 %Undefined%)"
+    ],
+    "==": [
+      "== : (-> Atom Atom Bool)"
+    ],
+    "=alpha": [
+      "=alpha : (-> Atom Atom Bool)"
+    ],
+    ">": [
+      "> : (-> Number Number Bool)"
+    ],
+    ">=": [
+      ">= : (-> Number Number Bool)"
+    ],
+    "@desc": [
+      "@desc : (-> String DocDescription)"
+    ],
+    "@doc": [
+      "@doc : (-> Atom DocDescription DocInformal)",
+      "@doc : (-> Atom DocDescription DocParameters DocReturnInformal DocInformal)"
+    ],
+    "@doc-formal": [
+      "@doc-formal : (-> DocItem DocKindFunction DocType DocDescription DocParameters DocReturn DocFormal)",
+      "@doc-formal : (-> DocItem DocKindAtom DocType DocDescription DocFormal)",
+      "@doc-formal : (-> DocItem DocKindFunction DocType DocDescription DocFormal)"
+    ],
+    "@item": [
+      "@item : (-> Atom DocItem)"
+    ],
+    "@param": [
+      "@param : (-> DocType DocDescription DocParameter)",
+      "@param : (-> String DocParameterInformal)"
+    ],
+    "@params": [
+      "@params : (-> Expression DocParameters)"
+    ],
+    "@return": [
+      "@return : (-> DocType DocDescription DocReturn)",
+      "@return : (-> String DocReturnInformal)"
+    ],
+    "@type": [
+      "@type : (-> Type DocType)"
+    ],
+    "BadArgType": [
+      "BadArgType : (-> Number Type Type ErrorDescription)"
+    ],
+    "BadType": [
+      "BadType : (-> Type Type ErrorDescription)"
+    ],
+    "Error": [
+      "Error : (-> Atom Atom ErrorType)"
+    ],
+    "ErrorType": [
+      "ErrorType : Type"
+    ],
+    "abs-math": [
+      "abs-math : (-> Number Number)"
+    ],
+    "acos-math": [
+      "acos-math : (-> Number Number)"
+    ],
+    "add-atom": [
+      "add-atom : (-> SpaceType Atom (->))"
+    ],
+    "add-atoms": [
+      "add-atoms : (-> SpaceType Expression (->))"
+    ],
+    "add-reduct": [
+      "add-reduct : (-> SpaceType %Undefined% (->))"
+    ],
+    "add-reducts": [
+      "add-reducts : (-> SpaceType %Undefined% (->))"
+    ],
+    "and": [
+      "and : (-> Bool Bool Bool)"
+    ],
+    "asin-math": [
+      "asin-math : (-> Number Number)"
+    ],
+    "assertAlphaEqual": [
+      "assertAlphaEqual : (-> Atom Atom (->))"
+    ],
+    "assertAlphaEqualMsg": [
+      "assertAlphaEqualMsg : (-> Atom Atom Atom (->))"
+    ],
+    "assertAlphaEqualToResult": [
+      "assertAlphaEqualToResult : (-> Atom Atom (->))"
+    ],
+    "assertAlphaEqualToResultMsg": [
+      "assertAlphaEqualToResultMsg : (-> Atom Atom Atom (->))"
+    ],
+    "assertEqual": [
+      "assertEqual : (-> Atom Atom (->))"
+    ],
+    "assertEqualMsg": [
+      "assertEqualMsg : (-> Atom Atom Atom (->))"
+    ],
+    "assertEqualToResult": [
+      "assertEqualToResult : (-> Atom Atom (->))"
+    ],
+    "assertEqualToResultMsg": [
+      "assertEqualToResultMsg : (-> Atom Atom Atom (->))"
+    ],
+    "assertIncludes": [
+      "assertIncludes : (-> Atom Expression (->))"
+    ],
+    "atan-math": [
+      "atan-math : (-> Number Number)"
+    ],
+    "atom-subst": [
+      "atom-subst : (-> Atom Variable Atom Atom)"
+    ],
+    "bind!": [
+      "bind! : (-> Symbol %Undefined% (->))"
+    ],
+    "capture": [
+      "capture : (-> Atom Atom)"
+    ],
+    "car-atom": [
+      "car-atom : (-> Expression %Undefined%)"
+    ],
+    "case": [
+      "case : (-> Atom Expression %Undefined%)"
+    ],
+    "cdr-atom": [
+      "cdr-atom : (-> Expression Expression)"
+    ],
+    "ceil-math": [
+      "ceil-math : (-> Number Number)"
+    ],
+    "chain": [
+      "chain : (-> Atom Variable Atom %Undefined%)"
+    ],
+    "change-state!": [
+      "change-state! : (-> (StateMonad $tcso#259338) $tcso#259338 (StateMonad $tcso#259338))"
+    ],
+    "collapse": [
+      "collapse : (-> Atom Atom)"
+    ],
+    "collapse-bind": [
+      "collapse-bind : (-> Atom Expression)"
+    ],
+    "cons-atom": [
+      "cons-atom : (-> Atom Expression Atom)"
+    ],
+    "context-space": [
+      "context-space : (-> SpaceType)"
+    ],
+    "cos-math": [
+      "cos-math : (-> Number Number)"
+    ],
+    "decons-atom": [
+      "decons-atom : (-> Expression Atom)"
+    ],
+    "empty": [
+      "empty : %Undefined%"
+    ],
+    "eval": [
+      "eval : (-> Atom Atom)"
+    ],
+    "evalc": [
+      "evalc : (-> Atom SpaceType Atom)"
+    ],
+    "filter-atom": [
+      "filter-atom : (-> Expression Variable Atom Expression)"
+    ],
+    "first-from-pair": [
+      "first-from-pair : %Undefined%"
+    ],
+    "floor-math": [
+      "floor-math : (-> Number Number)"
+    ],
+    "foldl-atom": [
+      "foldl-atom : (-> Expression Atom Variable Variable Atom %Undefined%)"
+    ],
+    "for-each-in-atom": [
+      "for-each-in-atom : (-> Expression Atom (->))"
+    ],
+    "format-args": [
+      "format-args : (-> String Expression String)"
+    ],
+    "function": [
+      "function : (-> Atom Atom)"
+    ],
+    "get-atoms": [
+      "get-atoms : (-> SpaceType Atom)"
+    ],
+    "get-doc": [
+      "get-doc : (-> Atom %Undefined%)"
+    ],
+    "get-doc-atom": [
+      "get-doc-atom : (-> Atom %Undefined%)"
+    ],
+    "get-doc-function": [
+      "get-doc-function : (-> Atom Type %Undefined%)"
+    ],
+    "get-doc-params": [
+      "get-doc-params : (-> Expression Atom Expression (Expression Atom))"
+    ],
+    "get-doc-single-atom": [
+      "get-doc-single-atom : (-> Atom %Undefined%)"
+    ],
+    "get-metatype": [
+      "get-metatype : (-> Atom Atom)"
+    ],
+    "get-state": [
+      "get-state : (-> (StateMonad $t) $t)"
+    ],
+    "get-type": [
+      "get-type : (-> Atom %Undefined%)"
+    ],
+    "get-type-space": [
+      "get-type-space : (-> SpaceType Atom Atom)"
+    ],
+    "git-module!": [
+      "git-module! : (-> Atom (->))"
+    ],
+    "help!": [
+      "help! : (-> Atom (->))"
+    ],
+    "help-param!": [
+      "help-param! : (-> Atom (->))"
+    ],
+    "help-space!": [
+      "help-space! : (-> SpaceType (->))"
+    ],
+    "id": [
+      "id : (-> $t $t)"
+    ],
+    "if": [
+      "if : (-> Bool Atom Atom $t)"
+    ],
+    "if-decons-expr": [
+      "if-decons-expr : (-> Expression Variable Variable Atom Atom %Undefined%)"
+    ],
+    "if-equal": [
+      "if-equal : (-> Atom Atom Atom Atom %Undefined%)"
+    ],
+    "if-error": [
+      "if-error : (-> Atom Atom Atom %Undefined%)"
+    ],
+    "import!": [
+      "import! : (-> Atom Atom (->))"
+    ],
+    "include": [
+      "include : (-> Atom %Undefined%)"
+    ],
+    "index-atom": [
+      "index-atom : (-> Expression Number Atom)"
+    ],
+    "intersection": [
+      "intersection : (-> Atom Atom %Undefined%)"
+    ],
+    "intersection-atom": [
+      "intersection-atom : (-> Expression Expression Atom)"
+    ],
+    "is-function": [
+      "is-function : (-> Type Bool)"
+    ],
+    "isinf-math": [
+      "isinf-math : (-> Number Bool)"
+    ],
+    "isnan-math": [
+      "isnan-math : (-> Number Bool)"
+    ],
+    "let": [
+      "let : (-> Atom %Undefined% Atom %Undefined%)"
+    ],
+    "let*": [
+      "let* : (-> Expression Atom %Undefined%)"
+    ],
+    "log-math": [
+      "log-math : (-> Number Number Number)"
+    ],
+    "map-atom": [
+      "map-atom : (-> Expression Variable Atom Expression)"
+    ],
+    "match": [
+      "match : (-> SpaceType Atom Atom %Undefined%)"
+    ],
+    "match-type-or": [
+      "match-type-or : (-> Bool Type Type Bool)"
+    ],
+    "match-types": [
+      "match-types : (-> Type Type Atom Atom %Undefined%)"
+    ],
+    "max-atom": [
+      "max-atom : (-> %Undefined% Number)"
+    ],
+    "metta": [
+      "metta : (-> Atom Type SpaceType Atom)"
+    ],
+    "min-atom": [
+      "min-atom : (-> %Undefined% Number)"
+    ],
+    "mod-space!": [
+      "mod-space! : (-> Atom SpaceType)"
+    ],
+    "module-space-no-deps": [
+      "module-space-no-deps : (-> SpaceType SpaceType)"
+    ],
+    "new-space": [
+      "new-space : (-> SpaceType)"
+    ],
+    "new-state": [
+      "new-state : (-> $t#265543 (StateMonad $t#265543))"
+    ],
+    "noeval": [
+      "noeval : (-> Atom Atom)"
+    ],
+    "nop": [
+      "nop : %Undefined%"
+    ],
+    "noreduce-eq": [
+      "noreduce-eq : (-> Atom Atom Bool)"
+    ],
+    "not": [
+      "not : (-> Bool Bool)"
+    ],
+    "or": [
+      "or : (-> Bool Bool Bool)"
+    ],
+    "pow-math": [
+      "pow-math : (-> Number Number Number)"
+    ],
+    "pragma!": [
+      "pragma! : %Undefined%"
+    ],
+    "print-mods!": [
+      "print-mods! : (-> (->))"
+    ],
+    "println!": [
+      "println! : (-> %Undefined% (->))"
+    ],
+    "quote": [
+      "quote : (-> Atom Atom)"
+    ],
+    "register-module!": [
+      "register-module! : (-> Atom (->))"
+    ],
+    "remove-atom": [
+      "remove-atom : (-> SpaceType Atom (->))"
+    ],
+    "return": [
+      "return : (-> $t $t)"
+    ],
+    "return-on-error": [
+      "return-on-error : (-> Atom Atom %Undefined%)"
+    ],
+    "round-math": [
+      "round-math : (-> Number Number)"
+    ],
+    "sealed": [
+      "sealed : (-> Expression Atom Atom)"
+    ],
+    "sin-math": [
+      "sin-math : (-> Number Number)"
+    ],
+    "size-atom": [
+      "size-atom : (-> Expression Number)"
+    ],
+    "sort-strings": [
+      "sort-strings : (-> Expression Expression)"
+    ],
+    "sqrt-math": [
+      "sqrt-math : (-> Number Number)"
+    ],
+    "subtraction": [
+      "subtraction : (-> Atom Atom %Undefined%)"
+    ],
+    "subtraction-atom": [
+      "subtraction-atom : (-> Expression Expression Atom)"
+    ],
+    "superpose": [
+      "superpose : (-> Expression %Undefined%)"
+    ],
+    "superpose-bind": [
+      "superpose-bind : (-> Expression Atom)"
+    ],
+    "switch": [
+      "switch : (-> %Undefined% Expression %Undefined%)"
+    ],
+    "switch-internal": [
+      "switch-internal : (-> Atom Expression Atom)"
+    ],
+    "tan-math": [
+      "tan-math : (-> Number Number)"
+    ],
+    "trace!": [
+      "trace! : (-> %Undefined% Atom %Undefined%)"
+    ],
+    "trunc-math": [
+      "trunc-math : (-> Number Number)"
+    ],
+    "type-cast": [
+      "type-cast : %Undefined%"
+    ],
+    "undefined-doc-function-type": [
+      "undefined-doc-function-type : (-> Expression Type)"
+    ],
+    "unify": [
+      "unify : (-> Atom Atom Atom Atom %Undefined%)"
+    ],
+    "union": [
+      "union : (-> Atom Atom %Undefined%)"
+    ],
+    "union-atom": [
+      "union-atom : (-> Expression Expression Atom)"
+    ],
+    "unique": [
+      "unique : (-> Atom %Undefined%)"
+    ],
+    "unique-atom": [
+      "unique-atom : (-> Expression Atom)"
+    ],
+    "unquote": [
+      "unquote : (-> %Undefined% %Undefined%)"
+    ],
+    "xor": [
+      "xor : (-> Bool Bool Bool)"
+    ],
+    "@kind": [
+      "(@kind atom) : DocKindAtom",
+      "(@kind function) : DocKindFunction"
+    ]
+  }
+}

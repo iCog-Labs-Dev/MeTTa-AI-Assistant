@@ -162,36 +162,105 @@ class TestDeleteChatSession:
     
     @pytest.mark.asyncio
     async def test_delete_chat_session_success(self):
-        """Test successfully deleting a chat session."""
+        """Test successfully deleting a chat session and related records."""
         session_id = str(ObjectId())
-        
-        mock_collection = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.deleted_count = 1
-        mock_collection.delete_one = AsyncMock(return_value=mock_result)
+
+        mock_sessions = AsyncMock()
+        mock_messages = AsyncMock()
+        mock_feedback = AsyncMock()
+        mock_rag_logs = AsyncMock()
+
+        mock_session_result = MagicMock()
+        mock_session_result.deleted_count = 1
+        mock_sessions.delete_one = AsyncMock(return_value=mock_session_result)
+
+        mock_messages_result = MagicMock()
+        mock_messages_result.deleted_count = 4
+        mock_messages.delete_many = AsyncMock(return_value=mock_messages_result)
+
+        mock_feedback_result = MagicMock()
+        mock_feedback_result.deleted_count = 2
+        mock_feedback.delete_many = AsyncMock(return_value=mock_feedback_result)
+
+        mock_rag_logs_result = MagicMock()
+        mock_rag_logs_result.deleted_count = 3
+        mock_rag_logs.delete_many = AsyncMock(return_value=mock_rag_logs_result)
+
         mock_mongo_db = MagicMock()
-        
-        with patch("app.db.chat_db._get_collection", return_value=mock_collection):
+
+        collections = {
+            "chat_sessions": mock_sessions,
+            "chat_messages": mock_messages,
+            "feedback": mock_feedback,
+            "rag_logs": mock_rag_logs,
+        }
+
+        def get_collection_side_effect(_mongo_db, name):
+            return collections[name]
+
+        with patch("app.db.chat_db._get_collection", side_effect=get_collection_side_effect):
             result = await delete_chat_session(session_id, mock_mongo_db)
-            
-            assert result == 1
-            mock_collection.delete_one.assert_called_once_with({"sessionId": session_id})
+
+            assert result == {
+                "sessions": 1,
+                "messages": 4,
+                "feedback": 2,
+                "rag_logs": 3,
+            }
+            mock_messages.delete_many.assert_called_once_with({"sessionId": session_id})
+            mock_feedback.delete_many.assert_called_once_with({"sessionId": session_id})
+            mock_rag_logs.delete_many.assert_called_once_with(
+                {"metadata.session_id": session_id}
+            )
+            mock_sessions.delete_one.assert_called_once_with({"sessionId": session_id})
     
     @pytest.mark.asyncio
     async def test_delete_chat_session_not_found(self):
-        """Test deleting non-existent session."""
+        """Test deleting a session when only related records remain."""
         session_id = str(ObjectId())
-        
-        mock_collection = AsyncMock()
-        mock_result = MagicMock()
-        mock_result.deleted_count = 0
-        mock_collection.delete_one = AsyncMock(return_value=mock_result)
+
+        mock_sessions = AsyncMock()
+        mock_messages = AsyncMock()
+        mock_feedback = AsyncMock()
+        mock_rag_logs = AsyncMock()
+
+        mock_session_result = MagicMock()
+        mock_session_result.deleted_count = 0
+        mock_sessions.delete_one = AsyncMock(return_value=mock_session_result)
+
+        mock_messages_result = MagicMock()
+        mock_messages_result.deleted_count = 1
+        mock_messages.delete_many = AsyncMock(return_value=mock_messages_result)
+
+        mock_feedback_result = MagicMock()
+        mock_feedback_result.deleted_count = 1
+        mock_feedback.delete_many = AsyncMock(return_value=mock_feedback_result)
+
+        mock_rag_logs_result = MagicMock()
+        mock_rag_logs_result.deleted_count = 1
+        mock_rag_logs.delete_many = AsyncMock(return_value=mock_rag_logs_result)
+
         mock_mongo_db = MagicMock()
-        
-        with patch("app.db.chat_db._get_collection", return_value=mock_collection):
+
+        collections = {
+            "chat_sessions": mock_sessions,
+            "chat_messages": mock_messages,
+            "feedback": mock_feedback,
+            "rag_logs": mock_rag_logs,
+        }
+
+        def get_collection_side_effect(_mongo_db, name):
+            return collections[name]
+
+        with patch("app.db.chat_db._get_collection", side_effect=get_collection_side_effect):
             result = await delete_chat_session(session_id, mock_mongo_db)
-            
-            assert result == 0
+
+            assert result == {
+                "sessions": 0,
+                "messages": 1,
+                "feedback": 1,
+                "rag_logs": 1,
+            }
 
 
 class TestGetChatSessionById:

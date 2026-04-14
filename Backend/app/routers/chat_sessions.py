@@ -141,12 +141,19 @@ async def delete_session(
         raise HTTPException(status_code=403, detail="Access denied")
 
     try:
-        deleted_count = await delete_chat_session(session_id, mongo_db=mongo_db)
-        if deleted_count == 0:
+        deleted_counts = await delete_chat_session(session_id, mongo_db=mongo_db)
+        if deleted_counts["sessions"] == 0:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Failed to delete session",
             )
+        logger.info(
+            "Deleted session %s with %s messages, %s feedback entries, and %s rag logs",
+            session_id,
+            deleted_counts["messages"],
+            deleted_counts["feedback"],
+            deleted_counts["rag_logs"],
+        )
         return None
     except HTTPException:
         raise

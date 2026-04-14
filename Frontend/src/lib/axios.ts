@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import { getAccessToken, getRefreshToken, refreshAccessToken, clearTokens } from './auth';
 import { useUserStore } from '../store/useUserStore';
 
@@ -14,6 +14,24 @@ const axiosInstance: AxiosInstance = axios.create({
   },
   withCredentials: true,
 });
+
+const isAuthEndpoint = (url: string): boolean => {
+  return url.toLowerCase().includes('/api/auth/');
+};
+
+const hasAuthorizationHeader = (config: AxiosRequestConfig): boolean => {
+  const headers = config.headers;
+  if (!headers) {
+    return false;
+  }
+
+  if (typeof headers.get === 'function') {
+    return Boolean(headers.get('Authorization'));
+  }
+
+  const headerRecord = headers as Record<string, string | undefined>;
+  return Boolean(headerRecord.Authorization ?? headerRecord.authorization);
+};
 
 // Request interceptor for API calls
 axiosInstance.interceptors.request.use(
@@ -37,13 +55,23 @@ axiosInstance.interceptors.response.use(
   },
   async (error: AxiosError) => {
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean };
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
 
-    // If the error is 401 and we haven't retried yet
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    const requestUrl = originalRequest.url ?? '';
+    const shouldAttemptRefresh =
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !isAuthEndpoint(requestUrl) &&
+      hasAuthorizationHeader(originalRequest) &&
+      Boolean(getRefreshToken());
+
+    // Only retry protected non-auth requests that still have a refresh path available.
+    if (shouldAttemptRefresh) {
       originalRequest._retry = true;
 
       try {
-        // Try to refresh the token
         await refreshAccessToken();
 
         // Update the authorization header
