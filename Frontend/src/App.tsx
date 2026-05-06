@@ -1,13 +1,18 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
-import { useEffect, lazy, Suspense } from "react"
-import { isAuthenticated } from "./lib/auth"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+// import Auth from "./pages/Auth";
+// import Chat from "./pages/Chat";
+// import Admin from "./pages/Admin";
+// import NotFoundPage from "./pages/NotFound";
+import LearningModePage from "./pages/LearningModePage";
+import { useEffect, lazy, Suspense } from "react";
+import { isAuthenticated } from "./lib/auth";
 
-const Auth = lazy(() => import("./pages/Auth"))
-const Chat = lazy(() => import("./pages/Chat"))
-const Admin = lazy(() => import("./pages/Admin"))
-const Home = lazy(() => import("./pages/Home"))
-const Playground = lazy(() => import("./pages/Playground"))
-const NotFoundPage = lazy(() => import("./pages/NotFound"))
+const Auth = lazy(() => import("./pages/Auth"));
+const Chat = lazy(() => import("./pages/Chat"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Home = lazy(() => import("./pages/Home"));
+const Playground = lazy(() => import("./pages/Playground"));
+const NotFoundPage = lazy(() => import("./pages/NotFound"));
 
 function PageLoader() {
   return (
@@ -84,29 +89,34 @@ function PageLoader() {
         </main>
       </div>
     </div>
-  )
+  );
 }
 
 function App() {
+  const authed = isAuthenticated();
   useEffect(() => {
-    isAuthenticated()
-  }, [])
+    // Optionally, you can refresh authentication state here if needed
+  }, []);
 
   return (
     <BrowserRouter>
       <Suspense fallback={<PageLoader />}>
         <Routes>
-          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route
+            path="/"
+            element={<Navigate to={authed ? "/chat" : "/login"} replace />}
+          />
           <Route path="/home" element={<Home />} />
           <Route path="/login" element={<Auth />} />
           <Route path="/chat" element={<Chat />} />
           <Route path="/playground" element={<Playground />} />
+          <Route path="/learning" element={<LearningModePage />} />
           <Route path="/admin/*" element={<Admin />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>
-  )
+  );
 }
 
-export default App
+export default App;

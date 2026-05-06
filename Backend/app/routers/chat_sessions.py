@@ -1,6 +1,11 @@
+from fastapi import APIRouter, HTTPException, status, Depends, Query, Body
+router = APIRouter(
+    prefix="/api/chat/sessions",
+    tags=["chat_sessions"],
+    responses={404: {"description": "Not found"}},
+)
 from typing import Dict, Any
 from pymongo.database import Database
-from fastapi import APIRouter, HTTPException, status, Depends, Query
 
 from app.dependencies import get_mongo_db, get_current_user
 from app.db.chat_db import (
@@ -22,6 +27,31 @@ router = APIRouter(
     tags=["chat_sessions"],
     responses={404: {"description": "Not found"}},
 )
+
+
+@router.patch("/{session_id}/title", status_code=204)
+async def update_session_title_route(
+    session_id: str,
+    data: Dict[str, str] = Body(...),
+    mongo_db: Database = Depends(get_mongo_db),
+    current_user: dict = Depends(get_current_user),
+):
+    session = await get_chat_session_by_id(session_id, mongo_db=mongo_db)
+    if not session:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Session with ID {session_id} not found",
+        )
+    if session.get("userId") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    title = data.get("title")
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+    from app.db.chat_db import update_chat_session_title
+    updated = await update_chat_session_title(session_id, title, mongo_db=mongo_db)
+    if not updated:
+        raise HTTPException(status_code=500, detail="Failed to update session title")
+    return None
 
 
 @router.get("/", response_model=Dict[str, Any])

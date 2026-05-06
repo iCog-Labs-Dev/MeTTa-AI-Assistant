@@ -1,0 +1,211 @@
+{
+  "levels": [
+    {
+      "id": "level1",
+      "title": "Foundations (Understanding the World of Metta)",
+      "modules": [
+        {
+          "id": "mod1",
+          "title": "Introduction to Metta & Hyperon",
+          "description": "What is OpenCog Hyperon, What is Metta, Why symbolic / reasoning systems matter, How Metta differs from traditional programming",
+          "prerequisites": [],
+          "content": [
+            "What is OpenCog Hyperon",
+            "What is Metta",
+            "Why symbolic / reasoning systems matter",
+            "How Metta differs from traditional programming"
+          ]
+        },
+        {
+          "id": "mod2",
+          "title": "Core Syntax & Expressions",
+          "description": "Expressions, symbols, variables, and evaluation basics in Metta.",
+          "prerequisites": ["mod1"],
+          "content": [
+            "Expressions (add 1 2)",
+            "Symbols vs values",
+            "Variables",
+            "Evaluation basics"
+          ]
+        },
+        {
+          "id": "mod3",
+          "title": "Atoms & Knowledge Representation",
+          "description": "Atom types, knowledge storage, Atomspace, and graph thinking.",
+          "prerequisites": ["mod2"],
+          "content": [
+            "Atom types (Symbol, Expression)",
+            "How knowledge is stored",
+            "Introduction to Atomspace",
+            "Thinking in graphs instead of variables"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "level2",
+      "title": "Programming in Metta",
+      "modules": [
+        {
+          "id": "mod4",
+          "title": "Pattern Matching (Core Skill)",
+          "description": "Matching expressions, variables in patterns, query-like thinking.",
+          "prerequisites": ["mod3"],
+          "content": [
+            "Matching expressions",
+            "Variables in patterns",
+            "Query-like thinking"
+          ]
+        },
+        {
+          "id": "mod5",
+          "title": "Rules & Transformations",
+          "description": "Writing rules, rewriting expressions, declarative vs imperative thinking.",
+          "prerequisites": ["mod4"],
+          "content": [
+            "Writing rules",
+            "Rewriting expressions",
+            "Declarative vs imperative thinking"
+          ]
+        },
+        {
+          "id": "mod6",
+          "title": "Functions & Recursion",
+          "description": "Function definitions, recursion, and replacing loops with recursion.",
+          "prerequisites": ["mod5"],
+          "content": [
+            "Function definitions in Metta",
+            "Recursive logic",
+            "Replacing loops with recursion"
+          ]
+        },
+        {
+          "id": "mod7",
+          "title": "Data Structures",
+          "description": "Lists, trees, sets, constructing structured knowledge, traversing expressions.",
+          "prerequisites": ["mod6"],
+          "content": [
+            "Lists, trees, sets",
+            "Constructing structured knowledge",
+            "Traversing expressions"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "level3",
+      "title": "Reasoning & Execution",
+      "modules": [
+        {
+          "id": "mod8",
+          "title": "Non-Determinism",
+          "description": "What non-determinism means, multiple outputs, search-based reasoning.",
+          "prerequisites": ["mod7"],
+          "content": [
+            "What it means",
+            "Multiple possible outputs",
+            "Search-based reasoning"
+          ]
+        },
+        {
+          "id": "mod9",
+          "title": "Advanced Pattern Logic",
+          "description": "Higher-order logic, composing rules, complex matching.",
+          "prerequisites": ["mod8"],
+          "content": [
+            "Higher-order logic",
+            "Composing rules",
+            "Complex matching"
+          ]
+        },
+        {
+          "id": "mod10",
+          "title": "Atomspace Deep Dive",
+          "description": "Space operations, querying knowledge, custom atomspaces.",
+          "prerequisites": ["mod9"],
+          "content": [
+            "Space operations",
+            "Querying knowledge",
+            "Custom atomspaces"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "level4",
+      "title": "Practical Development",
+      "modules": [
+        {
+          "id": "mod11",
+          "title": "Files & Modularity",
+          "description": "Organizing Metta code, reusable components.",
+          "prerequisites": ["mod10"],
+          "content": [
+            "Organizing Metta code",
+            "Reusable components"
+          ]
+        },
+        {
+          "id": "mod12",
+          "title": "Python Integration",
+          "description": "Calling Metta from Python, extending functionality, real-world usage.",
+          "prerequisites": ["mod11"],
+          "content": [
+            "Calling Metta from Python",
+            "Extending functionality",
+            "Real-world usage"
+          ]
+        },
+        {
+          "id": "mod13",
+          "title": "Debugging & Execution",
+          "description": "Tracing execution, debugging rules, common pitfalls.",
+          "prerequisites": ["mod12"],
+          "content": [
+            "Tracing execution",
+            "Debugging rules",
+            "Common pitfalls"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "level5",
+      "title": "Applications & Systems Thinking",
+      "modules": [
+        {
+          "id": "mod14",
+          "title": "Real Use Cases",
+          "description": "Knowledge graphs, reasoning systems, AI pipelines.",
+          "prerequisites": ["mod13"],
+          "content": [
+            "Knowledge graphs",
+            "Reasoning systems",
+            "AI pipelines"
+          ]
+        },
+        {
+          "id": "mod15",
+          "title": "Building a Project",
+          "description": "Guided project, step-by-step system building.",
+          "prerequisites": ["mod14"],
+          "content": [
+            "Guided project (VERY important for your Learning Mode)",
+            "Step-by-step system building"
+          ]
+        },
+        {
+          "id": "mod16",
+          "title": "Advanced Concepts (Optional / Future)",
+          "description": "Cognitive architectures, algorithms overview, ecosystem overview.",
+          "prerequisites": ["mod15"],
+          "content": [
+            "Cognitive architectures",
+            "Algorithms overview (high-level only)",
+            "Ecosystem overview"
+          ]
+        }
+      ]
+    }
+  ]
+}

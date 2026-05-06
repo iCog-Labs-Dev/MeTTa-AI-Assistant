@@ -7,11 +7,12 @@ interface ChatMessageListProps {
   onSuggestionClick: (text: string) => void;
   onFeedback?: (
     messageId: string,
-    feedback: "positive" | "neutral" | "negative"
+    feedback: "positive" | "neutral" | "negative",
   ) => void;
   onLoadOlder?: () => Promise<number>;
   hasNextMessages?: boolean;
   isLoadingMoreMessages?: boolean;
+  showWelcomeUI?: boolean;
 }
 
 const suggestionCards: SuggestionCard[] = [
@@ -28,8 +29,9 @@ function MessageList({
   onLoadOlder,
   hasNextMessages = false,
   isLoadingMoreMessages = false,
+  showWelcomeUI = true,
 }: ChatMessageListProps) {
-  const showWelcome = messages.length === 0;
+  const showWelcome = messages.length === 0 && showWelcomeUI;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const isFetchingRef = useRef(false);

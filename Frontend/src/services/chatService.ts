@@ -24,6 +24,8 @@ export interface ChatRequest {
   model?: string;
   mode?: 'search' | 'generate';
   session_id?: string;
+  isLearning?: boolean;
+  moduleId?: string;
 }
 
 export interface ChatResponse {

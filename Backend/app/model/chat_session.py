@@ -8,10 +8,14 @@ class ChatSessionSchema(BaseModel):
     createdAt: datetime
     userId: Optional[str] = None
     title: Optional[str] = None
+    isLearning: bool = False
+    moduleId: Optional[str] = None
 
 
 class ChatSessionCreate(BaseModel):
     userId: str
+    isLearning: bool = False
+    moduleId: Optional[str] = None
 
 class ChatSessionWithMessages(ChatSessionSchema):
     messages: List[ChatMessageSchema] = []

@@ -1,20 +1,20 @@
-import { useState } from 'react'
-import { ArrowUp } from 'lucide-react'
+import { useState } from "react";
+import { ArrowUp } from "lucide-react";
 
 interface ChatInputProps {
-  onSend: (text: string) => void
-  isSendingMessage?: boolean
-  maxWidthClass?: string
+  onSend: (text: string) => void;
+  isSendingMessage?: boolean;
+  maxWidthClass?: string;
 }
 
 function MessageInput({ onSend, isSendingMessage = false }: ChatInputProps) {
-  const [text, setText] = useState('')
+  const [text, setText] = useState("");
 
   function submit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    if (!text.trim() || isSendingMessage) return
-    onSend(text)
-    setText('')
+    e.preventDefault();
+    if (!text.trim() || isSendingMessage) return;
+    onSend(text);
+    setText("");
   }
 
   return (
@@ -23,11 +23,11 @@ function MessageInput({ onSend, isSendingMessage = false }: ChatInputProps) {
         <div className="w-full bg-white dark:bg-zinc-800 border border-gray-200 dark:border-zinc-700 rounded-2xl shadow-sm overflow-hidden">
           <textarea
             value={text}
-            onChange={e => setText(e.target.value)}
+            onChange={(e) => setText(e.target.value)}
             placeholder="Ask about MeTTa, programming concepts, or AI research..."
             rows={1}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
+              if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 submit(e as any);
               }
@@ -45,7 +45,7 @@ function MessageInput({ onSend, isSendingMessage = false }: ChatInputProps) {
         </div>
       </div>
     </form>
-  )
+  );
 }
 
-export default MessageInput
+export default MessageInput;

@@ -19,6 +19,7 @@ from pymongo.database import Database
 from sentence_transformers import SentenceTransformer
 from qdrant_client import AsyncQdrantClient
 
+from app.db.learning_progress import get_user_progress, save_user_progress, UserProgressModel
 from app.core.logging import logger
 from app.core.clients.llm_clients import LLMClient, LLMProvider
 from app.services.key_management_service import KMS
@@ -36,7 +37,59 @@ from app.rag.rag_logging import log_rag_interaction
 from fastapi import BackgroundTasks
 
 
+
 class ChatService:
+    # --- Curriculum and Progress Integration ---
+    CURRICULUM_FILE = os.path.join(os.path.dirname(__file__), '../learning_curriculum.json')
+    with open(CURRICULUM_FILE, encoding='utf-8') as f:
+        curriculum_data = json.load(f)
+    CURRICULUM: Dict[str, dict] = {}
+    for level in curriculum_data.get('levels', []):
+        for module in level.get('modules', []):
+            CURRICULUM[module['id']] = {
+                **module,
+                'level_id': level['id'],
+                'level_title': level['title']
+            }
+
+    @classmethod
+    def get_curriculum(cls):
+        return cls.curriculum_data
+
+    @classmethod
+    def get_module(cls, module_id):
+        return cls.CURRICULUM.get(module_id)
+
+    async def get_user_progress(self, user_id: str, chat_id: str) -> UserProgressModel:
+        return await get_user_progress(user_id, chat_id, self.mongo_db)
+
+    async def save_user_progress(self, progress: UserProgressModel):
+        await save_user_progress(progress, self.mongo_db)
+
+    async def complete_module(self, user_id: str, chat_id: str, module_id: str):
+        progress = await self.get_user_progress(user_id, chat_id)
+        if module_id not in progress.completed_modules:
+            progress.completed_modules.append(module_id)
+            await self.save_user_progress(progress)
+        return progress
+
+    async def self_claim_module(self, user_id: str, chat_id: str, module_id: str):
+        progress = await self.get_user_progress(user_id, chat_id)
+        if module_id not in progress.self_claimed_modules:
+            progress.self_claimed_modules.append(module_id)
+            await self.save_user_progress(progress)
+        return progress
+
+    def module_unlocked(self, progress: UserProgressModel, module: dict) -> bool:
+        prereqs = module.get('prerequisites', [])
+        return all(pr in progress.completed_modules or pr in progress.self_claimed_modules for pr in prereqs)
+
+    def get_next_module(self, progress: UserProgressModel) -> dict:
+        # Return the next unlocked module not yet completed
+        for module_id, module in self.CURRICULUM.items():
+            if module_id not in progress.completed_modules and self.module_unlocked(progress, module):
+                return module
+        return None
     """Service for handling chat operations with RAG system."""
 
     def __init__(
@@ -96,6 +149,8 @@ class ChatService:
         self,
         session_id: Optional[str],
         user_id: str,
+        isLearning: bool = False,
+        moduleId: str = None,
     ) -> tuple[str, bool]:
         """
         Get existing session or create a new one.
@@ -105,8 +160,14 @@ class ChatService:
         """
         if session_id:
             return session_id, False
-        
-        new_session_id = await create_chat_session(user_id, mongo_db=self.mongo_db)
+
+        new_session_id = await create_chat_session(
+            user_id,
+            isLearning=isLearning,
+            moduleId=moduleId,
+            mongo_db=self.mongo_db
+        )
+        # No automatic welcome message insertion here
         return new_session_id, True
 
     async def get_chat_history(
@@ -469,6 +530,8 @@ class ChatService:
         session_id: Optional[str] = None,
         encrypted_api_key: Optional[str] = None,
         top_k: int = 5,
+        isLearning: bool = False,
+        moduleId: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Main entry point for processing chat requests.
@@ -496,15 +559,181 @@ class ChatService:
         api_key = await self.decrypt_api_key(
             encrypted_api_key, user_id, provider
         )
-        
         # Get or create session
-        session_id, _ = await self.get_or_create_session(session_id, user_id)
-        
+        session_id, _ = await self.get_or_create_session(session_id, user_id, isLearning=isLearning, moduleId=moduleId)
+
         # Handle search mode
         if mode == "search":
             return await self.perform_search(query, top_k)
-        
-        # Handle generate mode
+
+        # Handle learning mode
+        if isLearning:
+            # Save the user message before generating a response
+            await insert_chat_message(
+                {
+                    "sessionId": session_id,
+                    "role": "user",
+                    "content": query,
+                },
+                mongo_db=self.mongo_db,
+            )
+
+            # Check if this is the first message in the session
+            raw_history = await get_last_messages(
+                session_id=session_id,
+                limit=2,
+                mongo_db=self.mongo_db,
+            )
+            is_first_message = len(raw_history) == 1 and raw_history[0].get("role") == "user"
+
+            # Compose welcome + first lesson if first message
+            if is_first_message:
+                welcome_message = (
+                    "👋 Welcome to MeTTa Learning Mode!\n\n"
+                    "I'm your friendly AI tutor, here to guide you through the world of MeTTa—an innovative, pattern-based language for cognitive architectures and symbolic reasoning.\n\n"
+                    "In this interactive journey, you'll progress through a series of modules, each designed to build your understanding step by step. At any time, you can ask questions, request examples, or even jump to a specific module if you're feeling adventurous.\n\n"
+                    "Here's how your learning experience will work:\n"
+                    "- I'll introduce each module and explain key concepts in a clear, approachable way.\n"
+                    "- You'll have opportunities to try exercises and quizzes to check your understanding.\n"
+                    "- If you get stuck, just ask for help—I'm here to support you!\n"
+                    "- You can always say things like 'jump to [module name]' to explore topics in your own order.\n\n"
+                    "Let's get started! Which module would you like to begin with, or shall I recommend a starting point?"
+                )
+                # Compose pre-prompt for first lesson
+                pre_prompt = (
+                    "You are a warm, friendly, and expert AI tutor for the MeTTa language. "
+                    "After the introduction, guide the user through the curriculum step by step, adapting to their progress. "
+                    "Use the provided module content if available. Quiz the user, explain concepts, and adapt based on their answers. "
+                    "Do not reveal answers to quizzes unless the user is stuck."
+                )
+
+                # Load curriculum if available
+                import os, json
+                CURRICULUM_FILE = os.path.join(os.path.dirname(__file__), '../learning_curriculum.json')
+                with open(CURRICULUM_FILE, encoding='utf-8') as f:
+                    curriculum_data = json.load(f)
+                CURRICULUM = {}
+                for level in curriculum_data.get('levels', []):
+                    for module in level.get('modules', []):
+                        CURRICULUM[module['id']] = {
+                            **module,
+                            'level_id': level['id'],
+                            'level_title': level['title']
+                        }
+
+                module_content = None
+                module_title = None
+                if moduleId:
+                    module = CURRICULUM.get(moduleId)
+                    if module:
+                        module_title = module.get("title")
+                        module_content = module.get("content")
+
+                # Compose prompt for first lesson
+                prompt = welcome_message + "\n\n" + pre_prompt + "\n"
+                if module_title:
+                    prompt += f"Current module: {module_title}\n"
+                if module_content:
+                    prompt += f"Module content: {module_content}\n"
+                prompt += "\nRespond as the tutor."
+
+                # Call LLM
+                response = await self.default_llm_client.generate_text(prompt, temperature=0.7, max_tokens=600)
+
+                # Save assistant message
+                await insert_chat_message(
+                    {
+                        "sessionId": session_id,
+                        "role": "assistant",
+                        "content": response,
+                    },
+                    mongo_db=self.mongo_db,
+                )
+
+                return {
+                    "response": response,
+                    "module_id": moduleId,
+                    "session_id": session_id,
+                }
+
+            # Otherwise, continue as before (not first message)
+            # Compose pre-prompt (copied from routers/learning.py)
+            pre_prompt = (
+                "You are a warm, friendly, and expert AI tutor for the MeTTa language. "
+                "Your first message in every new learning session should always be a welcoming, descriptive introduction to MeTTa and the learning journey ahead. "
+                "Briefly explain what MeTTa is, what the user will learn, and how the interactive lessons will work. "
+                "Give a quick roadmap of the modules or topics available, and encourage the user to ask questions or jump to any module. "
+                "After the introduction, guide the user through the curriculum step by step, adapting to their progress. "
+                "Use the provided module content if available. Quiz the user, explain concepts, and adapt based on their answers. "
+                "Do not reveal answers to quizzes unless the user is stuck."
+            )
+
+            # Load curriculum if available
+            import os, json
+            CURRICULUM_FILE = os.path.join(os.path.dirname(__file__), '../learning_curriculum.json')
+            with open(CURRICULUM_FILE, encoding='utf-8') as f:
+                curriculum_data = json.load(f)
+            CURRICULUM = {}
+            for level in curriculum_data.get('levels', []):
+                for module in level.get('modules', []):
+                    CURRICULUM[module['id']] = {
+                        **module,
+                        'level_id': level['id'],
+                        'level_title': level['title']
+                    }
+
+            module_content = None
+            module_title = None
+            if moduleId:
+                module = CURRICULUM.get(moduleId)
+                if module:
+                    module_title = module.get("title")
+                    module_content = module.get("content")
+
+            # Build chat history from all persisted messages for this session
+            raw_history = await get_last_messages(
+                session_id=session_id,
+                limit=50,  # Arbitrary large number to get full history
+                mongo_db=self.mongo_db,
+            )
+            chat_history = ""
+            for msg in raw_history:
+                role = msg.get("role")
+                content = msg.get("content", "")
+                if role == "user":
+                    chat_history += f"User: {content}\n"
+                else:
+                    chat_history += f"Tutor: {content}\n"
+
+            # Compose final prompt
+            prompt = pre_prompt + "\n"
+            if module_title:
+                prompt += f"Current module: {module_title}\n"
+            if module_content:
+                prompt += f"Module content: {module_content}\n"
+            prompt += "Conversation so far:\n" + chat_history
+            prompt += "\nRespond as the tutor."
+
+            # Call LLM
+            response = await self.default_llm_client.generate_text(prompt, temperature=0.7, max_tokens=600)
+
+            # Save assistant message
+            await insert_chat_message(
+                {
+                    "sessionId": session_id,
+                    "role": "assistant",
+                    "content": response,
+                },
+                mongo_db=self.mongo_db,
+            )
+
+            return {
+                "response": response,
+                "module_id": moduleId,
+                "session_id": session_id,
+            }
+
+        # Handle normal generate mode
         return await self.generate_response(
             query=query,
             session_id=session_id,

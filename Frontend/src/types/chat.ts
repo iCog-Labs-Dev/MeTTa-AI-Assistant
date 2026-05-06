@@ -10,9 +10,12 @@ export interface Message {
 
 export interface ChatSession {
   sessionId: string;
+  chatId?: string; // Unique chat id for learning mode
   userId?: string;
   createdAt: string;
   title?: string; // Title from first message
+  isLearning?: boolean; // Flag for learning mode sessions
+  moduleId?: string; // Current module for learning mode
 }
 
 export interface ChatSessionWithMessages extends ChatSession {

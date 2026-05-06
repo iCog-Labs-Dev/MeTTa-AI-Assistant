@@ -59,14 +59,23 @@ async def get_last_messages(
 # ----------------------------------
 # CHAT SESSIONS CRUD
 # ----------------------------------
-async def create_chat_session(user_id: str, mongo_db: Database = None) -> str:
+async def create_chat_session(
+    user_id: str,
+    isLearning: bool = False,
+    moduleId: str = None,
+    mongo_db: Database = None
+) -> str:
     """
     Create a new chat session and return its sessionId.
     """
     collection = _get_collection(mongo_db, "chat_sessions")
     sid = str(ObjectId())
     doc = ChatSessionSchema(
-        sessionId=sid, createdAt=datetime.now(timezone.utc), userId=user_id
+        sessionId=sid,
+        createdAt=datetime.now(timezone.utc),
+        userId=user_id,
+        isLearning=isLearning,
+        moduleId=moduleId
     ).model_dump()
     await collection.insert_one(doc)
     return sid
@@ -105,7 +114,12 @@ async def get_chat_session_by_id(session_id: str, mongo_db: Database = None) -> 
     Returns the session document or None if not found.
     """
     collection = _get_collection(mongo_db, "chat_sessions")
-    return await collection.find_one({"sessionId": session_id}, {"_id": 0})
+    session = await collection.find_one({"sessionId": session_id}, {"_id": 0})
+    if session is not None:
+        # Ensure isLearning is always present
+        if "isLearning" not in session:
+            session["isLearning"] = False
+    return session
 
 
 async def update_chat_session_title(
@@ -172,6 +186,9 @@ async def get_chat_sessions(
         for s in sessions:
             if "createdAt" in s and isinstance(s["createdAt"], datetime):
                 s["createdAt"] = s["createdAt"].isoformat()
+            # Ensure isLearning is always present
+            if "isLearning" not in s:
+                s["isLearning"] = False
 
     except PyMongoError as e:
         logger.error("Failed to fetch chat sessions: %s", e)
